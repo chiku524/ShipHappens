@@ -17,10 +17,9 @@ const PLAYER_COLORS: Array[Color] = [
 
 @onready var players_root: Node3D = $Players
 @onready var level_root: Node3D = $Level
-@onready var hud: CanvasLayer = $HUD
-@onready var status_label: Label = $HUD/Panel/MarginContainer/VBoxContainer/StatusLabel
-@onready var hint_label: Label = $HUD/Panel/MarginContainer/VBoxContainer/HintLabel
-@onready var disconnect_button: Button = $HUD/Panel/MarginContainer/VBoxContainer/DisconnectButton
+@onready var status_label: Label = $HUD/TopPanel/MarginContainer/VBoxContainer/StatusLabel
+@onready var hint_label: Label = $HUD/TopPanel/MarginContainer/VBoxContainer/HintLabel
+@onready var disconnect_button: Button = $HUD/TopPanel/MarginContainer/VBoxContainer/DisconnectButton
 
 var _spawn_points: Array[Marker3D] = []
 
@@ -33,6 +32,7 @@ func _ready() -> void:
 
 	_load_hub()
 	_collect_spawn_points()
+	_start_round()
 	_update_status()
 
 	if multiplayer.is_server():
@@ -41,6 +41,10 @@ func _ready() -> void:
 			_spawn_player(peer_id)
 	else:
 		_request_spawn.rpc_id(1)
+
+
+func _start_round() -> void:
+	JobSystem.reset_jobs()
 
 
 func _load_hub() -> void:
@@ -98,12 +102,12 @@ func _despawn_player(peer_id: int) -> void:
 func _update_status() -> void:
 	var role := "Host" if multiplayer.is_server() else "Client"
 	var player_count := players_root.get_child_count()
-	status_label.text = "%s | Port %d | Players: %d | WASD move, Space jump, Hold E sprint, Q/R orbit cam" % [
+	status_label.text = "%s | Port %d | Players: %d | WASD move, Shift sprint, Space jump, E interact" % [
 		role,
 		NetworkManager.DEFAULT_PORT,
 		player_count,
 	]
-	hint_label.text = "Push the orange crate. Sprint into it (hold E). Scroll to zoom."
+	hint_label.text = "Job flow: Kiosk → Printer → Tube ×5 → Kiosk confirm. Pink pad = bonk test."
 
 
 func _on_player_joined(peer_id: int) -> void:

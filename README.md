@@ -10,15 +10,30 @@ You and your friends are the worst freight crew in the galaxy. Load weird **spac
 
 ## Status
 
-**Phase 0 — Network prototype**
+**Phase 1 — Feel prototype**
 
 - [x] Project scaffold + documentation
-- [ ] Third-person movement + orbit camera
-- [ ] Host / join over LAN (ENet)
-- [ ] Synced physics crate
-- [ ] Main Hub greybox
+- [x] Third-person movement + orbit camera
+- [x] Host / join over LAN (ENet)
+- [x] Synced physics crate
+- [x] Main Hub greybox
+- [x] Ragdoll bonk on hard impacts
+- [x] Carry / interact (E key)
+- [x] Paperwork Avalanche job
+- [x] Job board + satisfaction HUD stubs
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for the full solo-dev plan.
+
+## Controls
+
+| Key | Action |
+|-----|--------|
+| WASD | Move |
+| Shift | Sprint |
+| Space | Jump |
+| E | Interact / drop item |
+| Q / R | Orbit camera |
+| Scroll | Zoom camera |
 
 ## Requirements
 

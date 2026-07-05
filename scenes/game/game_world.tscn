@@ -1,6 +1,7 @@
-[gd_scene load_steps=2 format=3 uid="uid://sh_game_world"]
+[gd_scene load_steps=3 format=3 uid="uid://sh_game_world"]
 
 [ext_resource type="Script" path="res://scripts/game/game_world.gd" id="1_world"]
+[ext_resource type="Script" path="res://scripts/ui/game_hud.gd" id="2_hud"]
 
 [node name="GameWorld" type="Node3D"]
 script = ExtResource("1_world")
@@ -11,30 +12,103 @@ script = ExtResource("1_world")
 
 [node name="HUD" type="CanvasLayer" parent="."]
 
-[node name="Panel" type="PanelContainer" parent="HUD"]
+[node name="TopPanel" type="PanelContainer" parent="HUD"]
 offset_left = 16.0
 offset_top = 16.0
-offset_right = 760.0
-offset_bottom = 120.0
+offset_right = 860.0
+offset_bottom = 110.0
 
-[node name="MarginContainer" type="MarginContainer" parent="HUD/Panel"]
+[node name="MarginContainer" type="MarginContainer" parent="HUD/TopPanel"]
 layout_mode = 2
 theme_override_constants/margin_left = 12
 theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 12
 theme_override_constants/margin_bottom = 8
 
-[node name="VBoxContainer" type="VBoxContainer" parent="HUD/Panel/MarginContainer"]
+[node name="VBoxContainer" type="VBoxContainer" parent="HUD/TopPanel/MarginContainer"]
 layout_mode = 2
 
-[node name="StatusLabel" type="Label" parent="HUD/Panel/MarginContainer/VBoxContainer"]
+[node name="StatusLabel" type="Label" parent="HUD/TopPanel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "Connecting..."
 
-[node name="HintLabel" type="Label" parent="HUD/Panel/MarginContainer/VBoxContainer"]
+[node name="HintLabel" type="Label" parent="HUD/TopPanel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "Hint"
 
-[node name="DisconnectButton" type="Button" parent="HUD/Panel/MarginContainer/VBoxContainer"]
+[node name="DisconnectButton" type="Button" parent="HUD/TopPanel/MarginContainer/VBoxContainer"]
 layout_mode = 2
 text = "Disconnect"
+
+[node name="GameHUD" type="Control" parent="HUD"]
+layout_mode = 3
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+mouse_filter = 2
+script = ExtResource("2_hud")
+
+[node name="MarginContainer" type="MarginContainer" parent="HUD/GameHUD"]
+layout_mode = 1
+anchors_preset = 15
+anchor_right = 1.0
+anchor_bottom = 1.0
+grow_horizontal = 2
+grow_vertical = 2
+theme_override_constants/margin_left = 16
+theme_override_constants/margin_top = 130
+theme_override_constants/margin_right = 16
+theme_override_constants/margin_bottom = 16
+
+[node name="HBoxContainer" type="HBoxContainer" parent="HUD/GameHUD/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 16
+
+[node name="LeftColumn" type="VBoxContainer" parent="HUD/GameHUD/MarginContainer/HBoxContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(320, 0)
+theme_override_constants/separation = 8
+
+[node name="SatisfactionLabel" type="Label" parent="HUD/GameHUD/MarginContainer/HBoxContainer/LeftColumn"]
+layout_mode = 2
+text = "Corporate Satisfaction: 100%"
+
+[node name="SatisfactionBar" type="ProgressBar" parent="HUD/GameHUD/MarginContainer/HBoxContainer/LeftColumn"]
+layout_mode = 2
+max_value = 100.0
+value = 100.0
+show_percentage = false
+
+[node name="JobsLabel" type="Label" parent="HUD/GameHUD/MarginContainer/HBoxContainer/LeftColumn"]
+layout_mode = 2
+text = "Jobs: 0 / 7"
+
+[node name="JobBoardPanel" type="PanelContainer" parent="HUD/GameHUD/MarginContainer/HBoxContainer"]
+layout_mode = 2
+size_flags_horizontal = 3
+
+[node name="MarginContainer" type="MarginContainer" parent="HUD/GameHUD/MarginContainer/HBoxContainer/JobBoardPanel"]
+layout_mode = 2
+theme_override_constants/margin_left = 12
+theme_override_constants/margin_top = 10
+theme_override_constants/margin_right = 12
+theme_override_constants/margin_bottom = 10
+
+[node name="VBoxContainer" type="VBoxContainer" parent="HUD/GameHUD/MarginContainer/HBoxContainer/JobBoardPanel/MarginContainer"]
+layout_mode = 2
+theme_override_constants/separation = 8
+
+[node name="JobBoard" type="RichTextLabel" parent="HUD/GameHUD/MarginContainer/HBoxContainer/JobBoardPanel/MarginContainer"]
+layout_mode = 2
+custom_minimum_size = Vector2(420, 120)
+bbcode_enabled = true
+text = "Job board loading..."
+fit_content = true
+scroll_active = false
+
+[node name="ObjectiveLabel" type="Label" parent="HUD/GameHUD/MarginContainer/HBoxContainer/JobBoardPanel/MarginContainer"]
+layout_mode = 2
+autowrap_mode = 3
+text = "Objective"

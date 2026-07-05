@@ -1,12 +1,19 @@
 extends CharacterBody3D
 
-## Third-person cartoon movement for ShipHappens Phase 0.
+## Third-person cartoon movement with bonk ragdoll, carry, and interact.
+
+enum PlayerState { NORMAL, BONKED, DIZZY }
 
 const MOVE_SPEED := 6.0
 const SPRINT_SPEED := 9.0
+const CARRY_SPEED := 4.5
 const JUMP_VELOCITY := 7.5
 const ROTATION_LERP := 12.0
 const PUSH_FORCE := 4.0
+const BONK_FALL_SPEED := 10.0
+const BONK_WALL_SPEED := 8.5
+const BONK_DURATION := 1.5
+const INTERACT_RANGE := 2.2
 
 @export var player_name: String = "Crew Member"
 @export var body_color: Color = Color(0.95, 0.75, 0.2)
@@ -17,10 +24,22 @@ const PUSH_FORCE := 4.0
 @onready var body_mesh: MeshInstance3D = $Visuals/Body
 @onready var head_mesh: MeshInstance3D = $Visuals/Head
 @onready var name_label: Label3D = $Visuals/NameLabel
+@onready var bonk_stars: Label3D = $Visuals/BonkStars
+@onready var carry_anchor: Marker3D = $Visuals/CarryAnchor
 @onready var push_area: Area3D = $PushArea
+@onready var interact_area: Area3D = $InteractArea
+@onready var prompt_label: Label3D = $Visuals/PromptLabel
 
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var camera_yaw: float = 0.0
+var player_state: PlayerState = PlayerState.NORMAL
+var state_timer: float = 0.0
+var carried_item: CarryableItem = null
+var _was_in_air: bool = false
+var _previous_vertical_velocity: float = 0.0
+var _ragdoll_spin: Vector3 = Vector3.ZERO
+var _visual_base_rotation: Vector3 = Vector3.ZERO
+var _bonk_total_duration: float = 1.5
 
 
 func _enter_tree() -> void:
@@ -28,9 +47,13 @@ func _enter_tree() -> void:
 
 
 func _ready() -> void:
+	add_to_group("players")
 	_apply_colors()
 	_update_name_label()
+	bonk_stars.visible = false
+	prompt_label.visible = false
 	camera_yaw = rotation.y
+	_visual_base_rotation = mesh_root.rotation
 	if not is_multiplayer_authority():
 		spring_arm.get_node("Camera3D").current = false
 		set_process_input(false)
@@ -40,6 +63,20 @@ func _physics_process(delta: float) -> void:
 	if not is_multiplayer_authority():
 		return
 
+	_update_interact_prompt()
+
+	if player_state != PlayerState.NORMAL:
+		state_timer -= delta
+		velocity = Vector3.ZERO
+		mesh_root.rotation = _visual_base_rotation + _ragdoll_spin * (1.0 - state_timer / _bonk_total_duration)
+		if state_timer <= 0.0:
+			_recover_from_bonk()
+		move_and_slide()
+		return
+
+	if Input.is_action_just_pressed("interact"):
+		_try_interact()
+
 	if not is_on_floor():
 		velocity.y -= gravity * delta
 
@@ -47,7 +84,7 @@ func _physics_process(delta: float) -> void:
 		velocity.y = JUMP_VELOCITY
 
 	var input_dir := Input.get_vector("move_left", "move_right", "move_forward", "move_back")
-	var speed := SPRINT_SPEED if Input.is_action_pressed("interact") else MOVE_SPEED
+	var speed := _get_move_speed()
 	var cam_basis := camera_rig.global_transform.basis
 	var direction := (cam_basis * Vector3(input_dir.x, 0.0, input_dir.y)).normalized()
 	direction.y = 0.0
@@ -61,7 +98,10 @@ func _physics_process(delta: float) -> void:
 		velocity.x = move_toward(velocity.x, 0.0, speed)
 		velocity.z = move_toward(velocity.z, 0.0, speed)
 
+	_previous_vertical_velocity = velocity.y
+	_was_in_air = not is_on_floor()
 	move_and_slide()
+	_check_bonk_triggers()
 	_try_push_props()
 
 
@@ -77,6 +117,14 @@ func _input(event: InputEvent) -> void:
 	camera_rig.rotation.y = camera_yaw
 
 
+func _get_move_speed() -> float:
+	if carried_item != null:
+		return CARRY_SPEED
+	if Input.is_action_pressed("sprint"):
+		return SPRINT_SPEED
+	return MOVE_SPEED
+
+
 func set_display_name(new_name: String) -> void:
 	player_name = new_name
 	_update_name_label()
@@ -85,6 +133,155 @@ func set_display_name(new_name: String) -> void:
 func set_player_color(color: Color) -> void:
 	body_color = color
 	_apply_colors()
+
+
+func can_pickup_item() -> bool:
+	return player_state == PlayerState.NORMAL and carried_item == null
+
+
+func is_carrying_forms() -> bool:
+	return carried_item != null and carried_item.item_id == "form"
+
+
+func pickup_item(item: CarryableItem) -> void:
+	if not can_pickup_item():
+		return
+	carried_item = item
+	item.pickup_by(self, carry_anchor)
+	if is_multiplayer_authority() and not multiplayer.is_server():
+		_sync_pickup.rpc_id(1, item.name)
+	elif multiplayer.is_server():
+		pass
+
+
+func consume_carried_form() -> bool:
+	if not is_carrying_forms():
+		return false
+	if carried_item != null:
+		carried_item.queue_free()
+	carried_item = null
+	if multiplayer.is_server():
+		_sync_carryable_consumed.rpc()
+	return true
+
+
+func apply_launch(launch: Vector3) -> void:
+	if player_state != PlayerState.NORMAL:
+		return
+	velocity = launch
+
+
+func trigger_bonk(duration: float = BONK_DURATION) -> void:
+	if player_state != PlayerState.NORMAL:
+		return
+	_apply_bonk(duration, PlayerState.BONKED)
+
+
+func trigger_dizzy(duration: float = 3.0) -> void:
+	_apply_bonk(duration, PlayerState.DIZZY)
+
+
+func _apply_bonk(duration: float, state: PlayerState) -> void:
+	if is_multiplayer_authority():
+		_enter_bonk_state(state, duration)
+	if multiplayer.is_server():
+		_sync_bonk.rpc(duration, state)
+	elif is_multiplayer_authority():
+		_notify_bonk.rpc_id(1, duration, state)
+
+
+func _enter_bonk_state(state: PlayerState, duration: float) -> void:
+	player_state = state
+	state_timer = duration
+	_bonk_total_duration = maxf(duration, 0.1)
+	velocity = Vector3.ZERO
+	_drop_carried_item()
+	bonk_stars.visible = true
+	bonk_stars.text = "★ BONK ★" if state == PlayerState.BONKED else "★ DIZZY ★"
+	_ragdoll_spin = Vector3(
+		randf_range(-TAU, TAU),
+		randf_range(-TAU, TAU),
+		randf_range(-TAU, TAU)
+	)
+
+
+func _recover_from_bonk() -> void:
+	player_state = PlayerState.NORMAL
+	state_timer = 0.0
+	mesh_root.rotation = _visual_base_rotation
+	bonk_stars.visible = false
+
+
+func _check_bonk_triggers() -> void:
+	if is_on_floor() and _was_in_air and _previous_vertical_velocity < -BONK_FALL_SPEED:
+		trigger_bonk()
+		return
+
+	if get_slide_collision_count() == 0:
+		return
+
+	var horizontal_speed := Vector2(velocity.x, velocity.z).length()
+	if horizontal_speed >= BONK_WALL_SPEED:
+		for index in get_slide_collision_count():
+			var collision := get_slide_collision(index)
+			var collider := collision.get_collider()
+			if collider != null and collider.is_in_group("bonk_pad"):
+				continue
+			trigger_bonk(1.2)
+			return
+
+
+func _try_interact() -> void:
+	if player_state != PlayerState.NORMAL:
+		return
+
+	var target := _get_best_interactable()
+	if target != null and target.can_interact(self):
+		target.interact(self)
+	elif carried_item != null:
+		_drop_carried_item()
+
+
+func _get_best_interactable() -> Node:
+	var best: Node = null
+	var best_distance := INTERACT_RANGE
+	for area in interact_area.get_overlapping_areas():
+		if not area.is_in_group("interactable"):
+			continue
+		if not area.has_method("can_interact") or not area.can_interact(self):
+			continue
+		var distance := global_position.distance_to(area.global_position)
+		if distance < best_distance:
+			best_distance = distance
+			best = area
+	return best
+
+
+func _update_interact_prompt() -> void:
+	if not is_multiplayer_authority():
+		return
+
+	if player_state != PlayerState.NORMAL:
+		prompt_label.visible = false
+		return
+
+	var target := _get_best_interactable()
+	if target != null and target.has_method("get_prompt"):
+		prompt_label.text = "[E] %s" % target.get_prompt(self)
+		prompt_label.visible = true
+	elif carried_item != null:
+		prompt_label.text = "[E] Drop form"
+		prompt_label.visible = true
+	else:
+		prompt_label.visible = false
+
+
+func _drop_carried_item() -> void:
+	if carried_item == null:
+		return
+	var drop_position := global_position + global_transform.basis.z * 0.8 + Vector3.UP * 0.5
+	carried_item.drop(drop_position)
+	carried_item = null
 
 
 func _apply_colors() -> void:
@@ -107,3 +304,44 @@ func _try_push_props() -> void:
 			var push_dir := -global_transform.basis.z
 			push_dir.y = 0.0
 			body.apply_player_push(push_dir.normalized() * PUSH_FORCE)
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _sync_pickup(item_name: String) -> void:
+	if not multiplayer.is_server():
+		return
+	var peer_id := multiplayer.get_remote_sender_id()
+	var player := _find_player_node(peer_id)
+	var item := get_tree().current_scene.get_node_or_null(item_name)
+	if player == null or item == null or not item is CarryableItem:
+		return
+	player.carried_item = item
+	item.pickup_by(player, player.carry_anchor)
+
+
+func _find_player_node(peer_id: int) -> CharacterBody3D:
+	for node in get_tree().get_nodes_in_group("players"):
+		if node.name == str(peer_id):
+			return node
+	return null
+
+
+@rpc("authority", "call_remote", "reliable")
+func _sync_carryable_consumed() -> void:
+	if carried_item != null:
+		carried_item.queue_free()
+	carried_item = null
+
+
+@rpc("any_peer", "call_remote", "reliable")
+func _notify_bonk(duration: float, state: PlayerState) -> void:
+	if not multiplayer.is_server():
+		return
+	_sync_bonk.rpc(duration, state)
+
+
+@rpc("authority", "call_remote", "reliable")
+func _sync_bonk(duration: float, state: PlayerState) -> void:
+	if is_multiplayer_authority():
+		return
+	_enter_bonk_state(state, duration)

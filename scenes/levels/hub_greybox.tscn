@@ -1,6 +1,10 @@
-[gd_scene load_steps=8 format=3 uid="uid://sh_hub_greybox"]
+[gd_scene load_steps=15 format=3 uid="uid://sh_hub_greybox"]
 
 [ext_resource type="PackedScene" uid="uid://sh_crate_scene" path="res://scenes/props/crate.tscn" id="1_crate"]
+[ext_resource type="PackedScene" uid="uid://sh_job_kiosk" path="res://scenes/jobs/job_kiosk.tscn" id="2_kiosk"]
+[ext_resource type="PackedScene" uid="uid://sh_paperwork_printer" path="res://scenes/jobs/paperwork_printer.tscn" id="3_printer"]
+[ext_resource type="PackedScene" uid="uid://sh_paperwork_tube" path="res://scenes/jobs/paperwork_tube.tscn" id="4_tube"]
+[ext_resource type="PackedScene" uid="uid://sh_bonk_pad" path="res://scenes/props/bonk_pad.tscn" id="5_bonk"]
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_floor"]
 albedo_color = Color(0.18, 0.2, 0.28, 1)
@@ -22,6 +26,12 @@ size = Vector3(40, 6, 1)
 
 [sub_resource type="BoxShape3D" id="BoxShape3D_wall"]
 size = Vector3(40, 6, 1)
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_platform"]
+size = Vector3(4, 0.5, 4)
+
+[sub_resource type="BoxMesh" id="BoxMesh_platform"]
+size = Vector3(4, 0.5, 4)
 
 [node name="HubGreybox" type="Node3D"]
 
@@ -117,6 +127,28 @@ transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 1, 0)
 
 [node name="Crate" parent="." instance=ExtResource("1_crate")]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.2, 4)
+
+[node name="JobKiosk" parent="." instance=ExtResource("2_kiosk")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -10, 0, -8)
+
+[node name="PaperworkPrinter" parent="." instance=ExtResource("3_printer")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, -14, 0, -8)
+
+[node name="PaperworkTube" parent="." instance=ExtResource("4_tube")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 10, 0, -8)
+
+[node name="BonkPad" parent="." instance=ExtResource("5_bonk")]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 3.55, 8)
+
+[node name="BonkPlatform" type="StaticBody3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 8, 3.25, 8)
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="BonkPlatform"]
+shape = SubResource("BoxShape3D_platform")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="BonkPlatform"]
+mesh = SubResource("BoxMesh_platform")
+surface_material_override/0 = SubResource("StandardMaterial3D_accent")
 
 [node name="Sign" type="Label3D" parent="."]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 4, -12)

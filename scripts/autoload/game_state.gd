@@ -6,6 +6,9 @@ enum Role { CREW, STOWAWAY }
 
 enum RoundPhase { LOBBY, PLAYING, MEETING, EXTRACTION, REVIEW }
 
+signal satisfaction_changed(value: float)
+signal jobs_progress_changed(completed: int, required: int)
+
 var local_player_name: String = "Crew Member"
 var round_phase: RoundPhase = RoundPhase.LOBBY
 var corporate_satisfaction: float = 100.0
@@ -20,6 +23,13 @@ func reset_round() -> void:
 	corporate_satisfaction = 100.0
 	jobs_completed = 0
 	_player_roles.clear()
+	satisfaction_changed.emit(corporate_satisfaction)
+	jobs_progress_changed.emit(jobs_completed, jobs_required)
+
+
+func add_satisfaction(amount: float) -> void:
+	corporate_satisfaction = clampf(corporate_satisfaction + amount, 0.0, 100.0)
+	satisfaction_changed.emit(corporate_satisfaction)
 
 
 func set_local_player_name(player_name: String) -> void:

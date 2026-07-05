@@ -2,26 +2,23 @@
 
 Estimated timeline: **12–18 months** to Steam Early Access.
 
-## Phase 0 — Prove net (2–3 weeks) ← **YOU ARE HERE**
+## Phase 0 — Prove net (2–3 weeks) ✓
 
 - [x] GitHub repo + documentation
 - [x] Godot project scaffold
-- [ ] Third-person move + orbit camera
-- [ ] 4-player LAN host/join
-- [ ] One physics crate push synced
-- [ ] Main Hub greybox only
+- [x] Third-person move + orbit camera
+- [x] 4-player LAN host/join
+- [x] One physics crate push synced
+- [x] Main Hub greybox only
 
-**Exit criteria:** Two PCs on LAN can run, move, and push the same crate.
+## Phase 1 — Feel prototype (4–6 weeks) ← **YOU ARE HERE**
 
-## Phase 1 — Feel prototype (4–6 weeks)
-
-- Ragdoll bonk on hard impacts
-- Carry / push interactions
-- One complete job (Paperwork Avalanche)
-- Job board UI stub
-- Satisfaction meter stub
-
-**Exit criteria:** One job completable in a greybox room with friends laughing.
+- [x] Ragdoll bonk on hard impacts
+- [x] Carry / push interactions
+- [x] One complete job (Paperwork Avalanche)
+- [x] Job board UI stub
+- [x] Satisfaction meter stub
+- [ ] Playtest with friends and tune feel
 
 ## Phase 2 — Core loop (8–10 weeks)
 
