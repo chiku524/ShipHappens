@@ -29,12 +29,14 @@ const INTERACT_RANGE := 2.2
 @onready var push_area: Area3D = $PushArea
 @onready var interact_area: Area3D = $InteractArea
 @onready var prompt_label: Label3D = $Visuals/PromptLabel
+@onready var dunce_hat: MeshInstance3D = $Visuals/DunceHat
 
 var gravity: float = ProjectSettings.get_setting("physics/3d/default_gravity")
 var camera_yaw: float = 0.0
 var player_state: PlayerState = PlayerState.NORMAL
 var state_timer: float = 0.0
 var carried_item: CarryableItem = null
+var has_mop: bool = false
 var _was_in_air: bool = false
 var _previous_vertical_velocity: float = 0.0
 var _ragdoll_spin: Vector3 = Vector3.ZERO
@@ -52,8 +54,11 @@ func _ready() -> void:
 	_update_name_label()
 	bonk_stars.visible = false
 	prompt_label.visible = false
+	dunce_hat.visible = GameState.is_written_up(int(name))
 	camera_yaw = rotation.y
 	_visual_base_rotation = mesh_root.rotation
+	GameState.written_up_changed.connect(_on_written_up_changed)
+	RoundManager.round_phase_changed.connect(_on_round_phase_changed)
 	if not is_multiplayer_authority():
 		spring_arm.get_node("Camera3D").current = false
 		set_process_input(false)
@@ -64,6 +69,11 @@ func _physics_process(delta: float) -> void:
 		return
 
 	_update_interact_prompt()
+
+	if GameState.round_phase == GameState.RoundPhase.MEETING or GameState.round_phase == GameState.RoundPhase.REVIEW:
+		velocity = Vector3.ZERO
+		move_and_slide()
+		return
 
 	if player_state != PlayerState.NORMAL:
 		state_timer -= delta
@@ -141,6 +151,29 @@ func can_pickup_item() -> bool:
 
 func is_carrying_forms() -> bool:
 	return carried_item != null and carried_item.item_id == "form"
+
+
+func is_carrying_hot_dog() -> bool:
+	return carried_item != null and carried_item.item_id == "hot_dog"
+
+
+func has_mop_equipped() -> bool:
+	return has_mop
+
+
+func equip_mop() -> void:
+	has_mop = true
+
+
+func consume_hot_dog() -> bool:
+	if not is_carrying_hot_dog():
+		return false
+	if carried_item != null:
+		carried_item.queue_free()
+	carried_item = null
+	if multiplayer.is_server():
+		_sync_carryable_consumed.rpc()
+	return true
 
 
 func pickup_item(item: CarryableItem) -> void:
@@ -270,7 +303,7 @@ func _update_interact_prompt() -> void:
 		prompt_label.text = "[E] %s" % target.get_prompt(self)
 		prompt_label.visible = true
 	elif carried_item != null:
-		prompt_label.text = "[E] Drop form"
+		prompt_label.text = "[E] Drop item"
 		prompt_label.visible = true
 	else:
 		prompt_label.visible = false
@@ -345,3 +378,16 @@ func _sync_bonk(duration: float, state: PlayerState) -> void:
 	if is_multiplayer_authority():
 		return
 	_enter_bonk_state(state, duration)
+
+
+func _on_written_up_changed(peer_id: int, active: bool) -> void:
+	if int(name) != peer_id:
+		return
+	dunce_hat.visible = active
+
+
+func _on_round_phase_changed(phase: GameState.RoundPhase) -> void:
+	if phase == GameState.RoundPhase.REVIEW:
+		has_mop = false
+		if is_multiplayer_authority():
+			velocity = Vector3.ZERO

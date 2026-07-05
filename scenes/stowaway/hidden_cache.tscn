@@ -1,0 +1,29 @@
+[gd_scene load_steps=4 format=3 uid="uid://sh_hidden_cache"]
+
+[ext_resource type="Script" path="res://scripts/stowaway/hidden_cache.gd" id="1_script"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_vent"]
+size = Vector3(1.2, 1.5, 0.6)
+
+[sub_resource type="BoxMesh" id="BoxMesh_vent"]
+size = Vector3(1.2, 1.5, 0.6)
+
+[node name="HiddenCache" type="Area3D"]
+collision_layer = 8
+collision_mask = 2
+script = ExtResource("1_script")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
+shape = SubResource("BoxShape3D_vent")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0.75, 0)
+mesh = SubResource("BoxMesh_vent")
+
+[node name="Label3D" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.0, 0)
+billboard = 1
+text = "JANITOR VENT"
+font_size = 20
+outline_size = 6

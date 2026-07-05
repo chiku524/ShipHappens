@@ -83,7 +83,20 @@ show_percentage = false
 
 [node name="JobsLabel" type="Label" parent="HUD/GameHUD/MarginContainer/HBoxContainer/LeftColumn"]
 layout_mode = 2
-text = "Jobs: 0 / 7"
+text = "Jobs: 0 / 4"
+
+[node name="TimerLabel" type="Label" parent="HUD/GameHUD/MarginContainer/HBoxContainer/LeftColumn"]
+layout_mode = 2
+text = "Round time: 20:00"
+
+[node name="RoleLabel" type="Label" parent="HUD/GameHUD/MarginContainer/HBoxContainer/LeftColumn"]
+layout_mode = 2
+text = "Role: Crew"
+
+[node name="StowawayLabel" type="Label" parent="HUD/GameHUD/MarginContainer/HBoxContainer/LeftColumn"]
+layout_mode = 2
+visible = false
+text = "Smuggled: 0 / 2"
 
 [node name="JobBoardPanel" type="PanelContainer" parent="HUD/GameHUD/MarginContainer/HBoxContainer"]
 layout_mode = 2

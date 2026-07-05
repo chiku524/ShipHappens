@@ -4,6 +4,8 @@ extends Node3D
 
 const HUB_SCENE := preload("res://scenes/levels/hub_greybox.tscn")
 const PLAYER_SCENE := preload("res://scenes/player/player.tscn")
+const MEETING_PANEL_SCENE := preload("res://scenes/ui/meeting_panel.tscn")
+const ROUND_END_SCENE := preload("res://scenes/ui/round_end_panel.tscn")
 const PLAYER_COLORS: Array[Color] = [
 	Color(0.95, 0.78, 0.2),
 	Color(0.95, 0.45, 0.2),
@@ -30,21 +32,28 @@ func _ready() -> void:
 	NetworkManager.player_left.connect(_on_player_left)
 	NetworkManager.server_disconnected.connect(_on_server_disconnected)
 
+	add_child(MEETING_PANEL_SCENE.instantiate())
+	add_child(ROUND_END_SCENE.instantiate())
+
 	_load_hub()
 	_collect_spawn_points()
-	_start_round()
 	_update_status()
 
 	if multiplayer.is_server():
 		_spawn_player(1)
 		for peer_id in multiplayer.get_peers():
 			_spawn_player(peer_id)
+		await get_tree().create_timer(0.5).timeout
+		RoundManager.start_round(_gather_peer_ids())
 	else:
 		_request_spawn.rpc_id(1)
 
 
-func _start_round() -> void:
-	JobSystem.reset_jobs()
+func _gather_peer_ids() -> PackedInt32Array:
+	var ids := PackedInt32Array()
+	for child in players_root.get_children():
+		ids.append(int(child.name))
+	return ids
 
 
 func _load_hub() -> void:
@@ -102,12 +111,12 @@ func _despawn_player(peer_id: int) -> void:
 func _update_status() -> void:
 	var role := "Host" if multiplayer.is_server() else "Client"
 	var player_count := players_root.get_child_count()
-	status_label.text = "%s | Port %d | Players: %d | WASD move, Shift sprint, Space jump, E interact" % [
+	status_label.text = "%s | Port %d | Players: %d | Complete 4 jobs, catch the Stowaway, escape shuttle" % [
 		role,
 		NetworkManager.DEFAULT_PORT,
 		player_count,
 	]
-	hint_label.text = "Job flow: Kiosk → Printer → Tube ×5 → Kiosk confirm. Pink pad = bonk test."
+	hint_label.text = "Break room: call meeting. Stowaway: smuggle hot dogs to the janitor vent."
 
 
 func _on_player_joined(peer_id: int) -> void:

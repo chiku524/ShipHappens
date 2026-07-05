@@ -10,19 +10,25 @@ You and your friends are the worst freight crew in the galaxy. Load weird **spac
 
 ## Status
 
-**Phase 1 — Feel prototype**
+**Phase 2 — Core loop**
 
-- [x] Project scaffold + documentation
-- [x] Third-person movement + orbit camera
-- [x] Host / join over LAN (ENet)
-- [x] Synced physics crate
-- [x] Main Hub greybox
-- [x] Ragdoll bonk on hard impacts
-- [x] Carry / interact (E key)
-- [x] Paperwork Avalanche job
-- [x] Job board + satisfaction HUD stubs
+- [x] Phase 0 + Phase 1 features
+- [x] Crew vs Stowaway roles (private reveal)
+- [x] 4 jobs: Paperwork, Power Hour, Mop the Future, Manifest Lies
+- [x] Hot dog smuggling + Hidden Cache
+- [x] Emergency Stand-Up Meeting + Write-Up vote
+- [x] Shuttle bay extraction timer + round end screen
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for the full solo-dev plan.
+
+## How to play a full round
+
+1. **Host** a game with friends (2+ players recommended).
+2. Check your **Role** in the HUD (Stowaway is private to you).
+3. Complete **4 jobs** around the hub (kiosk, breakers, mop, manifest).
+4. **Stowaway:** steal hot dog crates → **Janitor Vent** (×2).
+5. **Crew:** call **Emergency Meeting** in the break room if suspicious.
+6. When jobs are done, rush the **Shuttle Bay** before the timer ends.
 
 ## Controls
 

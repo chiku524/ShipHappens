@@ -1,0 +1,30 @@
+[gd_scene load_steps=4 format=3 uid="uid://sh_shuttle_bay"]
+
+[ext_resource type="Script" path="res://scripts/game/shuttle_bay.gd" id="1_script"]
+
+[sub_resource type="BoxShape3D" id="BoxShape3D_bay"]
+size = Vector3(8, 3, 6)
+
+[sub_resource type="BoxMesh" id="BoxMesh_bay"]
+size = Vector3(8, 3, 6)
+
+[node name="ShuttleBay" type="Area3D"]
+collision_layer = 0
+collision_mask = 2
+monitoring = true
+script = ExtResource("1_script")
+
+[node name="CollisionShape3D" type="CollisionShape3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+shape = SubResource("BoxShape3D_bay")
+
+[node name="MeshInstance3D" type="MeshInstance3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.5, 0)
+mesh = SubResource("BoxMesh_bay")
+
+[node name="Label3D" type="Label3D" parent="."]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 3.5, 0)
+billboard = 1
+text = "SHUTTLE BAY"
+font_size = 28
+outline_size = 8

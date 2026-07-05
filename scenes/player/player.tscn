@@ -1,4 +1,4 @@
-[gd_scene load_steps=10 format=3 uid="uid://sh_player_scene"]
+[gd_scene load_steps=12 format=3 uid="uid://sh_player_scene"]
 
 [ext_resource type="Script" path="res://scripts/player/player_controller.gd" id="1_player"]
 [ext_resource type="Script" path="res://scripts/player/third_person_camera.gd" id="2_camera"]
@@ -26,6 +26,14 @@ albedo_color = Color(0.95, 0.75, 0.2, 1)
 
 [sub_resource type="StandardMaterial3D" id="StandardMaterial3D_head"]
 albedo_color = Color(1, 0.9, 0.55, 1)
+
+[sub_resource type="StandardMaterial3D" id="StandardMaterial3D_dunce"]
+albedo_color = Color(0.95, 0.2, 0.2, 1)
+
+[sub_resource type="CylinderMesh" id="CylinderMesh_dunce"]
+top_radius = 0.55
+bottom_radius = 0.15
+height = 0.35
 
 [node name="Player" type="CharacterBody3D"]
 collision_layer = 2
@@ -69,6 +77,12 @@ text = "★ BONK ★"
 font_size = 24
 outline_size = 8
 modulate = Color(1, 0.9, 0.2, 1)
+
+[node name="DunceHat" type="MeshInstance3D" parent="Visuals"]
+transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 2.05, 0)
+visible = false
+mesh = SubResource("CylinderMesh_dunce")
+surface_material_override/0 = SubResource("StandardMaterial3D_dunce")
 
 [node name="PromptLabel" type="Label3D" parent="Visuals"]
 transform = Transform3D(1, 0, 0, 0, 1, 0, 0, 0, 1, 0, 1.8, 0)
