@@ -156,7 +156,7 @@ def _import_pack(pack_root: Path, *, update: bool, copy_textures: bool) -> int:
         print(f"  - {aid}")
     print(f"Registry: +{added} new, ~{upd} updated, {skipped} unchanged (use --update to refresh heights)")
     print(f"Updated {_REGISTRY_PATH.relative_to(_REPO_ROOT)}")
-    print("Next: open Godot to reimport GLBs, then run the game.")
+    print("Next: run `cargo run -- local` to verify the new GLB in-game.")
     return 0
 
 

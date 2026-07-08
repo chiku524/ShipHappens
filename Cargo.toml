@@ -1,0 +1,30 @@
+[package]
+name = "shiphappens"
+version = "0.1.0"
+edition = "2021"
+description = "ShipHappens — cartoon space freight co-op with social deduction"
+publish = false
+default-run = "shiphappens"
+
+[lib]
+name = "shiphappens"
+path = "src/lib.rs"
+
+[[bin]]
+name = "shiphappens"
+path = "src/main.rs"
+
+[[bin]]
+name = "shiphappens_smoke"
+path = "src/bin/smoke.rs"
+
+[dependencies]
+bevy = { version = "0.19", features = ["serialize"] }
+bevy_replicon = "0.41"
+bevy_replicon_renet = "0.17"
+clap = { version = "4", features = ["derive", "env"] }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+
+[dev-dependencies]
+shiphappens = { path = "." }

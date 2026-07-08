@@ -1,0 +1,22 @@
+name: Bevy Multiplayer Smoke Tests
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+
+jobs:
+  test-and-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+
+      - name: Unit and integration tests
+        run: cargo test
+
+      - name: Headless multiplayer smoke test
+        run: bash scripts/run_mp_smoke_test.sh

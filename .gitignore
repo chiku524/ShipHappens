@@ -1,17 +1,7 @@
-# Godot 4+ specific ignores
-.godot/
-*.translation
-
-# Godot-specific ignores
-import/
-
-# Imported translations (automatically generated from CSV files)
-*.import
-
-# Mono-specific ignores
-.mono/
-data_*/
-mono_crash.*.json
+# Rust
+/target/
+**/*.rs.bk
+/.bevy/
 
 # System/tooling
 .DS_Store
@@ -23,13 +13,6 @@ Thumbs.db
 # IDE
 .vscode/
 .idea/
-
-# Build exports
-export/
-export_presets.cfg
-*.exe
-*.pck
-*.zip
 
 # Logs
 *.log

@@ -4,92 +4,76 @@
 
 | Layer | Choice |
 |-------|--------|
-| Engine | Godot 4.3+ |
-| Language | GDScript |
-| Networking | Godot 4 Multiplayer API + ENet |
-| Voice (later) | Steam Voice via GodotSteam |
+| Engine | Bevy 0.19 |
+| Language | Rust |
+| Networking | bevy_replicon + bevy_replicon_renet (ENet-style LAN) |
+| Voice (later) | Steam Voice |
 | Version control | Git + GitHub |
-| Assets | Blender + kitbash kits + custom hats |
+| Assets | Blender + Immersive Studio / Tripo + kitbash (GLB) |
 | Target | Windows PC, Steam |
 
-## Why Godot
+## Why Bevy
 
-- Free, lightweight, fast iteration for solo dev
-- Jolt physics (Godot 4) for cartoon ragdoll comedy
-- ENet built-in for Phase 0 LAN
-- GodotSteam plugin path for Steam release
+- Rust performance and type safety for a networked co-op game
+- ECS architecture fits job stations, replication, and round state
+- bevy_replicon provides server-authoritative replication patterns
+- Cross-platform dev with a single codebase
 
 ## Architecture
 
 ```
 Host (authoritative server)
- ├── GameState        — jobs, satisfaction, roles, round phase
- ├── NetworkManager   — ENet peer, connect/disconnect
- ├── PlayerManager    — spawn/despawn, ownership
- ├── JobSystem        — server validates job progress
- └── MeetingManager   — vote tally server-side
+ ├── JobSystem        — server validates job progress (replicated JobBoard)
+ ├── NetworkPlugin    — renet transport, player spawn on connect
+ ├── InteractionPlugin — InteractRequest client → server RPC
+ └── SmokeAutomation  — headless CI job completion checks
 
 Client
- ├── Input + movement prediction (local player only)
- ├── Interact requests → server RPC
- └── UI (role card, job board, vote, stats)
+ ├── LocalPlayer      — assigned on connect (online) or at spawn (offline)
+ ├── MoveInput        — camera-relative WASD sent to server when online
+ ├── ThirdPersonCamera — mouse orbit, scroll zoom
+ └── UiPlugin         — minimal debug HUD
+
+Offline (local mode)
+ └── Direct movement + interact without network backend
 ```
 
-## Networking rules (solo scope)
+## Networking rules
 
 **Server validates:**
-- Job progress
-- Votes / Write-Ups
-- Smuggle deposits
-- Round state transitions
+- Job progress (`JobSystem::handle_interact`)
+- Player movement (`apply_move_input` from `MoveInput` events)
 
-**Do NOT sync every frame:**
-- Full ragdoll limb physics
-- All prop micro-collisions
+**Replicated:**
+- `JobBoard`, `NetworkPlayer`, `PlayerName`, `PlayerColor`
+- `SmokeJobFlags` (CI smoke test helper)
 
-Sync: player transform, carry state, crate position (periodic or on impulse).
+**Client sends:**
+- `MoveInput { direction, sprint }` each frame when moving
+- `InteractRequest { station: Entity }` on F press
 
-## Scene layout
+Default port: **7777**
 
-```
-scenes/
-  main/main_menu.tscn      — Host / Join UI
-  game/game_world.tscn     — Spawns level + players
-  player/player.tscn       — CharacterBody3D + camera rig
-  props/crate.tscn         — RigidBody3D test prop
-  levels/hub_greybox.tscn  — Phase 0 test map
-```
+## Data files
 
-## Autoloads
+| File | Purpose |
+|------|---------|
+| `data/job_manifest.json` | All 10 job definitions (id, zone, target, satisfaction) |
+| `assets/studio_registry.json` | Immersive Studio asset IDs → GLB paths |
 
-| Name | Script | Role |
-|------|--------|------|
-| `NetworkManager` | `scripts/autoload/network_manager.gd` | ENet host/join |
-| `GameState` | `scripts/autoload/game_state.gd` | Session + round data |
+GLBs load from `assets/models/{asset_id}/{asset_id}.glb` via Bevy `AssetServer`.
 
-## Input actions
+## Binaries
 
-| Action | Default |
+| Binary | Purpose |
 |--------|---------|
-| `move_forward` | W |
-| `move_back` | S |
-| `move_left` | A |
-| `move_right` | D |
-| `jump` | Space |
-| `interact` | E |
-| `camera_left` | Q (orbit) |
-| `camera_right` | E (orbit — rebind later) |
+| `shiphappens` | Interactive game (`cargo run -- local/host/join`) |
+| `shiphappens_smoke` | Headless LAN smoke test for CI |
 
-## Phase 0 test checklist
+## CI
 
-1. Run main menu → Host on port 7777
-2. Second instance → Join with `127.0.0.1` or LAN IP
-3. Both players spawn in hub
-4. Push crate — both see it move
-5. Disconnect cleanly
+`.github/workflows/multiplayer-smoke.yml` runs `cargo test` and `scripts/run_mp_smoke_test.sh`.
 
-## Future integrations
+## Migration note
 
-- **GodotSteam** — lobbies, invites, achievements
-- **Nakama or dedicated server** — only if sales justify ops cost
-- **Data-driven jobs** — `docs/data/job_manifest.json` (Phase 2)
+The project previously shipped a Godot 4.7 vertical slice. Game design docs (`GDD`, `JOBS`, `STOWAWAY`, etc.) remain the source of truth while systems are reimplemented in Rust.

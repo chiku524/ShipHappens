@@ -2,7 +2,7 @@
 
 **6–8 player cartoon space freight co-op** with social deduction. Friends complete absurd jobs on a discount orbital station while one or two **Stowaways** smuggle contraband and sabotage the run.
 
-Built with **Godot 4** · Third-person · Full cartoon physics · Steam-bound indie
+Built with **Bevy 0.19 (Rust)** · Third-person · LAN multiplayer · Steam-bound indie
 
 ## Elevator pitch
 
@@ -10,52 +10,55 @@ You and your friends are the worst freight crew in the galaxy. Load weird **spac
 
 ## Status
 
-**Phase 3 — Vertical slice (Steam playtest ready)**
+**Bevy migration — early vertical slice**
 
-- [x] MegaBargain Orbit #12 map with all zones
-- [x] All 10 jobs (complete 7 to launch shuttle)
-- [x] 5 smuggle item types + 5 sabotages (keys 1–5)
-- [x] PA announcer + post-round stats
-- [x] 7 jobs required · 3 smuggle quota · 20-min rounds
+- [x] Job manifest + Immersive Studio asset registry loading
+- [x] LAN host/join (port 7777) via bevy_replicon + renet
+- [x] Crane of Regret + Power Hour jobs (greybox level)
+- [x] Third-person orbit camera + server-authoritative interact
+- [x] Headless multiplayer smoke test for CI
+- [ ] Remaining 8 jobs, full station map, stowaway/sabotage, meetings
 
-See [docs/ROADMAP.md](docs/ROADMAP.md) for Phase 4 polish plan.
+See [docs/ROADMAP.md](docs/ROADMAP.md) for the full plan.
 
-## How to play a full round
+## Requirements
 
-1. **Host** with 2–8 players.
-2. Complete **7 of 10 jobs** across the station.
-3. **Stowaway:** smuggle **3 contraband** items to the Janitor Vent; press **1–5** for sabotage.
-4. **Crew:** call meetings, Write Up suspects, reach the **Shuttle Bay** when it opens.
+- [Rust](https://rustup.rs/) 1.95+ (see `rust-toolchain.toml`)
+- Windows PC (primary target; Linux/macOS for dev/CI)
+
+## Quick start
+
+```bash
+git clone https://github.com/chiku524/ShipHappens.git
+cd ShipHappens
+
+# Offline greybox
+cargo run -- local
+
+# LAN (two terminals)
+cargo run -- host --port 7777
+cargo run -- join --address 127.0.0.1 --port 7777
+```
+
+Walk **north** to the crane console or **east** to the breaker panels. Press **F** to interact.
 
 ## Controls
 
 | Key | Action |
 |-----|--------|
 | WASD | Move (relative to camera) |
-| Mouse | Look around |
+| Mouse | Orbit camera |
 | Shift | Sprint |
-| Space | Jump |
-| F | Interact / drop item |
-| Tab | Collapse / expand job board |
-| Esc | Release / capture mouse |
-| 1–5 | Stowaway sabotages |
+| F | Interact with nearest station |
 | Scroll | Zoom camera |
+| Esc | Release / capture mouse |
 
-## Requirements
+## Tests
 
-- [Godot 4.3+](https://godotengine.org/download)
-- Windows PC (primary target)
-
-## Quick start
-
-1. Clone the repo:
-   ```bash
-   git clone https://github.com/chiku524/ShipHappens.git
-   cd ShipHappens
-   ```
-2. Open the project folder in **Godot 4.3+** (`project.godot`).
-3. Press **F5** to run the main menu.
-4. **Host** on one machine, **Join** from another on the same network (default port `7777`).
+```bash
+cargo test                              # unit + integration
+bash scripts/run_mp_smoke_test.sh       # headless 2-player smoke
+```
 
 ## Documentation
 
@@ -68,9 +71,9 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for Phase 4 polish plan.
 | [JOBS](docs/JOBS.md) | All 10 station jobs |
 | [STOWAWAY](docs/STOWAWAY.md) | Smuggle routes and sabotage |
 | [STEAM](docs/STEAM.md) | Store page draft and tags |
-| [STUDIO_ASSETS](docs/STUDIO_ASSETS.md) | Immersive Studio → Tripo → Godot import workflow |
+| [STUDIO_ASSETS](docs/STUDIO_ASSETS.md) | Immersive Studio → Tripo → GLB import workflow |
 
-## Immersive Studio assets (Tripo → Godot)
+## Immersive Studio assets (Tripo → GLB)
 
 3D props and environment pieces are generated with **Immersive Labs Studio** (Tripo mesh + PBR) and imported via:
 
@@ -78,30 +81,20 @@ See [docs/ROADMAP.md](docs/ROADMAP.md) for Phase 4 polish plan.
 python scripts/import_immersive_studio_pack.py path/to/pack.zip
 ```
 
-See [docs/STUDIO_ASSETS.md](docs/STUDIO_ASSETS.md) for the full workflow, registry format, and worker settings.
+See [docs/STUDIO_ASSETS.md](docs/STUDIO_ASSETS.md) for the full workflow.
 
 ## Project structure
 
 ```
 ShipHappens/
-├── assets/         # Studio GLBs, textures, studio_registry.json
-├── docs/           # Design & planning markdown
-├── scenes/         # Godot scenes (.tscn)
-│   ├── main/       # Main menu
-│   ├── game/       # Game world orchestrator
-│   ├── player/     # Player character
-│   ├── props/      # Interactables (crates, etc.)
-│   └── levels/     # Station maps
-├── scripts/        # GDScript
-│   ├── autoload/   # NetworkManager, GameState, ImmersiveStudioAssets
-│   ├── assets/     # Immersive Studio registry loader
-│   ├── levels/     # Station visuals, objective markers
-│   ├── player/     # Movement, camera
-│   ├── ui/         # Menus
-│   ├── props/      # Prop logic
-│   └── game/       # Session flow
-├── third_party/    # immersive_studio Godot helpers (from immersive.labs)
-└── project.godot
+├── src/              # Bevy game (app, jobs, network, player, world, …)
+├── tests/            # Integration tests
+├── scripts/          # Asset import + multiplayer smoke test
+├── assets/           # GLBs, textures, studio_registry.json
+├── data/             # job_manifest.json
+├── docs/             # Design & planning markdown
+├── Cargo.toml
+└── rust-toolchain.toml
 ```
 
 ## License
