@@ -10,14 +10,13 @@ Squid Game meets escape room: break into sealed corporate vault bays, survive ab
 
 ## Status
 
-**Phase 1 — Tournament core (in design)**
+**Phase 1 — Tournament core (scaffolding in place)**
 
-- [x] Bevy engine + LAN multiplayer foundation
-- [x] GLB asset pipeline + third-person camera
-- [x] Full design docs for Vault Break pivot
-- [ ] Tournament state machine + 4 MVP rooms
-- [ ] Server-side scoring + solo 16 bracket
-- [ ] Practice currency tournaments
+- [x] Tournament director + 4-room runtime loop
+- [x] Server-side CI / composite scoring
+- [x] Practice Vault Credits + announcer HUD
+- [x] Solo dev bracket (4 slots, fast timers)
+- [ ] Solo 16 online, production timers, per-room layouts
 
 See [docs/ROADMAP.md](docs/ROADMAP.md) for milestones.
 

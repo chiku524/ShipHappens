@@ -6,7 +6,10 @@ use serde::{Deserialize, Serialize};
 use crate::{
     core::{CRANE_JOB_ID, INTERACT_RADIUS, POWER_HOUR_JOB_ID},
     jobs::{apply_job_action, BreakerResult, JobActionResult, JobBoard, JobSystem, SmokeJobFlags},
-    player::LocalPlayer,
+    player::{Leaseholder, LocalPlayer},
+    rooms::RoomRuntime,
+    scoring::{PlayerScoreId, ScoreAction, ScoringService},
+    tournament::{TournamentConfig, TournamentDirector, TournamentPhase},
     Cli,
 };
 
@@ -41,12 +44,20 @@ impl Interactable {
             radius: INTERACT_RADIUS,
         }
     }
+
+    pub fn vault_objective() -> Self {
+        Self {
+            kind: StationKind::VaultObjective,
+            radius: INTERACT_RADIUS,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum StationKind {
     CraneConsole,
     PowerHourBreaker { index: u8 },
+    VaultObjective,
 }
 
 #[derive(Event, Serialize, Deserialize, Clone, Copy, Debug, MapEntities)]
@@ -65,7 +76,11 @@ fn handle_local_interact(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut commands: Commands,
     cli: Res<Cli>,
-    local_player: Query<&Transform, With<LocalPlayer>>,
+    config: Res<TournamentConfig>,
+    director: Res<TournamentDirector>,
+    mut room: ResMut<RoomRuntime>,
+    mut scoring: ResMut<ScoringService>,
+    local_player: Query<(&Transform, Has<Leaseholder>), With<LocalPlayer>>,
     stations: Query<(Entity, &Transform, &Interactable)>,
     mut jobs: Option<ResMut<JobSystem>>,
     mut boards: Query<(&mut JobBoard, &mut SmokeJobFlags)>,
@@ -75,15 +90,37 @@ fn handle_local_interact(
         return;
     }
 
-    let Ok(player_transform) = local_player.single() else {
+    let Ok((player_transform, is_leaseholder)) = local_player.single() else {
         return;
     };
+
+    if is_leaseholder {
+        prompt.last_action = "Leaseholder: direct only — use pings.".into();
+        return;
+    }
 
     let Some((station_entity, _, interactable)) =
         nearest_interactable(player_transform.translation, &stations)
     else {
         return;
     };
+
+    let tournament_active = matches!(
+        director.phase,
+        TournamentPhase::RoomActive | TournamentPhase::Finale
+    );
+
+    if tournament_active && interactable.kind == StationKind::VaultObjective {
+        let player = PlayerScoreId(config.human_slot.0 * 10);
+        room.player_action(
+            scoring.as_mut(),
+            player,
+            &config.human_slot,
+            ScoreAction::CorrectSort,
+        );
+        prompt.last_action = format!("Vault progress: {}%", room.progress_percent());
+        return;
+    }
 
     if cli.is_online() {
         prompt.last_action = format!("Sent interact to `{station_entity:?}`");
@@ -158,6 +195,7 @@ fn apply_station_interact(jobs: &mut JobSystem, kind: StationKind) -> String {
             BreakerResult::Completed => "power hour complete".into(),
             BreakerResult::WrongBreaker => format!("breaker {index} zapped (wrong order)"),
         },
+        StationKind::VaultObjective => "vault objective advanced".into(),
     }
 }
 
@@ -165,6 +203,7 @@ fn format_result(kind: StationKind, message: String) -> String {
     match kind {
         StationKind::CraneConsole => format!("Crane: {message}"),
         StationKind::PowerHourBreaker { index } => format!("Breaker {index}: {message}"),
+        StationKind::VaultObjective => format!("Vault: {message}"),
     }
 }
 
@@ -229,6 +268,7 @@ fn prompt_for_station(
                 step + 1
             )
         }
+        StationKind::VaultObjective => "Press F — advance vault objective".into(),
     }
 }
 

@@ -3,14 +3,21 @@ use bevy_replicon::prelude::*;
 use bevy_replicon_renet::RepliconRenetPlugins;
 
 use crate::{
+    announcer::AnnouncerPlugin,
     assets::{load_studio_registry, AssetsPlugin},
     cli::Cli,
     data::load_job_manifest,
+    economy::EconomyPlugin,
     interaction::InteractionPlugin,
     jobs::JobSystem,
+    live_ops::LiveOpsPlugin,
+    meta::MetaPlugin,
     network::{init_network_backend, setup_job_board, spawn_offline_player, NetworkPlugin},
     player::{offline_movement, PlayerPlugin},
+    rooms::{assign_leaseholder, RoomsPlugin},
+    scoring::ScoringPlugin,
     smoke::SmokeAutomationPlugin,
+    tournament::TournamentPlugin,
     ui::UiPlugin,
     world::{spawn_camera, spawn_greybox_level, WorldPlugin},
 };
@@ -34,7 +41,7 @@ pub fn build_app(headless: bool, enable_smoke: bool) -> App {
     } else {
         WindowPlugin {
             primary_window: Some(Window {
-                title: "ShipHappens".into(),
+                title: "ShipHappens — Vault Break".into(),
                 ..default()
             }),
             ..default()
@@ -56,6 +63,13 @@ pub fn build_app(headless: bool, enable_smoke: bool) -> App {
         NetworkPlugin,
         PlayerPlugin,
         InteractionPlugin,
+        ScoringPlugin,
+        RoomsPlugin,
+        TournamentPlugin,
+        EconomyPlugin,
+        AnnouncerPlugin,
+        MetaPlugin,
+        LiveOpsPlugin,
     ));
 
     if !headless {
@@ -75,7 +89,7 @@ pub fn build_app(headless: bool, enable_smoke: bool) -> App {
         )
             .chain(),
     )
-    .add_systems(Update, offline_movement);
+    .add_systems(Update, (offline_movement, assign_leaseholder));
 
     if enable_smoke {
         app.add_plugins(SmokeAutomationPlugin);

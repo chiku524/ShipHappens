@@ -2,9 +2,7 @@ use bevy::prelude::*;
 
 use crate::{
     assets::spawn_job_station,
-    core::{
-        BREAKER_PANEL_ASSET, CRANE_CONSOLE_ASSET, POWER_HOUR_SEQUENCE,
-    },
+    core::{BREAKER_PANEL_ASSET, CRANE_CONSOLE_ASSET, POWER_HOUR_SEQUENCE},
     data::StudioRegistry,
     interaction::Interactable,
 };
@@ -20,7 +18,9 @@ pub struct MainCamera;
 pub struct WorldPlugin;
 
 impl Plugin for WorldPlugin {
-    fn build(&self, _app: &mut App) {}
+    fn build(&self, app: &mut App) {
+        app.add_systems(Update, sync_vault_objective_marker);
+    }
 }
 
 pub fn spawn_camera(mut commands: Commands) {
@@ -47,19 +47,7 @@ pub fn spawn_greybox_level(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let floor_material = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.18, 0.20, 0.24),
-        ..Default::default()
-    });
-    let floor_mesh = meshes.add(Cuboid::new(40.0, 0.5, 40.0));
-
-    commands.spawn((
-        GameplayEntity,
-        Mesh3d(floor_mesh),
-        MeshMaterial3d(floor_material),
-        Transform::from_xyz(0.0, -0.25, 0.0),
-        Name::new("Floor"),
-    ));
+    spawn_floor(&mut commands, &mut meshes, &mut materials);
 
     spawn_job_station(
         &mut commands,
@@ -97,9 +85,76 @@ pub fn spawn_greybox_level(
         );
     }
 
+    spawn_vault_pad(&mut commands, &mut meshes, &mut materials, Vec3::new(-4.0, 0.0, 2.0));
+
     info!(
-        "spawned crane + {} power hour breakers (sequence {:?})",
+        "spawned vault greybox + crane + {} breakers (sequence {:?})",
         POWER_HOUR_SEQUENCE.len(),
         POWER_HOUR_SEQUENCE
     );
+}
+
+fn spawn_floor(
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+) {
+    let floor_material = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.18, 0.20, 0.24),
+        ..Default::default()
+    });
+    let floor_mesh = meshes.add(Cuboid::new(40.0, 0.5, 40.0));
+
+    commands.spawn((
+        GameplayEntity,
+        Mesh3d(floor_mesh),
+        MeshMaterial3d(floor_material),
+        Transform::from_xyz(0.0, -0.25, 0.0),
+        Name::new("Floor"),
+    ));
+}
+
+fn spawn_vault_pad(
+    commands: &mut Commands,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+    position: Vec3,
+) {
+    let mat = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.2, 0.85, 0.45),
+        emissive: LinearRgba::rgb(0.1, 0.4, 0.2),
+        ..Default::default()
+    });
+    commands.spawn((
+        GameplayEntity,
+        Interactable::vault_objective(),
+        Mesh3d(meshes.add(Cuboid::new(2.0, 0.2, 2.0))),
+        MeshMaterial3d(mat),
+        Transform::from_translation(position),
+        Name::new("VaultObjective"),
+    ));
+}
+
+fn sync_vault_objective_marker(
+    director: Res<crate::tournament::TournamentDirector>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
+    mut pads: Query<(&mut MeshMaterial3d<StandardMaterial>, &Interactable)>,
+) {
+    let active = matches!(
+        director.phase,
+        crate::tournament::TournamentPhase::RoomActive
+            | crate::tournament::TournamentPhase::Finale
+    );
+    for (mat, interactable) in &mut pads {
+        if interactable.kind != crate::interaction::StationKind::VaultObjective {
+            continue;
+        }
+        if let Some(mut m) = materials.get_mut(mat.0.id()) {
+            m.emissive = if active {
+                LinearRgba::rgb(0.2, 0.8, 0.35)
+            } else {
+                LinearRgba::rgb(0.05, 0.1, 0.05)
+            };
+        }
+    }
 }

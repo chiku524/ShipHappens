@@ -1,13 +1,20 @@
+pub mod announcer;
 pub mod app;
 pub mod assets;
 pub mod cli;
 pub mod core;
 pub mod data;
+pub mod economy;
 pub mod interaction;
 pub mod jobs;
+pub mod live_ops;
+pub mod meta;
 pub mod network;
 pub mod player;
+pub mod rooms;
+pub mod scoring;
 pub mod smoke;
+pub mod tournament;
 pub mod ui;
 pub mod world;
 

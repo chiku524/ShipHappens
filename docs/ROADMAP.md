@@ -8,29 +8,32 @@
 - [x] Third-person camera + server-authoritative interact
 - [x] Headless multiplayer smoke test + CI
 
-## Phase 1 — Tournament core (MVP) ← **NEXT**
+## Phase 1 — Tournament core (MVP) ← **IN PROGRESS**
 
 **Goal:** Fun 30-minute solo bracket with practice currency. No real money.
 
-- [ ] Tournament state machine (lobby → rooms → elimination → finale → podium)
-- [ ] Room 1: HR Orientation Bay (sort mini-game)
-- [ ] Room 2: Cargo Ring Gantry (physics co-op)
-- [ ] Room 3: Breaker Panic (asymmetric info)
-- [ ] Finale: Shuttle Bay Meltdown
-- [ ] Server-side scoring ([SCORING.md](SCORING.md))
-- [ ] Solo 16 bracket ([TOURNAMENT.md](TOURNAMENT.md))
-- [ ] Practice currency + fake payout UI
-- [ ] Treasury Ghost announcer (text + placeholder VO)
+- [x] Tournament state machine (`TournamentDirector`: lobby → rooms → elimination → finale → podium)
+- [x] Room 1: HR Orientation Bay (`RoomRuntime` + vault objective interact)
+- [x] Room 2: Cargo Ring Gantry (shared runtime + legacy crane interact)
+- [x] Room 3: Breaker Panic (shared runtime + legacy breakers)
+- [x] Finale: Shuttle Bay Meltdown (meltdown meter + vault objectives)
+- [x] Server-side scoring (`ScoringService` + `scoring/ci.rs` point tables)
+- [x] Solo dev bracket (4 slots, fast timers — scale to 16 for production)
+- [x] Practice currency + payout UI (`PracticeLedger`)
+- [x] Treasury Ghost announcer (`AnnouncerQueue` + HUD)
 
-**Exit criteria:** 16-player solo practice tournament playable end-to-end online.
+**Remaining for exit criteria:**
+- [ ] Scale to solo 16 online with dedicated server
+- [ ] Per-room geometry swap (distinct layouts vs shared greybox)
+- [ ] Full 30-minute production timers (currently fast dev timers)
 
 ## Phase 2 — Team modes & Strikes
 
-- [ ] Duo / Trio / Squad slot scaling per [ROOMS.md](ROOMS.md#room-scaling)
-- [ ] Contribution Index + Strike system
-- [ ] Leaseholder mechanic
-- [ ] Team composite scoring
-- [ ] Premade party queue
+- [x] Duo / Trio / Squad slot scaling (`scaled_target`, `SlotSize`)
+- [x] Contribution Index + Strike system
+- [x] Leaseholder mechanic (`Leaseholder` component + `assign_leaseholder`)
+- [x] Team composite scoring
+- [ ] Premade party queue (network spawn only; UI pending)
 
 **Exit criteria:** Squad 8 practice tournament with Strikes working.
 
@@ -38,10 +41,10 @@
 
 - [ ] Character models + slapstick animations
 - [ ] Audio pass (SFX, music, full PA library)
-- [ ] Room Mastery badges + cosmetics
-- [ ] Seasonal Vault Set #1 (2 additional rooms)
-- [ ] Spectator mode
-- [ ] Steam lobby integration
+- [x] Room Mastery badges scaffold (`RoomMastery`)
+- [x] Seasonal Vault Set registry stub (`SeasonalVaultSet`)
+- [x] Spectator component stub
+- [ ] Steam lobby integration (`SteamLobbyConfig` stub only)
 
 **Exit criteria:** Steam playtest build (practice only).
 
@@ -49,24 +52,36 @@
 
 > Requires legal review before implementation.
 
-- [ ] Practice rank + queue gates ([WAGERING.md](WAGERING.md))
-- [ ] Wallet, deposit caps, loss limits
-- [ ] Age verification + geo-restrictions
-- [ ] Payout pipeline (top 3, 50/30/20)
-- [ ] Audit log + dispute replay
+- [x] Practice rank + queue gates scaffold (`WagerGate`, `Wallet`)
+- [x] Wallet, deposit caps, loss limits (data model)
+- [ ] Age verification + geo-restrictions (integration)
+- [x] Payout pipeline math (`PayoutCalculator`, 50/30/20)
+- [x] Audit log stub (`AuditLog`)
 - [ ] Responsible gaming UI
 
 **Exit criteria:** Wager mode live in allowed jurisdictions only.
 
 ## Phase 5 — Live ops
 
-- [ ] Seasonal brackets + leaderboards
-- [ ] Handshake side bets
-- [ ] King of the Vault mode
+- [x] Leaderboard stub (`Leaderboard`)
+- [x] Handshake side bets scaffold (`SideBetBoard`)
+- [x] King of the Vault mode stub (`KingOfTheVaultState`)
 - [ ] Double-or-nothing side rooms
-- [ ] Remnant clue system
+- [x] Remnant clue board stub (`RemnantClueBoard`)
 
 ---
+
+## Code map (implemented)
+
+| Module | Path | Phase |
+|--------|------|-------|
+| Tournament director | `src/tournament/` | 1–2 |
+| Scoring / CI | `src/scoring/` | 1–2 |
+| Room runtime | `src/rooms/` | 1–2 |
+| Economy / wallet | `src/economy/` | 1, 4 |
+| Announcer | `src/announcer/` | 1 |
+| Meta / mastery | `src/meta/` | 3 |
+| Live ops | `src/live_ops/` | 5 |
 
 ## Design reference
 
@@ -79,6 +94,10 @@
 | [WAGERING.md](WAGERING.md) | Economy |
 | [legacy/](legacy/) | v0.2 stowaway design (archived) |
 
-## Superseded work
+## Run locally
 
-Godot vertical slice and Crew vs Stowaway loop are **archived**. Existing greybox code (crane, breakers) remains as prototyping scaffolding until tournament rooms replace it.
+```bash
+cargo run -- local
+```
+
+Press **F** at the green vault pad during active rooms. Tournament auto-advances with 3 bots on fast timers (~2 min full run).
