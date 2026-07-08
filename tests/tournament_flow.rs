@@ -1,5 +1,7 @@
 use shiphappens::scoring::ci::{composite_score, CompositeInput};
-use shiphappens::tournament::{TournamentConfig, TournamentDirector, TournamentPhase};
+use shiphappens::tournament::{
+    TournamentConfig, TournamentDirector, TournamentPhase, DEFAULT_ONLINE_BRACKET_SIZE,
+};
 
 #[test]
 fn tournament_bootstraps_four_solo_slots() {
@@ -7,6 +9,19 @@ fn tournament_bootstraps_four_solo_slots() {
     let director = TournamentDirector::bootstrap(&config);
     assert_eq!(director.slots.len(), 4);
     assert_eq!(director.phase, TournamentPhase::Lobby);
+}
+
+#[test]
+fn online_host_bracket_defaults_to_sixteen() {
+    let mut config = TournamentConfig::default();
+    config.bracket_size = DEFAULT_ONLINE_BRACKET_SIZE;
+    config.fast_timers = false;
+    let director = TournamentDirector::bootstrap(&config);
+    assert_eq!(director.slots.len(), 16);
+    assert_eq!(
+        shiphappens::tournament::types::RoomId::HrOrientation.duration_secs(false),
+        300.0
+    );
 }
 
 #[test]

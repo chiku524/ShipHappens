@@ -6,6 +6,7 @@ use crate::scoring::ci::elimination_cut_count;
 
 /// Dev-friendly defaults; production tournaments use 16 slots and full timers.
 pub const DEFAULT_DEV_BRACKET_SIZE: usize = 4;
+pub const DEFAULT_ONLINE_BRACKET_SIZE: usize = 16;
 pub const LOBBY_DURATION_SECS: f32 = 3.0;
 pub const ELIMINATION_DURATION_SECS: f32 = 2.0;
 pub const PODIUM_DURATION_SECS: f32 = 5.0;
@@ -155,5 +156,8 @@ pub struct TournamentSnapshot {
     pub room: RoomId,
     pub alive_slots: u8,
     pub room_progress: u8,
+    pub sort_target: u8,
+    pub meltdown_percent: u8,
+    pub announcer_line: String,
     pub tournament_complete: bool,
 }

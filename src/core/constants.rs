@@ -1,5 +1,5 @@
 pub const DEFAULT_PORT: u16 = 7777;
-pub const MAX_PLAYERS: usize = 8;
+pub const MAX_PLAYERS: usize = 16;
 pub const PROTOCOL_ID: u64 = 0x5348_4950;
 
 pub const CRANE_JOB_ID: &str = "crane_of_regret";

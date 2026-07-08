@@ -1,15 +1,19 @@
 use bevy::ecs::entity::MapEntities;
 use bevy::prelude::*;
 use bevy_replicon::prelude::*;
+use bevy_replicon_renet::{RenetClient, RenetServer};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     core::{CRANE_JOB_ID, INTERACT_RADIUS, POWER_HOUR_JOB_ID},
     jobs::{apply_job_action, BreakerResult, JobActionResult, JobBoard, JobSystem, SmokeJobFlags},
-    player::{Leaseholder, LocalPlayer},
+    player::{Leaseholder, LocalPlayer, NetworkPlayer},
     rooms::RoomRuntime,
     scoring::{PlayerScoreId, ScoreAction, ScoringService},
-    tournament::{TournamentConfig, TournamentDirector, TournamentPhase},
+    tournament::{
+        is_tournament_authority, types::RoomId, types::SlotId, TournamentConfig, TournamentDirector,
+        TournamentPhase, TournamentSnapshot,
+    },
     Cli,
 };
 
@@ -96,6 +100,32 @@ pub struct InteractPrompt {
     pub last_action: String,
 }
 
+struct TournamentView {
+    phase: TournamentPhase,
+    room: RoomId,
+    sort_target: u8,
+}
+
+fn read_tournament_view(
+    director: &TournamentDirector,
+    room: &RoomRuntime,
+    snapshot: Option<&TournamentSnapshot>,
+) -> TournamentView {
+    if let Some(snap) = snapshot {
+        TournamentView {
+            phase: snap.phase,
+            room: snap.room,
+            sort_target: snap.sort_target,
+        }
+    } else {
+        TournamentView {
+            phase: director.phase,
+            room: director.room,
+            sort_target: room.sort_target,
+        }
+    }
+}
+
 fn handle_local_interact(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut commands: Commands,
@@ -104,7 +134,13 @@ fn handle_local_interact(
     director: Res<TournamentDirector>,
     mut room: ResMut<RoomRuntime>,
     mut scoring: ResMut<ScoringService>,
-    local_player: Query<(&Transform, Has<Leaseholder>), With<LocalPlayer>>,
+    snapshots: Query<&TournamentSnapshot>,
+    server: Option<Res<RenetServer>>,
+    client: Option<Res<RenetClient>>,
+    local_player: Query<
+        (&Transform, Has<Leaseholder>, Option<&NetworkPlayer>),
+        With<LocalPlayer>,
+    >,
     stations: Query<(Entity, &Transform, &Interactable)>,
     mut jobs: Option<ResMut<JobSystem>>,
     mut boards: Query<(&mut JobBoard, &mut SmokeJobFlags)>,
@@ -114,7 +150,7 @@ fn handle_local_interact(
         return;
     }
 
-    let Ok((player_transform, is_leaseholder)) = local_player.single() else {
+    let Ok((player_transform, is_leaseholder, network_player)) = local_player.single() else {
         return;
     };
 
@@ -129,82 +165,38 @@ fn handle_local_interact(
         return;
     };
 
-    let tournament_active = matches!(
-        director.phase,
-        TournamentPhase::RoomActive | TournamentPhase::Finale
+    let view = read_tournament_view(
+        director.as_ref(),
+        room.as_ref(),
+        snapshots.iter().next(),
     );
+    let tournament_active =
+        matches!(view.phase, TournamentPhase::RoomActive | TournamentPhase::Finale);
 
     if tournament_active {
-        let player = PlayerScoreId(config.human_slot.0 * 10);
-        let slot = &config.human_slot;
-        match interactable.kind {
-            StationKind::SortChute { chute } => {
-                let action = if chute == room.sort_target {
-                    room.sort_target = (room.sort_target + 1) % 4;
-                    ScoreAction::CorrectSort
-                } else {
-                    ScoreAction::IncorrectSort
-                };
-                room.player_action(scoring.as_mut(), player, slot, action);
-                prompt.last_action = format!(
-                    "Sorted! Vault progress: {}% (next: {})",
-                    room.progress_percent(),
-                    room.sort_target_label()
-                );
-                return;
-            }
-            StationKind::VaultObjective => {
-                let action = if director.room == crate::tournament::types::RoomId::ShuttleMeltdown {
-                    ScoreAction::EscapeCrate
-                } else {
-                    ScoreAction::CrateDelivered
-                };
-                room.player_action(scoring.as_mut(), player, slot, action);
-                prompt.last_action = format!("Vault progress: {}%", room.progress_percent());
-                return;
-            }
-            StationKind::CoolantValve { .. } => {
-                room.player_action(scoring.as_mut(), player, slot, ScoreAction::CoolantValve);
-                prompt.last_action = format!(
-                    "Coolant valve turned — meltdown {}%",
-                    room.progress.meltdown_meter as u32
-                );
-                return;
-            }
-            StationKind::MeltdownDoor { .. } => {
-                room.player_action(scoring.as_mut(), player, slot, ScoreAction::DoorSealed);
-                prompt.last_action = format!("Door sealed — progress {}%", room.progress_percent());
-                return;
-            }
-            StationKind::CraneConsole => {
-                room.player_action(scoring.as_mut(), player, slot, ScoreAction::CrateDelivered);
-                if let Some(jobs) = jobs.as_deref_mut() {
-                    let msg = apply_station_interact(jobs, interactable.kind);
-                    apply_job_action(jobs, &mut boards);
-                    prompt.last_action = format!("Gantry: {msg} | {}%", room.progress_percent());
-                } else {
-                    prompt.last_action = format!("Gantry delivery — {}%", room.progress_percent());
-                }
-                return;
-            }
-            StationKind::PowerHourBreaker { index } => {
-                if let Some(jobs) = jobs.as_deref_mut() {
-                    let msg = apply_station_interact(jobs, interactable.kind);
-                    apply_job_action(jobs, &mut boards);
-                    let action = if msg.contains("zapped") {
-                        ScoreAction::BreakerWrong
-                    } else {
-                        ScoreAction::BreakerCorrect
-                    };
-                    room.player_action(scoring.as_mut(), player, slot, action);
-                    prompt.last_action = format!("Breaker {index}: {msg}");
-                } else {
-                    room.player_action(scoring.as_mut(), player, slot, ScoreAction::BreakerCorrect);
-                    prompt.last_action = format!("Breaker {index} flipped");
-                }
-                return;
-            }
+        if cli.is_online() && !is_tournament_authority(server, client) {
+            prompt.last_action = format!("Sent interact to `{station_entity:?}`");
+            commands.client_trigger(InteractRequest {
+                station: station_entity,
+            });
+            return;
         }
+
+        let slot_id = network_player
+            .map(|player| SlotId(player.slot))
+            .unwrap_or_else(|| config.human_slot.clone());
+        let player_id = PlayerScoreId(slot_id.0 * 10);
+        prompt.last_action = apply_tournament_interact(
+            interactable.kind,
+            view.room,
+            &slot_id,
+            player_id,
+            room.as_mut(),
+            scoring.as_mut(),
+            jobs.as_deref_mut(),
+            &mut boards,
+        );
+        return;
     }
 
     if cli.is_online() {
@@ -221,9 +213,12 @@ fn handle_local_interact(
 
 fn handle_interact_request(
     request: On<FromClient<InteractRequest>>,
+    director: Res<TournamentDirector>,
+    mut room: ResMut<RoomRuntime>,
+    mut scoring: ResMut<ScoringService>,
     mut jobs: Option<ResMut<JobSystem>>,
     owners: Query<&crate::network::OwnedPlayer>,
-    players: Query<&Transform, With<crate::player::NetworkPlayer>>,
+    players: Query<(&Transform, &NetworkPlayer), With<crate::player::NetworkPlayer>>,
     stations: Query<(Entity, &Transform, &Interactable)>,
     mut boards: Query<(&mut JobBoard, &mut SmokeJobFlags)>,
 ) {
@@ -236,7 +231,7 @@ fn handle_interact_request(
         return;
     };
 
-    let Ok(player_transform) = players.get(owned.0) else {
+    let Ok((player_transform, network_player)) = players.get(owned.0) else {
         return;
     };
 
@@ -252,6 +247,31 @@ fn handle_interact_request(
         return;
     }
 
+    let tournament_active = matches!(
+        director.phase,
+        TournamentPhase::RoomActive | TournamentPhase::Finale
+    );
+
+    if tournament_active {
+        let slot_id = SlotId(network_player.slot);
+        let player_id = PlayerScoreId(slot_id.0 * 10);
+        let message = apply_tournament_interact(
+            interactable.kind,
+            director.room,
+            &slot_id,
+            player_id,
+            room.as_mut(),
+            scoring.as_mut(),
+            jobs.as_deref_mut(),
+            &mut boards,
+        );
+        info!(
+            "client `{client_entity}` tournament interact {:?}: {message}",
+            interactable.kind,
+        );
+        return;
+    }
+
     let Some(jobs) = jobs.as_deref_mut() else {
         return;
     };
@@ -263,6 +283,80 @@ fn handle_interact_request(
         interactable.kind,
         format_result(interactable.kind, result)
     );
+}
+
+fn apply_tournament_interact(
+    kind: StationKind,
+    room_id: RoomId,
+    slot_id: &SlotId,
+    player_id: PlayerScoreId,
+    room: &mut RoomRuntime,
+    scoring: &mut ScoringService,
+    jobs: Option<&mut JobSystem>,
+    boards: &mut Query<(&mut JobBoard, &mut SmokeJobFlags)>,
+) -> String {
+    match kind {
+        StationKind::SortChute { chute } => {
+            let action = if chute == room.sort_target {
+                room.sort_target = (room.sort_target + 1) % 4;
+                ScoreAction::CorrectSort
+            } else {
+                ScoreAction::IncorrectSort
+            };
+            room.player_action(scoring, player_id, slot_id, action);
+            format!(
+                "Sorted! Vault progress: {}% (next: {})",
+                room.progress_percent(),
+                RoomRuntime::sort_label(room.sort_target)
+            )
+        }
+        StationKind::VaultObjective => {
+            let action = if room_id == RoomId::ShuttleMeltdown {
+                ScoreAction::EscapeCrate
+            } else {
+                ScoreAction::CrateDelivered
+            };
+            room.player_action(scoring, player_id, slot_id, action);
+            format!("Vault progress: {}%", room.progress_percent())
+        }
+        StationKind::CoolantValve { .. } => {
+            room.player_action(scoring, player_id, slot_id, ScoreAction::CoolantValve);
+            format!(
+                "Coolant valve turned — meltdown {}%",
+                room.progress.meltdown_meter as u32
+            )
+        }
+        StationKind::MeltdownDoor { .. } => {
+            room.player_action(scoring, player_id, slot_id, ScoreAction::DoorSealed);
+            format!("Door sealed — progress {}%", room.progress_percent())
+        }
+        StationKind::CraneConsole => {
+            room.player_action(scoring, player_id, slot_id, ScoreAction::CrateDelivered);
+            if let Some(jobs) = jobs {
+                let msg = apply_station_interact(jobs, kind);
+                apply_job_action(jobs, boards);
+                format!("Gantry: {msg} | {}%", room.progress_percent())
+            } else {
+                format!("Gantry delivery — {}%", room.progress_percent())
+            }
+        }
+        StationKind::PowerHourBreaker { index } => {
+            if let Some(jobs) = jobs {
+                let msg = apply_station_interact(jobs, kind);
+                apply_job_action(jobs, boards);
+                let action = if msg.contains("zapped") {
+                    ScoreAction::BreakerWrong
+                } else {
+                    ScoreAction::BreakerCorrect
+                };
+                room.player_action(scoring, player_id, slot_id, action);
+                format!("Breaker {index}: {msg}")
+            } else {
+                room.player_action(scoring, player_id, slot_id, ScoreAction::BreakerCorrect);
+                format!("Breaker {index} flipped")
+            }
+        }
+    }
 }
 
 fn apply_station_interact(jobs: &mut JobSystem, kind: StationKind) -> String {
@@ -301,6 +395,7 @@ fn format_result(kind: StationKind, message: String) -> String {
 fn show_interact_prompt(
     director: Res<TournamentDirector>,
     room: Res<RoomRuntime>,
+    snapshots: Query<&TournamentSnapshot>,
     local_player: Query<&Transform, With<LocalPlayer>>,
     stations: Query<(Entity, &Transform, &Interactable)>,
     jobs: Option<Res<JobSystem>>,
@@ -319,12 +414,17 @@ fn show_interact_prompt(
         return;
     };
 
+    let view = read_tournament_view(
+        director.as_ref(),
+        room.as_ref(),
+        snapshots.iter().next(),
+    );
+
     prompt.message = prompt_for_station(
         interactable,
         jobs.as_deref(),
         boards.iter().next(),
-        director.as_ref(),
-        room.as_ref(),
+        &view,
     );
 }
 
@@ -332,8 +432,7 @@ fn prompt_for_station(
     interactable: &Interactable,
     jobs: Option<&JobSystem>,
     board: Option<&JobBoard>,
-    director: &TournamentDirector,
-    room: &RoomRuntime,
+    view: &TournamentView,
 ) -> String {
     match interactable.kind {
         StationKind::CraneConsole => {
@@ -370,7 +469,7 @@ fn prompt_for_station(
             )
         }
         StationKind::VaultObjective => {
-            if director.room == crate::tournament::types::RoomId::ShuttleMeltdown {
+            if view.room == RoomId::ShuttleMeltdown {
                 "Press F — load escape crate".into()
             } else {
                 "Press F — deliver crate".into()
@@ -380,7 +479,7 @@ fn prompt_for_station(
             format!(
                 "Press F — sort into chute {} (want: {})",
                 chute + 1,
-                room.sort_target_label()
+                RoomRuntime::sort_label(view.sort_target)
             )
         }
         StationKind::CoolantValve { index } => {

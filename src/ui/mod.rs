@@ -126,17 +126,25 @@ fn update_hud_text(
     let phase = snap.map(|s| s.phase).unwrap_or(director.phase);
     let room_id = snap.map(|s| s.room).unwrap_or(director.room);
     let progress = snap.map(|s| s.room_progress).unwrap_or(0);
+    let meltdown = snap.map(|s| s.meltdown_percent).unwrap_or(room_runtime.meltdown_percent());
+    let alive = snap
+        .map(|s| s.alive_slots as usize)
+        .unwrap_or_else(|| director.alive_count());
+    let announcer_line = snap
+        .map(|s| s.announcer_line.as_str())
+        .filter(|line| !line.is_empty())
+        .unwrap_or(announcer.last_bark.as_str());
 
     if let Ok(mut text) = tournament.single_mut() {
         **text = format!(
             "Phase: {:?} | Room: {} | Alive: {} | Progress: {}% | Meltdown: {}% | VC: {}\nAnnouncer: {}",
             phase,
             room_id.label(),
-            director.alive_count(),
+            alive,
             progress,
-            room_runtime.meltdown_percent(),
+            meltdown,
             ledger.balance_vc,
-            announcer.last_bark,
+            announcer_line,
         );
     }
 
@@ -146,7 +154,7 @@ fn update_hud_text(
         } else {
             format!("{}\n{}", prompt.message, prompt.last_action)
         };
-        if director.phase == TournamentPhase::Complete {
+        if phase == TournamentPhase::Complete {
             **text = format!(
                 "{action}\nPodium: {:?} | last payouts: {:?}",
                 director.placements, ledger.last_payouts_vc

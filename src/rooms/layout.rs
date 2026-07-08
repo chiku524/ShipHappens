@@ -1,4 +1,5 @@
 use bevy::prelude::*;
+use bevy_replicon_renet::{RenetClient, RenetServer};
 
 use crate::{
     assets::spawn_job_station,
@@ -8,7 +9,7 @@ use crate::{
     },
     data::StudioRegistry,
     interaction::Interactable,
-    tournament::types::{RoomId, TournamentPhase},
+    tournament::{is_tournament_authority, types::RoomId, types::TournamentPhase, TournamentSnapshot},
     world::GameplayEntity,
 };
 
@@ -24,6 +25,9 @@ pub struct ActiveRoomLayout {
 
 pub fn sync_room_layout(
     director: Res<crate::tournament::TournamentDirector>,
+    snapshots: Query<&TournamentSnapshot>,
+    server: Option<Res<RenetServer>>,
+    client: Option<Res<RenetClient>>,
     mut active: ResMut<ActiveRoomLayout>,
     mut commands: Commands,
     asset_server: Res<AssetServer>,
@@ -32,12 +36,21 @@ pub fn sync_room_layout(
     mut materials: ResMut<Assets<StandardMaterial>>,
     pieces: Query<Entity, With<RoomLayoutPiece>>,
 ) {
-    let desired_room = match director.phase {
-        TournamentPhase::RoomActive | TournamentPhase::Finale => Some(director.room),
+    let authority = is_tournament_authority(server, client);
+    let (phase, room) = if authority {
+        (director.phase, director.room)
+    } else if let Some(snap) = snapshots.iter().next() {
+        (snap.phase, snap.room)
+    } else {
+        return;
+    };
+
+    let desired_room = match phase {
+        TournamentPhase::RoomActive | TournamentPhase::Finale => Some(room),
         _ => None,
     };
 
-    if active.room == desired_room && active.phase == Some(director.phase) {
+    if active.room == desired_room && active.phase == Some(phase) {
         return;
     }
 
@@ -46,7 +59,7 @@ pub fn sync_room_layout(
     }
 
     active.room = desired_room;
-    active.phase = Some(director.phase);
+    active.phase = Some(phase);
 
     let Some(room) = desired_room else {
         return;

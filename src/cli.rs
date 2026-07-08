@@ -17,6 +17,14 @@ pub enum Cli {
     Host {
         #[arg(short, long, default_value_t = DEFAULT_PORT)]
         port: u16,
+
+        /// Bracket slots (solo players). Production default is 16.
+        #[arg(long, default_value_t = crate::tournament::DEFAULT_ONLINE_BRACKET_SIZE)]
+        bracket_size: usize,
+
+        /// Use full room timers (~5–7 min each) instead of dev-fast timers.
+        #[arg(long)]
+        production_timers: bool,
     },
 
     /// Join an existing host.
@@ -39,6 +47,8 @@ impl Default for Cli {
                         .ok()
                         .and_then(|value| value.parse().ok())
                         .unwrap_or(DEFAULT_PORT),
+                    bracket_size: crate::tournament::DEFAULT_ONLINE_BRACKET_SIZE,
+                    production_timers: false,
                 },
                 "join" => Self::Join {
                     address: std::env::var("MP_TEST_ADDRESS")

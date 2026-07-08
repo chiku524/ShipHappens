@@ -62,7 +62,7 @@ pub fn init_network_backend(
         Cli::Local => {
             info!("offline greybox — no network backend");
         }
-        Cli::Host { port } => {
+        Cli::Host { port, .. } => {
             info!("hosting on port {port}");
             let server_channels_config = channels.server_configs();
             let client_channels_config = channels.client_configs();

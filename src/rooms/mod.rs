@@ -63,7 +63,11 @@ impl RoomRuntime {
     }
 
     pub fn sort_target_label(&self) -> &'static str {
-        match self.sort_target {
+        Self::sort_label(self.sort_target)
+    }
+
+    pub fn sort_label(target: u8) -> &'static str {
+        match target {
             0 => "Hot Dogs",
             1 => "Toasters",
             2 => "Premium Air",
