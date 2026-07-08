@@ -19,24 +19,43 @@
 - bevy_replicon provides server-authoritative replication patterns
 - Cross-platform dev with a single codebase
 
-## Architecture
+## Architecture (current prototype)
 
 ```
 Host (authoritative server)
- ├── JobSystem        — server validates job progress (replicated JobBoard)
+ ├── JobSystem        — legacy greybox job validation (to be replaced)
  ├── NetworkPlugin    — renet transport, player spawn on connect
  ├── InteractionPlugin — InteractRequest client → server RPC
- └── SmokeAutomation  — headless CI job completion checks
+ └── SmokeAutomation  — headless CI checks
 
 Client
  ├── LocalPlayer      — assigned on connect (online) or at spawn (offline)
  ├── MoveInput        — camera-relative WASD sent to server when online
  ├── ThirdPersonCamera — mouse orbit, scroll zoom
  └── UiPlugin         — minimal debug HUD
-
-Offline (local mode)
- └── Direct movement + interact without network backend
 ```
+
+## Planned tournament architecture (Phase 1)
+
+See [GDD.md](GDD.md), [TOURNAMENT.md](TOURNAMENT.md), [SCORING.md](SCORING.md).
+
+```
+Dedicated server / listen host
+ ├── TournamentDirector  — lobby → rooms → elimination → finale → podium
+ ├── RoomRuntime         — per-stage objectives, timers, scaling by slot size
+ ├── ScoringService      — server-side CI + composite (all raw events logged)
+ ├── SlotRegistry        — solo / duo / trio / squad slots
+ └── WagerLedger         — practice currency now; real wallet gated (Phase 4)
+
+Replicated state
+ ├── TournamentPhase, RoomId, TimeRemaining
+ ├── SlotCompositeScores, PlayerCI
+ ├── StrikeCount (team modes)
+ └── EliminationOrder
+```
+
+**Server validates:** all objective progress, scoring, elimination, buy-in lock.
+**Clients send:** movement + interaction intent only.
 
 ## Networking rules
 
@@ -74,6 +93,7 @@ GLBs load from `assets/models/{asset_id}/{asset_id}.glb` via Bevy `AssetServer`.
 
 `.github/workflows/multiplayer-smoke.yml` runs `cargo test` and `scripts/run_mp_smoke_test.sh`.
 
-## Migration note
+## Migration notes
 
-The project previously shipped a Godot 4.7 vertical slice. Game design docs (`GDD`, `JOBS`, `STOWAWAY`, etc.) remain the source of truth while systems are reimplemented in Rust.
+- **Engine:** Migrated from Godot 4.7 to Bevy 0.19 (2026).
+- **Design:** Pivoted from Crew vs Stowaway co-op to **Vault Break** tournament escape rooms. See [GDD.md](GDD.md); legacy design in [legacy/](legacy/).

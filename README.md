@@ -1,101 +1,59 @@
 # ShipHappens
 
-**6–8 player cartoon space freight co-op** with social deduction. Friends complete absurd jobs on a discount orbital station while one or two **Stowaways** smuggle contraband and sabotage the run.
+**Competitive co-op escape room tournaments** in cartoon space-freight vaults. Cooperate to clear each stage, compete to survive the bracket — optional wager prize pools for top 3.
 
-Built with **Bevy 0.19 (Rust)** · Third-person · LAN multiplayer · Steam-bound indie
+Built with **Bevy 0.19 (Rust)** · Third-person · Online multiplayer · Steam-bound indie
 
 ## Elevator pitch
 
-You and your friends are the worst freight crew in the galaxy. Load weird **space goods**, survive slapstick physics, and catch the Stowaway before ShipHappens Logistics fires you all.
+Squid Game meets escape room: break into sealed corporate vault bays, survive absurd HR-themed challenges, and place top 3 in a 30-minute tournament. Solo or squad up — cartoon physics, snarky announcer, real stakes (practice first, wager later).
 
 ## Status
 
-**Bevy migration — early vertical slice**
+**Phase 1 — Tournament core (in design)**
 
-- [x] Job manifest + Immersive Studio asset registry loading
-- [x] LAN host/join (port 7777) via bevy_replicon + renet
-- [x] Crane of Regret + Power Hour jobs (greybox level)
-- [x] Third-person orbit camera + server-authoritative interact
-- [x] Headless multiplayer smoke test for CI
-- [ ] Remaining 8 jobs, full station map, stowaway/sabotage, meetings
+- [x] Bevy engine + LAN multiplayer foundation
+- [x] GLB asset pipeline + third-person camera
+- [x] Full design docs for Vault Break pivot
+- [ ] Tournament state machine + 4 MVP rooms
+- [ ] Server-side scoring + solo 16 bracket
+- [ ] Practice currency tournaments
 
-See [docs/ROADMAP.md](docs/ROADMAP.md) for the full plan.
+See [docs/ROADMAP.md](docs/ROADMAP.md) for milestones.
 
 ## Requirements
 
 - [Rust](https://rustup.rs/) 1.95+ (see `rust-toolchain.toml`)
 - Windows PC (primary target; Linux/macOS for dev/CI)
 
-## Quick start
+## Quick start (dev prototype)
 
 ```bash
 git clone https://github.com/chiku524/ShipHappens.git
 cd ShipHappens
 
-# Offline greybox
-cargo run -- local
-
-# LAN (two terminals)
+cargo run -- local          # offline greybox
 cargo run -- host --port 7777
 cargo run -- join --address 127.0.0.1 --port 7777
 ```
 
-Walk **north** to the crane console or **east** to the breaker panels. Press **F** to interact.
-
-## Controls
-
-| Key | Action |
-|-----|--------|
-| WASD | Move (relative to camera) |
-| Mouse | Orbit camera |
-| Shift | Sprint |
-| F | Interact with nearest station |
-| Scroll | Zoom camera |
-| Esc | Release / capture mouse |
-
-## Tests
-
-```bash
-cargo test                              # unit + integration
-bash scripts/run_mp_smoke_test.sh       # headless 2-player smoke
-```
+> Current build is a **networking/physics prototype** (crane + breakers greybox). Tournament rooms are not implemented yet.
 
 ## Documentation
 
 | Doc | Description |
 |-----|-------------|
-| [GDD](docs/GDD.md) | Full game design document |
-| [ROADMAP](docs/ROADMAP.md) | Solo dev milestones |
-| [TECH](docs/TECH.md) | Engine, networking, architecture |
-| [CHARACTERS](docs/CHARACTERS.md) | Eight default crew roster |
-| [JOBS](docs/JOBS.md) | All 10 station jobs |
-| [STOWAWAY](docs/STOWAWAY.md) | Smuggle routes and sabotage |
-| [STEAM](docs/STEAM.md) | Store page draft and tags |
-| [STUDIO_ASSETS](docs/STUDIO_ASSETS.md) | Immersive Studio → Tripo → GLB import workflow |
-
-## Immersive Studio assets (Tripo → GLB)
-
-3D props and environment pieces are generated with **Immersive Labs Studio** (Tripo mesh + PBR) and imported via:
-
-```bash
-python scripts/import_immersive_studio_pack.py path/to/pack.zip
-```
-
-See [docs/STUDIO_ASSETS.md](docs/STUDIO_ASSETS.md) for the full workflow.
-
-## Project structure
-
-```
-ShipHappens/
-├── src/              # Bevy game (app, jobs, network, player, world, …)
-├── tests/            # Integration tests
-├── scripts/          # Asset import + multiplayer smoke test
-├── assets/           # GLBs, textures, studio_registry.json
-├── data/             # job_manifest.json
-├── docs/             # Design & planning markdown
-├── Cargo.toml
-└── rust-toolchain.toml
-```
+| [GDD](docs/GDD.md) | Game vision & pillars |
+| [TOURNAMENT](docs/TOURNAMENT.md) | 30-min brackets, elimination, Strikes |
+| [SCORING](docs/SCORING.md) | Contribution Index & point tables |
+| [ROOMS](docs/ROOMS.md) | Vault stage designs & scaling |
+| [WAGERING](docs/WAGERING.md) | Prize pools, limits, compliance |
+| [ROADMAP](docs/ROADMAP.md) | Development phases |
+| [TECH](docs/TECH.md) | Bevy architecture |
+| [CHARACTERS](docs/CHARACTERS.md) | Crew roster |
+| [STEAM](docs/STEAM.md) | Store page draft |
+| [STUDIO_ASSETS](docs/STUDIO_ASSETS.md) | 3D asset import workflow |
+| [legacy/](docs/legacy/) | Archived v0.2 stowaway design |
 
 ## License
 
