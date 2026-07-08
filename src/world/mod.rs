@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-/// Persistent arena floor — room props are spawned separately per vault stage.
+/// Persistent arena shell — walls/floor/ceiling slots from `data/rooms/arena.json`.
 pub struct WorldPlugin;
 
 impl Plugin for WorldPlugin {
@@ -24,26 +24,30 @@ pub fn spawn_camera(mut commands: Commands) {
     ));
 }
 
-pub fn spawn_greybox_level(
+pub fn spawn_arena_shell(
     mut commands: Commands,
+    arena: Res<crate::data::ArenaLayout>,
+    asset_server: Res<AssetServer>,
+    registry: Res<crate::data::StudioRegistry>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    let floor_material = materials.add(StandardMaterial {
-        base_color: Color::srgb(0.18, 0.20, 0.24),
-        ..Default::default()
-    });
-    let floor_mesh = meshes.add(Cuboid::new(40.0, 0.5, 40.0));
+    for marker in &arena.0.markers {
+        crate::rooms::spawner::spawn_arena_marker(
+            &mut commands,
+            &asset_server,
+            registry.as_ref(),
+            &mut meshes,
+            &mut materials,
+            marker,
+        );
+    }
 
-    commands.spawn((
-        GameplayEntity,
-        Mesh3d(floor_mesh),
-        MeshMaterial3d(floor_material),
-        Transform::from_xyz(0.0, -0.25, 0.0),
-        Name::new("Floor"),
-    ));
-
-    info!("spawned vault arena floor — room layouts load per tournament stage");
+    info!(
+        "spawned arena shell: {} ({} markers)",
+        arena.0.label,
+        arena.0.markers.len()
+    );
 }
 
 /// Marks the main viewport camera.
@@ -53,3 +57,7 @@ pub struct MainCamera;
 /// Marker for entities spawned as part of the greybox level.
 #[derive(Component, Debug, Clone, Copy)]
 pub struct GameplayEntity;
+
+/// Persistent arena geometry — not despawned when vault stages swap.
+#[derive(Component, Debug, Clone, Copy)]
+pub struct ArenaPiece;

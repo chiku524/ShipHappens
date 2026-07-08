@@ -22,8 +22,20 @@ pub const POWER_HOUR_SEQUENCE: [u8; 4] = [0, 2, 1, 3];
 
 pub const CRANE_CONSOLE_ASSET: &str = "env_cargo_crane_operator_console_01";
 pub const BREAKER_PANEL_ASSET: &str = "env_breaker_panel_01";
+
+/// Fully Tripo-generated (baked JPEG Color/Normal/ORM) — prefer these for layout polish.
 pub const FREIGHT_CRATE_ASSET: &str = "env_freight_crate_01";
 pub const GANTRY_HOOK_ASSET: &str = "env_cargo_gantry_hook_01";
-pub const JOB_KIOSK_ASSET: &str = "blue_cartoon_sci_fi_job_terminal_kiosk_01";
 pub const COOLANT_CONSOLE_ASSET: &str = "prop_coolant_console_01";
+pub const COOLANT_WHEEL_A_ASSET: &str = "prop_coolant_pipe_wheel_01";
+pub const COOLANT_WHEEL_B_ASSET: &str = "prop_coolant_pipe_wheel_02";
 pub const SHUTTLE_BAY_ASSET: &str = "shuttle_bay_escape_zone_01";
+pub const HOT_DOG_CRATE_ASSET: &str = "s1_galactic_hot_dog_crate_01";
+pub const CARGO_SCANNER_ASSET: &str = "prop_cargo_scanner_platform";
+pub const ALIEN_SLOT_MACHINE_ASSET: &str = "prop_alien_slot_machine";
+pub const DUCT_TAPE_CART_ASSET: &str = "duct_tape_dispenser_cart_01";
+pub const MOP_BUCKET_CART_ASSET: &str = "prop_janitor_mop_bucket_cart_01";
+pub const MAINTENANCE_LADDER_ASSET: &str = "prop_wobbly_maintenance_ladder_01";
+pub const SATELLITE_DISH_ASSET: &str = "prop_satellite_dish_array_01";
+pub const HULL_PATCH_ASSET: &str = "prop_hull_patch_plate_01";
+pub const SLIME_PUDDLE_ASSET: &str = "prop_slime_puddle_floor_01";

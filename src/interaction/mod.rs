@@ -1,3 +1,5 @@
+pub mod motion;
+
 use bevy::ecs::entity::MapEntities;
 use bevy::prelude::*;
 use bevy_replicon::prelude::*;
@@ -17,6 +19,8 @@ use crate::{
     Cli,
 };
 
+pub use motion::{attach_interact_motion, trigger_interact_motion, InteractMotion};
+
 pub struct InteractionPlugin;
 
 impl Plugin for InteractionPlugin {
@@ -24,7 +28,14 @@ impl Plugin for InteractionPlugin {
         app.init_resource::<InteractPrompt>()
             .add_mapped_client_event::<InteractRequest>(Channel::Ordered)
             .add_observer(handle_interact_request)
-            .add_systems(Update, (show_interact_prompt, handle_local_interact));
+            .add_systems(
+                Update,
+                (
+                    show_interact_prompt,
+                    handle_local_interact,
+                    motion::tick_interact_motion,
+                ),
+            );
     }
 }
 
@@ -100,6 +111,11 @@ pub struct InteractPrompt {
     pub last_action: String,
 }
 
+struct InteractOutcome {
+    message: String,
+    motion_success: bool,
+}
+
 struct TournamentView {
     phase: TournamentPhase,
     room: RoomId,
@@ -145,6 +161,7 @@ fn handle_local_interact(
     mut jobs: Option<ResMut<JobSystem>>,
     mut boards: Query<(&mut JobBoard, &mut SmokeJobFlags)>,
     mut prompt: ResMut<InteractPrompt>,
+    motion_anchors: Query<&InteractMotion>,
 ) {
     if !keyboard.just_pressed(KeyCode::KeyF) {
         return;
@@ -175,6 +192,14 @@ fn handle_local_interact(
 
     if tournament_active {
         if cli.is_online() && !is_tournament_authority(server, client) {
+            let motion_success = predict_motion_success(interactable.kind, &view, room.as_ref());
+            trigger_interact_motion(
+                &mut commands,
+                station_entity,
+                interactable.kind,
+                motion_success,
+                &motion_anchors,
+            );
             prompt.last_action = format!("Sent interact to `{station_entity:?}`");
             commands.client_trigger(InteractRequest {
                 station: station_entity,
@@ -186,7 +211,7 @@ fn handle_local_interact(
             .map(|player| SlotId(player.slot))
             .unwrap_or_else(|| config.human_slot.clone());
         let player_id = PlayerScoreId(slot_id.0 * 10);
-        prompt.last_action = apply_tournament_interact(
+        let outcome = apply_tournament_interact(
             interactable.kind,
             view.room,
             &slot_id,
@@ -196,16 +221,39 @@ fn handle_local_interact(
             jobs.as_deref_mut(),
             &mut boards,
         );
+        trigger_interact_motion(
+            &mut commands,
+            station_entity,
+            interactable.kind,
+            outcome.motion_success,
+            &motion_anchors,
+        );
+        prompt.last_action = outcome.message;
         return;
     }
 
     if cli.is_online() {
+        trigger_interact_motion(
+            &mut commands,
+            station_entity,
+            interactable.kind,
+            true,
+            &motion_anchors,
+        );
         prompt.last_action = format!("Sent interact to `{station_entity:?}`");
         commands.client_trigger(InteractRequest {
             station: station_entity,
         });
     } else if let Some(jobs) = jobs.as_deref_mut() {
         let result = apply_station_interact(jobs, interactable.kind);
+        let motion_success = !result.contains("zapped") && !result.contains("wrong");
+        trigger_interact_motion(
+            &mut commands,
+            station_entity,
+            interactable.kind,
+            motion_success,
+            &motion_anchors,
+        );
         prompt.last_action = format_result(interactable.kind, result);
         apply_job_action(jobs, &mut boards);
     }
@@ -213,6 +261,7 @@ fn handle_local_interact(
 
 fn handle_interact_request(
     request: On<FromClient<InteractRequest>>,
+    mut commands: Commands,
     director: Res<TournamentDirector>,
     mut room: ResMut<RoomRuntime>,
     mut scoring: ResMut<ScoringService>,
@@ -221,6 +270,7 @@ fn handle_interact_request(
     players: Query<(&Transform, &NetworkPlayer), With<crate::player::NetworkPlayer>>,
     stations: Query<(Entity, &Transform, &Interactable)>,
     mut boards: Query<(&mut JobBoard, &mut SmokeJobFlags)>,
+    motion_anchors: Query<&InteractMotion>,
 ) {
     let Some(client_entity) = request.client_id.entity() else {
         return;
@@ -255,7 +305,7 @@ fn handle_interact_request(
     if tournament_active {
         let slot_id = SlotId(network_player.slot);
         let player_id = PlayerScoreId(slot_id.0 * 10);
-        let message = apply_tournament_interact(
+        let outcome = apply_tournament_interact(
             interactable.kind,
             director.room,
             &slot_id,
@@ -265,9 +315,16 @@ fn handle_interact_request(
             jobs.as_deref_mut(),
             &mut boards,
         );
-        info!(
-            "client `{client_entity}` tournament interact {:?}: {message}",
+        trigger_interact_motion(
+            &mut commands,
+            request.station,
             interactable.kind,
+            outcome.motion_success,
+            &motion_anchors,
+        );
+        info!(
+            "client `{client_entity}` tournament interact {:?}: {}",
+            interactable.kind, outcome.message
         );
         return;
     }
@@ -277,6 +334,14 @@ fn handle_interact_request(
     };
 
     let result = apply_station_interact(jobs, interactable.kind);
+    let motion_success = !result.contains("zapped") && !result.contains("wrong");
+    trigger_interact_motion(
+        &mut commands,
+        request.station,
+        interactable.kind,
+        motion_success,
+        &motion_anchors,
+    );
     apply_job_action(jobs, &mut boards);
     info!(
         "client `{client_entity}` interacted with {:?}: {}",
@@ -294,21 +359,25 @@ fn apply_tournament_interact(
     scoring: &mut ScoringService,
     jobs: Option<&mut JobSystem>,
     boards: &mut Query<(&mut JobBoard, &mut SmokeJobFlags)>,
-) -> String {
+) -> InteractOutcome {
     match kind {
         StationKind::SortChute { chute } => {
-            let action = if chute == room.sort_target {
+            let success = chute == room.sort_target;
+            let action = if success {
                 room.sort_target = (room.sort_target + 1) % 4;
                 ScoreAction::CorrectSort
             } else {
                 ScoreAction::IncorrectSort
             };
             room.player_action(scoring, player_id, slot_id, action);
-            format!(
-                "Sorted! Vault progress: {}% (next: {})",
-                room.progress_percent(),
-                RoomRuntime::sort_label(room.sort_target)
-            )
+            InteractOutcome {
+                message: format!(
+                    "Sorted! Vault progress: {}% (next: {})",
+                    room.progress_percent(),
+                    RoomRuntime::sort_label(room.sort_target)
+                ),
+                motion_success: success,
+            }
         }
         StationKind::VaultObjective => {
             let action = if room_id == RoomId::ShuttleMeltdown {
@@ -317,45 +386,73 @@ fn apply_tournament_interact(
                 ScoreAction::CrateDelivered
             };
             room.player_action(scoring, player_id, slot_id, action);
-            format!("Vault progress: {}%", room.progress_percent())
+            InteractOutcome {
+                message: format!("Vault progress: {}%", room.progress_percent()),
+                motion_success: true,
+            }
         }
         StationKind::CoolantValve { .. } => {
             room.player_action(scoring, player_id, slot_id, ScoreAction::CoolantValve);
-            format!(
-                "Coolant valve turned — meltdown {}%",
-                room.progress.meltdown_meter as u32
-            )
+            InteractOutcome {
+                message: format!(
+                    "Coolant valve turned — meltdown {}%",
+                    room.progress.meltdown_meter as u32
+                ),
+                motion_success: true,
+            }
         }
         StationKind::MeltdownDoor { .. } => {
             room.player_action(scoring, player_id, slot_id, ScoreAction::DoorSealed);
-            format!("Door sealed — progress {}%", room.progress_percent())
+            InteractOutcome {
+                message: format!("Door sealed — progress {}%", room.progress_percent()),
+                motion_success: true,
+            }
         }
         StationKind::CraneConsole => {
             room.player_action(scoring, player_id, slot_id, ScoreAction::CrateDelivered);
-            if let Some(jobs) = jobs {
+            let message = if let Some(jobs) = jobs {
                 let msg = apply_station_interact(jobs, kind);
                 apply_job_action(jobs, boards);
                 format!("Gantry: {msg} | {}%", room.progress_percent())
             } else {
                 format!("Gantry delivery — {}%", room.progress_percent())
+            };
+            InteractOutcome {
+                message,
+                motion_success: true,
             }
         }
         StationKind::PowerHourBreaker { index } => {
             if let Some(jobs) = jobs {
                 let msg = apply_station_interact(jobs, kind);
                 apply_job_action(jobs, boards);
-                let action = if msg.contains("zapped") {
-                    ScoreAction::BreakerWrong
-                } else {
+                let success = !msg.contains("zapped");
+                let action = if success {
                     ScoreAction::BreakerCorrect
+                } else {
+                    ScoreAction::BreakerWrong
                 };
                 room.player_action(scoring, player_id, slot_id, action);
-                format!("Breaker {index}: {msg}")
+                InteractOutcome {
+                    message: format!("Breaker {index}: {msg}"),
+                    motion_success: success,
+                }
             } else {
                 room.player_action(scoring, player_id, slot_id, ScoreAction::BreakerCorrect);
-                format!("Breaker {index} flipped")
+                InteractOutcome {
+                    message: format!("Breaker {index} flipped"),
+                    motion_success: true,
+                }
             }
         }
+    }
+}
+
+fn predict_motion_success(kind: StationKind, view: &TournamentView, _room: &RoomRuntime) -> bool {
+    match kind {
+        StationKind::SortChute { chute } => chute == view.sort_target,
+        StationKind::PowerHourBreaker { .. } => true,
+        _ => true,
     }
 }
 

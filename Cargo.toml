@@ -19,7 +19,7 @@ name = "shiphappens_smoke"
 path = "src/bin/smoke.rs"
 
 [dependencies]
-bevy = { version = "0.19", features = ["serialize"] }
+bevy = { version = "0.19", features = ["serialize", "jpeg"] }
 bevy_replicon = "0.41"
 bevy_replicon_renet = "0.17"
 clap = { version = "4", features = ["derive", "env"] }

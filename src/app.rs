@@ -19,7 +19,8 @@ use crate::{
     smoke::SmokeAutomationPlugin,
     tournament::TournamentPlugin,
     ui::UiPlugin,
-    world::{spawn_camera, spawn_greybox_level, WorldPlugin},
+    world::{spawn_arena_shell, spawn_camera, WorldPlugin},
+    rooms::load_room_layouts,
 };
 
 /// Shared app builder for interactive and headless smoke binaries.
@@ -81,9 +82,10 @@ pub fn build_app(headless: bool, enable_smoke: bool) -> App {
         (
             load_studio_registry,
             load_manifest,
+            load_room_layouts,
             setup_job_board,
             spawn_camera,
-            spawn_greybox_level,
+            spawn_arena_shell,
             init_network_backend,
             spawn_offline_player,
         )

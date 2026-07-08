@@ -122,3 +122,27 @@ pub fn spawn_job_station(
         interactable,
     )
 }
+
+/// Decorative Studio prop (no interaction). Falls back silently to nothing when GLB missing.
+pub fn spawn_decoration(
+    commands: &mut Commands,
+    asset_server: &AssetServer,
+    registry: &StudioRegistry,
+    asset_id: &str,
+    transform: Transform,
+) -> Option<Entity> {
+    let glb_path = registry.glb_asset_path(asset_id);
+    let full_path = format!("{}/assets/{glb_path}", env!("CARGO_MANIFEST_DIR"));
+    if !std::path::Path::new(&full_path).exists() {
+        warn!("decoration GLB missing at {full_path}");
+        return None;
+    }
+    Some(spawn_studio_prop(
+        commands,
+        asset_server,
+        registry,
+        asset_id,
+        transform,
+        (),
+    ))
+}

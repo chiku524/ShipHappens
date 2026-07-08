@@ -1,4 +1,5 @@
 pub mod layout;
+pub mod spawner;
 
 use bevy::prelude::*;
 
@@ -8,7 +9,10 @@ use crate::{
     tournament::types::{RoomId, RoomProgress, SlotId, SlotSize},
 };
 
-pub use layout::{sync_room_layout, ActiveRoomLayout, RoomLayoutPiece};
+pub use layout::{
+    relocate_players_on_room_enter, sync_room_layout, ActiveRoomLayout, LayoutMarkerId,
+    RoomLayoutPiece, RoomSpawnPoint,
+};
 
 #[derive(Resource, Debug, Clone, Default)]
 pub struct RoomRuntime {
@@ -174,8 +178,31 @@ impl Plugin for RoomsPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<RoomRuntime>()
             .init_resource::<ActiveRoomLayout>()
-            .add_systems(Update, sync_room_layout);
+            .init_resource::<RoomSpawnPoint>()
+            .add_systems(
+                Update,
+                (sync_room_layout, relocate_players_on_room_enter).chain(),
+            );
     }
+}
+
+/// Loads vault room layouts + arena shell; call from app startup before arena/player spawn.
+pub fn load_room_layouts(mut commands: Commands) {
+    let base = format!("{}/data/rooms", env!("CARGO_MANIFEST_DIR"));
+    let catalog = crate::data::RoomLayoutCatalog::load_from_dir(&base)
+        .unwrap_or_else(|err| panic!("failed to load room layouts: {err}"));
+    info!("loaded {} vault room layouts from data/rooms", catalog.len());
+    commands.insert_resource(catalog);
+
+    let arena_path = format!("{base}/arena.json");
+    let arena = crate::data::load_arena_layout(&arena_path)
+        .unwrap_or_else(|err| panic!("failed to load arena layout: {err}"));
+    let lobby = Vec3::from_array(arena.lobby_spawn);
+    commands.insert_resource(crate::data::ArenaLayout(arena));
+    commands.insert_resource(RoomSpawnPoint {
+        lobby,
+        current: lobby,
+    });
 }
 
 /// Phase 2 — rotate leaseholder at room start for team brackets.

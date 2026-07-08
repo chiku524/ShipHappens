@@ -122,12 +122,13 @@ pub fn spawn_offline_player(
     mut commands: Commands,
     cli: Res<Cli>,
     mut registry: ResMut<PlayerRegistry>,
+    spawn_point: Res<crate::rooms::RoomSpawnPoint>,
 ) {
     if !matches!(*cli, Cli::Local) {
         return;
     }
 
-    let player = spawn_player_entity(&mut commands, 0, Vec3::new(0.0, 1.0, 8.0));
+    let player = spawn_player_entity(&mut commands, 0, spawn_point.lobby);
     registry.local_player = Some(player);
     commands.entity(player).insert(crate::player::LocalPlayer);
 }
