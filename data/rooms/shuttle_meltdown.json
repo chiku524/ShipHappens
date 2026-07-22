@@ -7,7 +7,8 @@
     {
       "id": "room_sign",
       "role": "sign",
-      "position": [0.0, 4.0, -14.0],
+      "asset_id": "env_blue_yellow_welcome_sign_01",
+      "position": [0.0, 0.0, -14.0],
       "greybox": {
         "size": [8.0, 1.0, 0.3],
         "color": [0.95, 0.35, 0.25],
@@ -62,25 +63,29 @@
     {
       "id": "meltdown_door_left",
       "role": "station",
-      "asset_id": "env_breaker_panel_01",
+      "asset_id": "env_break_glass_panel_01",
       "position": [-4.0, 0.0, 3.0],
       "rotation_y_deg": 90.0,
       "interactable": { "kind": "meltdown_door", "index": 0 },
-      "greybox": { "size": [0.8, 1.2, 0.4], "color": [0.35, 0.55, 0.95] }
+      "motion": {
+        "preset": "door_seal",
+        "duration_secs": 0.45
+      },
+      "greybox": { "size": [0.8, 1.2, 0.4], "color": [0.7, 0.85, 0.95] }
     },
     {
       "id": "meltdown_door_right",
       "role": "station",
-      "asset_id": "env_breaker_panel_01",
+      "asset_id": "env_break_glass_panel_01",
       "position": [4.0, 0.0, 3.0],
       "rotation_y_deg": 90.0,
       "interactable": { "kind": "meltdown_door", "index": 1 },
-      "greybox": { "size": [0.8, 1.2, 0.4], "color": [0.35, 0.55, 0.95] }
+      "greybox": { "size": [0.8, 1.2, 0.4], "color": [0.7, 0.85, 0.95] }
     },
     {
       "id": "delivery_zone",
       "role": "zone",
-      "asset_id": null,
+      "asset_id": "safety_mat_floor_pad_01",
       "position": [0.0, 0.0, 8.0],
       "interactable": { "kind": "vault_objective" },
       "greybox": {
@@ -112,6 +117,21 @@
       "position": [-12.0, 0.0, -8.0],
       "rotation_y_deg": 52.0,
       "greybox": { "size": [2.5, 2.5, 2.5], "color": [0.45, 0.5, 0.55] }
+    },
+    {
+      "id": "prop_dish_crank",
+      "role": "decoration",
+      "asset_id": "satellite_dish_maintenance_wheel_crank_01",
+      "position": [-10.0, 0.0, -6.0],
+      "greybox": { "size": [0.5, 0.5, 0.5], "color": [0.6, 0.55, 0.4] }
+    },
+    {
+      "id": "prop_hull_breach",
+      "role": "decoration",
+      "asset_id": "wall_panel_breach_hole_01",
+      "position": [12.0, 1.0, -4.0],
+      "rotation_y_deg": -90.0,
+      "greybox": { "size": [1.5, 1.5, 0.3], "color": [0.35, 0.3, 0.3] }
     },
     {
       "id": "prop_hull_patch",

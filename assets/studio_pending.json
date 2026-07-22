@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "_comment": "Reserved Studio asset_ids. Register + drop GLB when ready; until then rooms keep stand-ins. See docs/DROP_IN.md.",
+  "assets": [
+    {
+      "asset_id": "char_pugdy_base_01",
+      "target_height": 1.2,
+      "notes": "Default Pugdy character. Auto-used via data/player_defaults.json when GLB exists."
+    },
+    {
+      "asset_id": "char_crew_base_01",
+      "target_height": 1.8,
+      "notes": "Legacy crew id (retired). Prefer char_pugdy_base_01."
+    },
+    {
+      "asset_id": "env_nest_egg_01",
+      "target_height": 2.0,
+      "notes": "Centerpiece for The Nest plaza"
+    },
+    {
+      "asset_id": "env_nest_bench_01",
+      "target_height": 0.5,
+      "notes": "Social seating prop in The Nest"
+    },
+    {
+      "asset_id": "prop_vibe_mushroom_01",
+      "target_height": 1.8,
+      "notes": "Decorative Nest flora"
+    },
+    {
+      "asset_id": "env_sort_chute_hot_dogs_01",
+      "target_height": 1.5,
+      "notes": "Replace sort_chute_* markers in hr_orientation.json"
+    },
+    {
+      "asset_id": "env_sort_chute_toasters_01",
+      "target_height": 1.5,
+      "notes": "Optional tint variant; or reuse hot_dogs mesh"
+    },
+    {
+      "asset_id": "env_sort_chute_premium_air_01",
+      "target_height": 1.5,
+      "notes": "Optional tint variant"
+    },
+    {
+      "asset_id": "env_sort_chute_writeups_01",
+      "target_height": 1.5,
+      "notes": "Optional tint variant"
+    },
+    {
+      "asset_id": "env_shuttle_seal_door_01",
+      "target_height": 2.2,
+      "notes": "Replace meltdown_door_* in shuttle_meltdown.json"
+    },
+    {
+      "asset_id": "env_freight_deck_panel_01",
+      "target_height": 0.1,
+      "target_width": 12.0,
+      "notes": "Replace floor_main in arena.json"
+    },
+    {
+      "asset_id": "env_room_sign_hr_01",
+      "target_height": 3.0,
+      "notes": "Replace room_sign in hr_orientation.json"
+    },
+    {
+      "asset_id": "env_room_sign_breaker_01",
+      "target_height": 3.0,
+      "notes": "Replace room_sign in breaker_panic.json"
+    },
+    {
+      "asset_id": "env_room_sign_meltdown_01",
+      "target_height": 3.0,
+      "notes": "Replace room_sign in shuttle_meltdown.json"
+    },
+    {
+      "asset_id": "vfx_meltdown_floor_glow_01",
+      "target_height": 0.05,
+      "target_width": 10.0,
+      "notes": "Replace meltdown_glow marker"
+    },
+    {
+      "asset_id": "char_hat_zip_01",
+      "target_height": 0.35,
+      "notes": "Hat slot 0 — child of crew base"
+    },
+    {
+      "asset_id": "char_hat_pax_01",
+      "target_height": 0.35,
+      "notes": "Hat slot 7 — see CHARACTERS.md for full set"
+    }
+  ]
+}

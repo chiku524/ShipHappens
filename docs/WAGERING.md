@@ -1,5 +1,7 @@
 # Wager Economy & Prize Pools
 
+> **SUPERSEDED:** PugdyMon: Party Saga uses **season points + Boing Network NFTs/currency** (collectibles), not real-money prize pools. See [PARTY_ROADMAP.md](PARTY_ROADMAP.md) and [BOING_INTEGRATION.md](BOING_INTEGRATION.md). No stake-to-win until legal review. The text below is archived vault-era design only.
+
 ## Overview
 
 Wager tournaments allow players to buy into a bracket. The platform takes a **5% rake**; **95%** funds the prize pool distributed to **top 3** finishers.

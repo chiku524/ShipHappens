@@ -32,6 +32,9 @@ pub struct LayoutMarker {
     pub position: [f32; 3],
     #[serde(default)]
     pub rotation_y_deg: f32,
+    /// Extra uniform scale multiplier on top of registry spawn scale (default 1.0).
+    #[serde(default = "default_marker_scale")]
+    pub scale: f32,
     #[serde(default)]
     pub interactable: Option<InteractableSpec>,
     #[serde(default)]
@@ -39,6 +42,10 @@ pub struct LayoutMarker {
     /// Optional interact animation override. Omit to use station-kind defaults.
     #[serde(default)]
     pub motion: Option<MarkerMotionSpec>,
+}
+
+fn default_marker_scale() -> f32 {
+    1.0
 }
 
 /// Per-marker motion tuning. `glb_clip` is reserved for future skeletal clips on Tripo meshes.
@@ -255,5 +262,56 @@ mod tests {
         assert_eq!(motion.fail_preset, Some(MotionPresetKind::BreakerZap));
         assert_eq!(motion.duration_secs, Some(0.4));
         assert_eq!(motion.glb_clip.as_deref(), Some("switch_flip"));
+        assert!((marker.scale - 1.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn room_asset_ids_exist_in_registry_or_are_null() {
+        let registry =
+            crate::data::StudioRegistry::load("assets/studio_registry.json").expect("registry");
+        let catalog = RoomLayoutCatalog::load_from_dir("data/rooms").expect("rooms");
+        let arena = load_arena_layout("data/rooms/arena.json").expect("arena");
+
+        let mut unknown = Vec::new();
+        let mut no_greybox = Vec::new();
+        let mut duplicate_ids = Vec::new();
+
+        let mut check_markers = |file: &str, markers: &[LayoutMarker]| {
+            let mut seen = std::collections::HashSet::new();
+            for marker in markers {
+                if !seen.insert(marker.id.clone()) {
+                    duplicate_ids.push(format!("{file}::{}", marker.id));
+                }
+                if let Some(asset_id) = marker.asset_id.as_deref() {
+                    if !registry.contains(asset_id) {
+                        unknown.push(format!("{file}::{} → {asset_id}", marker.id));
+                    }
+                }
+                if marker.interactable.is_some() && marker.greybox.is_none() {
+                    no_greybox.push(format!("{file}::{}", marker.id));
+                }
+            }
+        };
+
+        for room in [
+            RoomId::HrOrientation,
+            RoomId::CargoGantry,
+            RoomId::BreakerPanic,
+            RoomId::ShuttleMeltdown,
+        ] {
+            let layout = catalog.get(room).expect("layout");
+            check_markers(room.file_stem(), &layout.markers);
+        }
+        check_markers("arena", &arena.markers);
+
+        assert!(unknown.is_empty(), "unknown asset_ids in layouts: {unknown:?}");
+        assert!(
+            no_greybox.is_empty(),
+            "interactable markers need greybox fallback: {no_greybox:?}"
+        );
+        assert!(
+            duplicate_ids.is_empty(),
+            "duplicate marker ids: {duplicate_ids:?}"
+        );
     }
 }

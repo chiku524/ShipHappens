@@ -1,8 +1,8 @@
 use bevy::prelude::*;
 
 use crate::{
-    assets::{spawn_decoration, spawn_job_station},
-    data::{GreyboxSpec, InteractableSpec, LayoutMarker, StudioRegistry},
+    assets::{spawn_decoration, spawn_job_station, studio_asset_exists},
+    data::{GreyboxSpec, InteractableSpec, LayoutMarker, MarkerRole, StudioRegistry},
     interaction::{attach_interact_motion, Interactable},
     world::{ArenaPiece, GameplayEntity},
 };
@@ -26,7 +26,7 @@ pub fn spawn_layout_marker(
         .unwrap_or_else(|| marker.id.clone());
 
     let entity = if let Some(asset_id) = marker.asset_id.as_deref() {
-        if glb_exists(registry, asset_id) {
+        if studio_asset_exists(registry, asset_id) {
             if let Some(interactable) = interactable {
                 spawn_job_station(
                     commands,
@@ -55,6 +55,10 @@ pub fn spawn_layout_marker(
                     })
             }
         } else if greybox.is_some() {
+            info!(
+                "marker `{}` asset `{}` missing — greybox fallback",
+                marker.id, asset_id
+            );
             spawn_greybox_only(
                 commands,
                 meshes,
@@ -90,6 +94,7 @@ pub fn spawn_layout_marker(
     };
 
     tag_marker(commands, entity, &marker.id, tag);
+    maybe_attach_push_volume(commands, entity, marker);
 
     if interactable.is_some() {
         attach_interact_motion(commands, entity, transform, marker.motion.clone());
@@ -122,12 +127,14 @@ pub enum MarkerTag {
 }
 
 fn tag_marker(commands: &mut Commands, entity: Entity, marker_id: &str, tag: MarkerTag) {
+    // Always stamp LayoutMarkerId so interact RPCs can resolve by stable id.
+    commands
+        .entity(entity)
+        .insert(LayoutMarkerId(marker_id.to_string()));
+
     match tag {
         MarkerTag::Room => {
-            commands.entity(entity).insert((
-                RoomLayoutPiece,
-                LayoutMarkerId(marker_id.to_string()),
-            ));
+            commands.entity(entity).insert(RoomLayoutPiece);
         }
         MarkerTag::Arena => {
             commands
@@ -135,6 +142,28 @@ fn tag_marker(commands: &mut Commands, entity: Entity, marker_id: &str, tag: Mar
                 .insert((ArenaPiece, Name::new(format!("Arena_{marker_id}"))));
         }
     }
+}
+
+fn maybe_attach_push_volume(
+    commands: &mut Commands,
+    entity: Entity,
+    marker: &LayoutMarker,
+) {
+    let Some(greybox) = marker.greybox.as_ref() else {
+        return;
+    };
+    // Floors / zones / VFX are walkable; walls / props / stations push.
+    if matches!(
+        marker.role,
+        MarkerRole::Floor | MarkerRole::FloorDetail | MarkerRole::FloorVfx | MarkerRole::Zone
+    ) {
+        return;
+    }
+    let size = Vec3::new(greybox.size[0], greybox.size[1], greybox.size[2]) * marker.scale.max(0.01);
+    if size.y < 0.35 {
+        return;
+    }
+    commands.entity(entity).insert(crate::player::collision::PushVolume::from_greybox_size(size));
 }
 
 fn spawn_greybox_only(
@@ -147,7 +176,7 @@ fn spawn_greybox_only(
     name: &str,
 ) -> Entity {
     let greybox = marker.greybox.as_ref().expect("greybox required");
-    let mat = greybox_material(materials, greybox);
+    let mat = greybox_material(materials, greybox, marker.role);
     let mesh = meshes.add(Cuboid::new(
         greybox.size[0],
         greybox.size[1],
@@ -169,9 +198,29 @@ fn spawn_greybox_only(
     entity.id()
 }
 
+/// World transform for a layout marker.
+///
+/// Greybox-only markers are lifted by half height (Bevy cuboids are center-origin).
+/// GLB markers keep the authored Y — Tripo meshes are expected to be floor-pivoted.
 pub fn marker_transform(marker: &LayoutMarker) -> Transform {
-    Transform::from_xyz(marker.position[0], marker.position[1], marker.position[2])
-        .with_rotation(Quat::from_rotation_y(marker.rotation_y_deg.to_radians()))
+    let has_glb = marker.asset_id.as_ref().is_some_and(|id| !id.is_empty());
+    let y_lift = if has_glb {
+        0.0
+    } else {
+        marker
+            .greybox
+            .as_ref()
+            .map(|g| g.size[1] * 0.5)
+            .unwrap_or(0.0)
+    };
+    let scale = marker.scale.max(0.01);
+    Transform::from_xyz(
+        marker.position[0],
+        marker.position[1] + y_lift,
+        marker.position[2],
+    )
+    .with_rotation(Quat::from_rotation_y(marker.rotation_y_deg.to_radians()))
+    .with_scale(Vec3::splat(scale))
 }
 
 pub fn interactable_from_spec(spec: &InteractableSpec) -> Interactable {
@@ -188,17 +237,24 @@ pub fn interactable_from_spec(spec: &InteractableSpec) -> Interactable {
 fn greybox_material(
     materials: &mut Assets<StandardMaterial>,
     greybox: &GreyboxSpec,
+    role: MarkerRole,
 ) -> Handle<StandardMaterial> {
+    let thin_emissive = greybox.emissive.is_some() && greybox.size[1] < 0.2;
+    let alpha = match role {
+        MarkerRole::FloorVfx | MarkerRole::Zone if thin_emissive || greybox.emissive.is_some() => {
+            AlphaMode::Blend
+        }
+        _ if thin_emissive => AlphaMode::Blend,
+        _ => AlphaMode::Opaque,
+    };
+
     materials.add(StandardMaterial {
         base_color: Color::srgb(greybox.color[0], greybox.color[1], greybox.color[2]),
         emissive: greybox.emissive.map_or(LinearRgba::BLACK, |e| {
             LinearRgba::rgb(e[0], e[1], e[2])
         }),
-        alpha_mode: if greybox.emissive.is_some() && greybox.size[1] < 0.2 {
-            AlphaMode::Blend
-        } else {
-            AlphaMode::Opaque
-        },
+        alpha_mode: alpha,
+        unlit: matches!(role, MarkerRole::FloorVfx | MarkerRole::Sign),
         ..Default::default()
     })
 }
@@ -211,10 +267,4 @@ fn greybox_color(greybox: Option<&GreyboxSpec>) -> Color {
 
 fn greybox_size(greybox: Option<&GreyboxSpec>) -> Vec3 {
     greybox.map_or(Vec3::ONE, |g| Vec3::new(g.size[0], g.size[1], g.size[2]))
-}
-
-fn glb_exists(registry: &StudioRegistry, asset_id: &str) -> bool {
-    let glb_path = registry.glb_asset_path(asset_id);
-    let full_path = format!("{}/assets/{glb_path}", env!("CARGO_MANIFEST_DIR"));
-    std::path::Path::new(&full_path).exists()
 }

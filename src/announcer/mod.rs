@@ -1,5 +1,7 @@
 use bevy::prelude::*;
 
+use crate::audio_fx::VoKind;
+
 #[derive(Resource, Debug, Default)]
 pub struct AnnouncerQueue {
     pub pending: Vec<String>,
@@ -11,6 +13,11 @@ impl AnnouncerQueue {
         let line = line.into();
         self.last_bark = line.clone();
         self.pending.push(line);
+    }
+
+    pub fn push_with_vo(&mut self, vo: &mut crate::audio_fx::VoQueue, kind: VoKind, line: impl Into<String>) {
+        self.push(line);
+        vo.push(kind);
     }
 }
 

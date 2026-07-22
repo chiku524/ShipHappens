@@ -73,6 +73,7 @@ pub fn sync_room_layout(
     }
 
     for entity in &pieces {
+        // Recursive: WorldAssetRoot GLB instances spawn as children.
         commands.entity(entity).despawn();
     }
 
@@ -103,6 +104,22 @@ pub fn sync_room_layout(
         );
     }
 
+    if room == RoomId::ShuttleMeltdown {
+        commands.spawn((
+            RoomLayoutPiece,
+            Mesh3d(meshes.add(Cuboid::new(22.0, 0.08, 22.0))),
+            MeshMaterial3d(materials.add(StandardMaterial {
+                base_color: Color::srgba(1.0, 0.25, 0.08, 0.85),
+                emissive: LinearRgba::rgb(4.0, 0.6, 0.1),
+                alpha_mode: AlphaMode::Blend,
+                unlit: true,
+                ..Default::default()
+            })),
+            Transform::from_xyz(0.0, 0.04, 0.0),
+            Name::new("MeltdownFloorGlow"),
+        ));
+    }
+
     info!(
         "room layout spawned: {} ({} markers, spawn {:?})",
         room.label(),
@@ -115,7 +132,7 @@ pub fn sync_room_layout(
 pub fn relocate_players_on_room_enter(
     active: Res<ActiveRoomLayout>,
     spawn_point: Res<RoomSpawnPoint>,
-    mut players: Query<&mut Transform, With<NetworkPlayer>>,
+    mut players: Query<(&NetworkPlayer, &mut Transform)>,
     mut last_room: Local<Option<RoomId>>,
 ) {
     let Some(room) = active.room else {
@@ -127,8 +144,10 @@ pub fn relocate_players_on_room_enter(
         return;
     }
 
-    for mut transform in &mut players {
-        transform.translation = spawn_point.current;
+    for (network_player, mut transform) in &mut players {
+        let offset = Vec3::new((network_player.slot as f32) * 2.5, 0.0, 0.0);
+        transform.translation = spawn_point.current + offset;
+        transform.translation.y = 1.0;
     }
 
     info!(

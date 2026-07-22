@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Two-process headless LAN smoke test for ShipHappens (Bevy).
+# Two-process headless LAN smoke test for PugdyMon (Bevy).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -13,11 +13,11 @@ JOIN_RESULT="$RESULT_DIR/mp_smoke_join.result"
 rm -f "$HOST_RESULT" "$JOIN_RESULT"
 
 echo "Building smoke binary..."
-cargo build --quiet --bin shiphappens_smoke
+cargo build --quiet --bin pudgymon_smoke
 
-SMOKE_BIN="$ROOT/target/debug/shiphappens_smoke"
+SMOKE_BIN="$ROOT/target/debug/pudgymon_smoke"
 if [[ ! -f "$SMOKE_BIN" ]]; then
-  SMOKE_BIN="$ROOT/target/debug/shiphappens_smoke.exe"
+  SMOKE_BIN="$ROOT/target/debug/pudgymon_smoke.exe"
 fi
 
 echo "Starting host..."

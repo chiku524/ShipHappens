@@ -1,0 +1,23 @@
+# Keep CLI uploads tiny — site lives in web/ (also set as Vercel rootDirectory).
+target
+.bevy
+.git
+services
+assets
+src
+docs
+tools
+scripts
+*.rs
+Cargo.toml
+Cargo.lock
+rust-toolchain.toml
+Dockerfile
+docker-compose.yml
+.env
+.env.*
+**/*.glb
+**/*.png
+**/*.jpg
+**/*.wav
+**/*.ogg

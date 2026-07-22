@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PugdyMon — Claim Companion</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="shell">
+    <header>
+      <p class="eyebrow">Pugdy Monsters · Boing Network</p>
+      <h1>PugdyMon Claim</h1>
+      <p class="lede">
+        Paste a claim voucher from the game (<code>M</code> key →
+        <code>%LOCALAPPDATA%/PugdyMon/logs/claim_voucher.json</code>),
+        then mint with <strong>Boing Express</strong>.
+      </p>
+    </header>
+
+    <section class="panel">
+      <label for="voucher">Claim voucher JSON</label>
+      <textarea id="voucher" rows="10" placeholder='{"skin_id":"skin_starter","account":"0x…","season_points":120,"note":"…"}'></textarea>
+      <div class="row">
+        <button type="button" id="parseBtn">Parse voucher</button>
+        <button type="button" id="fileBtn" class="ghost">Load file…</button>
+        <input type="file" id="fileInput" accept="application/json,.json" hidden />
+      </div>
+      <p id="parseStatus" class="status" hidden></p>
+    </section>
+
+    <section class="panel" id="summary" hidden>
+      <h2>Ready to claim</h2>
+      <dl>
+        <div><dt>Skin</dt><dd id="outSkin">—</dd></div>
+        <div><dt>Account</dt><dd id="outAccount" class="mono">—</dd></div>
+        <div><dt>Season points</dt><dd id="outPoints">—</dd></div>
+        <div><dt>Note</dt><dd id="outNote">—</dd></div>
+      </dl>
+    </section>
+
+    <section class="panel steps">
+      <h2>Mint path (v1)</h2>
+      <ol>
+        <li>Confirm your AccountId matches Boing Express.</li>
+        <li>Open Express and connect to chain id <strong>6913</strong> (testnet).</li>
+        <li>Operator / you submit a reference-NFT <code>contract_call</code> mint for this skin
+          (collection AccountId in <code>data/boing/contracts.json</code>).</li>
+        <li>Optional: set <code>window.boing</code> via Express — this page will call
+          <code>boing_sendTransaction</code> when a mint payload is configured.</li>
+      </ol>
+      <div class="row">
+        <button type="button" id="expressBtn">Open Boing Express</button>
+        <button type="button" id="mintBtn" class="ghost" disabled>Try Express mint</button>
+      </div>
+      <p id="mintStatus" class="status" hidden></p>
+    </section>
+
+    <footer>
+      <a href="../../docs/BOING_INTEGRATION.md">Integration docs</a>
+      · <a href="../../web/index.html">PugdyMon website / accounts</a>
+      · PugdyMon: Party Saga
+    </footer>
+  </main>
+  <script src="claim.js"></script>
+</body>
+</html>

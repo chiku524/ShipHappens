@@ -13,7 +13,7 @@
       "name": "Power Hour",
       "zone": "Main Hub · Breakers",
       "hint": "Flip breakers in the correct sequence",
-      "target": 4,
+      "target": 12,
       "satisfaction": 7.0
     },
     {

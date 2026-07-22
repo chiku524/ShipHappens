@@ -115,7 +115,9 @@
     },
     {
       "asset_id": "safety_mat_floor_pad_01",
-      "target_width": 2.0
+      "target_height": 0.05,
+      "target_width": 2.0,
+      "notes": "Floor pad — width drives XZ scale"
     },
     {
       "asset_id": "satellite_dish_maintenance_wheel_crank_01",

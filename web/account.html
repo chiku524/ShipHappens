@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Account — PugdyMon</title>
+  <link rel="stylesheet" href="css/site.css" />
+</head>
+<body>
+  <nav class="nav">
+    <a class="nav-brand" href="index.html">PugdyMon</a>
+    <div class="nav-links">
+      <a data-nav href="learn.html">Learn</a>
+      <a data-nav href="signup.html">Create Account</a>
+      <a data-nav href="login.html">Log In</a>
+      <a data-nav href="account.html">Account</a>
+    </div>
+  </nav>
+
+  <main class="shell">
+    <p class="eyebrow">Your Nest profile</p>
+    <h1 class="brand-hero" style="font-size: clamp(2.2rem, 6vw, 3.2rem)">Account</h1>
+
+    <section class="panel" id="guestPanel">
+      <p class="lede" style="margin: 0">You’re not signed in.</p>
+      <div class="row">
+        <a class="btn" href="login.html">Log In</a>
+        <a class="btn ghost" href="signup.html">Create Account</a>
+      </div>
+    </section>
+
+    <section class="panel" id="userPanel" hidden>
+      <p id="who" class="lede" style="margin-top: 0"></p>
+      <form id="profileForm">
+        <label for="display_name">Display name</label>
+        <input id="display_name" maxlength="48" required />
+
+        <label for="boing_wallet">Boing wallet (optional 0x…)</label>
+        <input id="boing_wallet" class="mono" placeholder="0x…" />
+
+        <div class="row">
+          <button class="btn" type="submit">Save</button>
+          <button class="btn ghost" type="button" id="tokenBtn">Show game token</button>
+          <button class="btn ghost" type="button" id="logoutBtn">Log out</button>
+        </div>
+      </form>
+      <p id="status" class="status" hidden></p>
+      <div id="tokenPanel" hidden>
+        <div class="token-box mono" id="tokenOut"></div>
+        <div class="row">
+          <button class="btn ghost" type="button" id="downloadBtn">Download pending_token.txt</button>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <footer>API: <span class="mono" id="apiLabel"></span></footer>
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/nav.js"></script>
+  <script>
+    document.getElementById("apiLabel").textContent = PugdyMonApi.apiBase();
+    const guest = document.getElementById("guestPanel");
+    const user = document.getElementById("userPanel");
+    const status = document.getElementById("status");
+    const who = document.getElementById("who");
+
+    async function load() {
+      if (!PugdyMonApi.getToken()) {
+        guest.hidden = false;
+        user.hidden = true;
+        return;
+      }
+      try {
+        const profile = await PugdyMonApi.me();
+        guest.hidden = true;
+        user.hidden = false;
+        who.textContent = `${profile.email} · id ${profile.id}`;
+        display_name.value = profile.display_name || "";
+        boing_wallet.value = profile.boing_wallet || "";
+      } catch (err) {
+        PugdyMonApi.logout();
+        guest.hidden = false;
+        user.hidden = true;
+      }
+    }
+
+    document.getElementById("profileForm").onsubmit = async (e) => {
+      e.preventDefault();
+      status.hidden = false;
+      status.classList.remove("err");
+      try {
+        const profile = await PugdyMonApi.patchMe({
+          display_name: display_name.value.trim(),
+          boing_wallet: boing_wallet.value.trim(),
+        });
+        status.textContent = "Saved.";
+        who.textContent = `${profile.email} · id ${profile.id}`;
+      } catch (err) {
+        status.classList.add("err");
+        status.textContent = err.message || String(err);
+      }
+    };
+
+    document.getElementById("tokenBtn").onclick = () => {
+      tokenPanel.hidden = false;
+      tokenOut.textContent = PugdyMonApi.getToken();
+    };
+    document.getElementById("downloadBtn").onclick = () => PugdyMonApi.downloadGameToken();
+    document.getElementById("logoutBtn").onclick = () => {
+      PugdyMonApi.logout();
+      location.reload();
+    };
+
+    load();
+  </script>
+</body>
+</html>

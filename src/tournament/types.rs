@@ -15,6 +15,34 @@ impl SlotSize {
     pub fn player_count(self) -> usize {
         self as usize
     }
+
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::Solo => "Solo",
+            Self::Duo => "Duo",
+            Self::Trio => "Trio",
+            Self::Squad => "Squad",
+        }
+    }
+
+    pub fn cycle_next(self) -> Self {
+        match self {
+            Self::Solo => Self::Duo,
+            Self::Duo => Self::Trio,
+            Self::Trio => Self::Squad,
+            Self::Squad => Self::Solo,
+        }
+    }
+}
+
+/// Map a network player seat index → bracket team index.
+pub fn bracket_team_index(player_slot: u32, slot_size: SlotSize) -> u32 {
+    player_slot / slot_size.player_count() as u32
+}
+
+/// Seat within a team (0 = first member).
+pub fn seat_in_team(player_slot: u32, slot_size: SlotSize) -> u32 {
+    player_slot % slot_size.player_count() as u32
 }
 
 /// Tournament lifecycle phases.
@@ -52,7 +80,7 @@ impl RoomId {
     pub fn duration_secs(self, fast: bool) -> f32 {
         if fast {
             match self {
-                Self::HrOrientation => 30.0,
+                Self::HrOrientation => 24.0,
                 Self::CargoGantry => 35.0,
                 Self::BreakerPanic => 35.0,
                 Self::ShuttleMeltdown => 40.0,

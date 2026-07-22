@@ -6,25 +6,29 @@ use crate::core::DEFAULT_PORT;
 
 /// Matches Godot smoke-test env var naming for future CI parity.
 #[derive(Parser, PartialEq, Resource, Debug, Clone)]
-#[command(name = "shiphappens", about = "ShipHappens Bevy migration spike")]
+#[command(name = "pudgymon", about = "PugdyMon: Party Saga — Nest plaza + mini-games")]
 pub enum Cli {
     /// Offline greybox — movement + crane console without networking.
     #[command(name = "local")]
     Local,
 
-    /// Host authoritative server (also plays locally).
+    /// Host authoritative server (also plays locally unless `--dedicated`).
     #[command(name = "host")]
     Host {
         #[arg(short, long, default_value_t = DEFAULT_PORT)]
         port: u16,
 
-        /// Bracket slots (solo players). Production default is 16.
+        /// Bracket team slots. Production default is 16.
         #[arg(long, default_value_t = crate::tournament::DEFAULT_ONLINE_BRACKET_SIZE)]
         bracket_size: usize,
 
         /// Use full room timers (~5–7 min each) instead of dev-fast timers.
         #[arg(long)]
         production_timers: bool,
+
+        /// Listen-server without a local contractor body (bots fill the bracket).
+        #[arg(long, default_value_t = false)]
+        dedicated: bool,
     },
 
     /// Join an existing host.
@@ -49,6 +53,7 @@ impl Default for Cli {
                         .unwrap_or(DEFAULT_PORT),
                     bracket_size: crate::tournament::DEFAULT_ONLINE_BRACKET_SIZE,
                     production_timers: false,
+                    dedicated: false,
                 },
                 "join" => Self::Join {
                     address: std::env::var("MP_TEST_ADDRESS")
@@ -62,6 +67,11 @@ impl Default for Cli {
                 },
                 _ => Self::parse(),
             };
+        }
+
+        // `cargo run` with no subcommand → offline playable greybox.
+        if std::env::args().len() <= 1 {
+            return Self::Local;
         }
 
         Self::parse()

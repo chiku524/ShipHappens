@@ -21,6 +21,8 @@ pub struct RoomRuntime {
     pub slot_progress: std::collections::HashMap<SlotId, u32>,
     pub meltdown_rate: f32,
     pub sort_target: u8,
+    /// Finale failed because meltdown hit 100.
+    pub failed: bool,
     bot_entropy: u32,
 }
 
@@ -45,6 +47,7 @@ impl RoomRuntime {
         };
         self.sort_target = 0;
         self.bot_entropy = 1;
+        self.failed = false;
     }
 
     pub fn progress_percent(&self) -> u8 {
@@ -55,12 +58,28 @@ impl RoomRuntime {
             .min(100.0) as u8
     }
 
+    /// Ambient meltdown rise + bot pacing. Returns true if the vault just failed.
+    pub fn tick_ambient(&mut self, dt: f32) -> bool {
+        if self.progress.cleared || self.failed || self.meltdown_rate <= 0.0 {
+            return false;
+        }
+        // Baseline rise independent of player actions (GDD: +2/s feel, scaled for fast timers).
+        self.progress.meltdown_meter =
+            (self.progress.meltdown_meter + self.meltdown_rate * dt).min(100.0);
+        if self.progress.meltdown_meter >= 100.0 {
+            self.failed = true;
+            return true;
+        }
+        false
+    }
+
     pub fn tick_bot_slot(&mut self, scoring: &mut ScoringService, slot: &SlotId, dt: f32) {
-        if self.progress.cleared {
+        if self.progress.cleared || self.failed {
             return;
         }
         self.bot_entropy = self.bot_entropy.wrapping_add(1);
-        let chance = dt * 0.35;
+        // Slower than before so the human can still move the needle.
+        let chance = dt * 0.12;
         if pseudo_rand(self.bot_entropy) < chance {
             self.advance_slot(scoring, slot, true);
         }
@@ -90,14 +109,24 @@ impl RoomRuntime {
         slot: &SlotId,
         action: ScoreAction,
     ) {
+        if self.failed {
+            return;
+        }
         scoring.record(player, action);
+
+        // Coolant valves fight the meltdown meter (GDD).
+        if matches!(action, ScoreAction::CoolantValve) {
+            self.progress.meltdown_meter = (self.progress.meltdown_meter - 12.0).max(0.0);
+        }
+
         if action.objective_delta() > 0.0 {
             let entry = self.slot_progress.entry(slot.clone()).or_insert(0);
             *entry += 1;
             self.progress.objective_count += 1;
-            if self.meltdown_rate > 0.0 {
+            // Wrong inputs / mistakes spike meltdown in the finale.
+            if self.meltdown_rate > 0.0 && matches!(action, ScoreAction::IncorrectSort | ScoreAction::BreakerWrong) {
                 self.progress.meltdown_meter =
-                    (self.progress.meltdown_meter + self.meltdown_rate).min(100.0);
+                    (self.progress.meltdown_meter + 15.0).min(100.0);
             }
             if self.progress.objective_count >= self.progress.objective_target {
                 self.progress.cleared = true;
@@ -107,6 +136,9 @@ impl RoomRuntime {
     }
 
     fn advance_slot(&mut self, scoring: &mut ScoringService, slot: &SlotId, positive: bool) {
+        if self.failed {
+            return;
+        }
         let room = self.active.unwrap_or(RoomId::HrOrientation);
         let entry = self.slot_progress.entry(slot.clone()).or_insert(0);
         let player = PlayerScoreId(slot.0 * 10);
@@ -121,13 +153,15 @@ impl RoomRuntime {
                 RoomId::ShuttleMeltdown => ScoreAction::CoolantValve,
             };
             scoring.record(player, action);
+            if matches!(action, ScoreAction::CoolantValve) {
+                self.progress.meltdown_meter = (self.progress.meltdown_meter - 12.0).max(0.0);
+            }
         } else {
             scoring.record(player, ScoreAction::IncorrectSort);
-        }
-
-        if self.meltdown_rate > 0.0 {
-            self.progress.meltdown_meter =
-                (self.progress.meltdown_meter + self.meltdown_rate).min(100.0);
+            if self.meltdown_rate > 0.0 {
+                self.progress.meltdown_meter =
+                    (self.progress.meltdown_meter + 15.0).min(100.0);
+            }
         }
 
         if self.progress.objective_count >= self.progress.objective_target {
@@ -205,29 +239,51 @@ pub fn load_room_layouts(mut commands: Commands) {
     });
 }
 
-/// Phase 2 — rotate leaseholder at room start for team brackets.
+/// One leaseholder per alive team that has 2+ humans (seat rotates by room).
+/// Solo / underfilled teams keep hands — no forced leaseholder.
 pub fn assign_leaseholder(
     mut director: ResMut<crate::tournament::TournamentDirector>,
     mut commands: Commands,
     players: Query<(Entity, &crate::player::NetworkPlayer)>,
 ) {
-    if director.slot_size() == SlotSize::Solo {
+    let slot_size = director.slot_size();
+    for slot in director.slots.iter_mut() {
+        slot.leaseholder = false;
+    }
+    if slot_size == SlotSize::Solo {
+        for (entity, _) in &players {
+            commands.entity(entity).remove::<Leaseholder>();
+        }
         return;
     }
-    let alive: Vec<_> = director.slots.iter().filter(|s| s.alive).collect();
-    if alive.is_empty() {
-        return;
+
+    let seat_pick = director.room_index as u32 % slot_size.player_count() as u32;
+    let mut team_counts = [0u32; 32];
+    for (_, net) in &players {
+        let team = crate::tournament::types::bracket_team_index(net.slot, slot_size) as usize;
+        if team < team_counts.len() {
+            team_counts[team] += 1;
+        }
     }
-    let rotate = director.room_index as usize % alive.len();
-    for (idx, slot) in director.slots.iter_mut().enumerate() {
-        slot.leaseholder = idx == rotate && slot.alive;
-    }
+
     for (entity, net) in &players {
-        if director
+        let team = crate::tournament::types::bracket_team_index(net.slot, slot_size);
+        let seat = crate::tournament::types::seat_in_team(net.slot, slot_size);
+        let team_alive = director
             .slots
             .iter()
-            .any(|s| s.id.0 == net.slot && s.leaseholder)
-        {
+            .find(|s| s.id.0 == team)
+            .map(|s| s.alive)
+            .unwrap_or(false);
+        let filled = team_counts
+            .get(team as usize)
+            .copied()
+            .unwrap_or(0)
+            >= 2;
+        if team_alive && filled && seat == seat_pick {
+            if let Some(slot) = director.slots.iter_mut().find(|s| s.id.0 == team) {
+                slot.leaseholder = true;
+            }
             commands.entity(entity).insert(Leaseholder);
         } else {
             commands.entity(entity).remove::<Leaseholder>();

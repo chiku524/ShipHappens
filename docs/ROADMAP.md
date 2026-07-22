@@ -1,5 +1,9 @@
 # Development Roadmap
 
+> **Pivot:** Active product is **PugdyMon: Party Saga** (Nest + mini-games + Boing) — see [PARTY_ROADMAP.md](PARTY_ROADMAP.md) and [BRAND.md](BRAND.md). Vault tournament docs live under [archive/vault/](archive/vault/).
+
+For the archived vault playable checklist, see [archive/vault/PLAYABLE_ROADMAP.md](archive/vault/PLAYABLE_ROADMAP.md).
+
 ## Phase 0 — Engine foundation ✓
 
 - [x] Bevy 0.19 project at repo root

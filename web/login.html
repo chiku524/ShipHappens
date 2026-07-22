@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Log In — PugdyMon</title>
+  <link rel="stylesheet" href="css/site.css" />
+</head>
+<body>
+  <nav class="nav">
+    <a class="nav-brand" href="index.html">PugdyMon</a>
+    <div class="nav-links">
+      <a data-nav href="learn.html">Learn</a>
+      <a data-nav href="signup.html">Create Account</a>
+      <a data-nav href="login.html">Log In</a>
+      <a data-nav href="account.html">Account</a>
+    </div>
+  </nav>
+
+  <main class="shell">
+    <p class="eyebrow">Accounts</p>
+    <h1 class="brand-hero" style="font-size: clamp(2.2rem, 6vw, 3.2rem)">Welcome back</h1>
+    <p class="lede">Log in, then paste or drop the token into PugdyMon’s Nest Account page.</p>
+
+    <section class="panel">
+      <form id="loginForm">
+        <label for="email">Email</label>
+        <input id="email" type="email" required autocomplete="email" />
+
+        <label for="password">Password</label>
+        <input id="password" type="password" required autocomplete="current-password" />
+
+        <div class="row">
+          <button class="btn" type="submit">Log In</button>
+          <a class="btn ghost" href="signup.html">Create account</a>
+        </div>
+      </form>
+      <p id="status" class="status" hidden></p>
+      <div id="tokenPanel" hidden>
+        <p class="status">Logged in. Use this token in-game:</p>
+        <div class="token-box mono" id="tokenOut"></div>
+        <div class="row">
+          <button class="btn" type="button" id="copyBtn">Copy token</button>
+          <button class="btn ghost" type="button" id="downloadBtn">Download pending_token.txt</button>
+          <a class="btn ghost" href="account.html">Manage profile</a>
+        </div>
+        <p class="lede" style="margin-top: 1rem; font-size: 0.95rem">
+          Game path: <code class="mono">%LOCALAPPDATA%\PugdyMon\pending_token.txt</code>
+          then Nest menu → Account → Link pending token.
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <footer>API: <span class="mono" id="apiLabel"></span></footer>
+  <script src="js/config.js"></script>
+  <script src="js/api.js"></script>
+  <script src="js/nav.js"></script>
+  <script>
+    document.getElementById("apiLabel").textContent = PugdyMonApi.apiBase();
+    const status = document.getElementById("status");
+    const tokenPanel = document.getElementById("tokenPanel");
+    const tokenOut = document.getElementById("tokenOut");
+
+    document.getElementById("loginForm").onsubmit = async (e) => {
+      e.preventDefault();
+      status.hidden = false;
+      status.classList.remove("err");
+      status.textContent = "Signing in…";
+      tokenPanel.hidden = true;
+      try {
+        const data = await PugdyMonApi.login(email.value.trim(), password.value);
+        status.textContent = `Hi, ${data.profile.display_name}`;
+        tokenOut.textContent = data.access_token;
+        tokenPanel.hidden = false;
+      } catch (err) {
+        status.classList.add("err");
+        status.textContent = err.message || String(err);
+      }
+    };
+
+    document.getElementById("copyBtn").onclick = async () => {
+      await navigator.clipboard.writeText(tokenOut.textContent);
+      status.textContent = "Token copied.";
+      status.classList.remove("err");
+    };
+    document.getElementById("downloadBtn").onclick = () =>
+      PugdyMonApi.downloadGameToken(tokenOut.textContent);
+  </script>
+</body>
+</html>

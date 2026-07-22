@@ -1,45 +1,45 @@
-# Character Roster
+# Pugdy Monsters roster
 
-Eight default crew members. **One rig, eight hat + palette swaps** for solo dev scope.
+Chunky party creatures for **PugdyMon: Party Saga**. One base body, palette + accessory swaps.
 
-## Base rig
+## Base rig — `char_pugdy_base_01`
 
-- Stubby proportions (big head, short legs)
-- Oversized gloves
-- Soft rubber limbs; ragdoll on hard bonk
-- Per-character: idle quirk + panic run modifier only
+- Round body, oversized head, stubby limbs
+- Soft rubber look; family-friendly
+- Target height ~1.2m (read as “cute chunky,” not adult humanoid)
+- Drop GLB at `assets/models/char_pugdy_base_01/char_pugdy_base_01.glb`
 
-## The eight crew
+Until the GLB lands, runtime uses a **procedural Pugdy stub** (sphere body + head + eyes).
 
-| # | Name | Silhouette | Colors | Walk quirk |
-|---|------|------------|--------|------------|
-| 1 | **Zip** | Lightning-bolt cap | Yellow / navy | Fast tiny steps |
-| 2 | **Grom** | Square hard hat | Orange / brown | Heavy stomp |
-| 3 | **Bloop** | Fishbowl helmet | Cyan / white | Waddle |
-| 4 | **Taffy** | Stretchy neck scarf | Pink / magenta | Bouncy hop |
-| 5 | **Rivet** | Spiky wrench hair | Grey / red | Clumsy stumble |
-| 6 | **Nix** | Hood + antenna | Purple / black | Sneaky tiptoe |
-| 7 | **Boingo** | Two puffballs | Lime / teal | Side sway |
-| 8 | **Pax** | Clipboard beret | Beige / green | Stiff march |
+## Starter skins (season catalog)
 
-## Stowaway visual rule
+| Id | Label | Vibe |
+|----|-------|------|
+| `skin_starter` | Pugdy Sprout | Coral default |
+| `skin_vibe` | Sunny Blob | Yellow party |
+| `skin_racer` | Turbo Dumpling | Cyan speed |
+| `skin_blaster` | Party Peep | Pink blaster |
 
-No evil skin at round start. Stowaway uses the same roster — only private UI differs.
+Cycle unlocked skins with **C** in The Nest.
 
-Post-round reveal: dunce hat + smuggle sash if they won.
+## Nest showcase
 
-## Emotes (MVP)
-
-| Emote | Use |
-|-------|-----|
-| Point | Accuse in meetings |
-| Shrug | “Who, me?” |
-| Panic dance | Clip bait |
-| Thumbs up | Fake corporate morale |
+Mannequins around The Nest preview each catalog tint. Unlock by season points, then claim on Boing (see [BOING_INTEGRATION.md](BOING_INTEGRATION.md)).
 
 ## Art pipeline
 
-1. Greybox capsule placeholder (Phase 0–1)
-2. Single rigged character + Mixamo anims (Phase 2)
-3. Eight hat meshes + palette materials (Phase 3)
-4. Face decal swaps: happy / panic / sus (Phase 3)
+1. Procedural Pugdy stub ← **current default**
+2. Drop `char_pugdy_base_01.glb` (auto-swap via `PlayerVisualSpec`)
+3. Accessory / hat meshes per skin (optional)
+4. Idle / run Mixamo or custom clips
+
+## Runtime hook
+
+```rust
+PlayerVisualSpec {
+    model_id: Some("char_pugdy_base_01".into()), // when GLB exists
+    hat_slot: slot % 8,
+}
+```
+
+Default id: `data/player_defaults.json`.

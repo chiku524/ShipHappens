@@ -6,8 +6,18 @@ use serde::Deserialize;
 #[derive(Debug, Clone, Deserialize)]
 pub struct StudioAssetEntry {
     pub asset_id: String,
+    /// Intended world-space height in meters (authoring guide + default uniform scale).
     #[serde(default = "default_target_height")]
     pub target_height: f32,
+    /// Optional intended width for floor pads / mats (XZ scale when set).
+    #[serde(default)]
+    pub target_width: Option<f32>,
+    /// Explicit uniform scale override. When set, wins over height/width heuristics.
+    #[serde(default)]
+    pub uniform_scale: Option<f32>,
+    /// Free-form notes for artists (placement hints, pivot, etc.).
+    #[serde(default)]
+    pub notes: Option<String>,
 }
 
 fn default_target_height() -> f32 {
@@ -55,15 +65,49 @@ impl StudioRegistry {
         })
     }
 
+    pub fn entry(&self, asset_id: &str) -> Option<&StudioAssetEntry> {
+        self.assets.iter().find(|entry| entry.asset_id == asset_id)
+    }
+
     pub fn target_height(&self, asset_id: &str) -> Option<f32> {
-        self.assets
-            .iter()
-            .find(|entry| entry.asset_id == asset_id)
-            .map(|entry| entry.target_height)
+        self.entry(asset_id).map(|entry| entry.target_height)
+    }
+
+    pub fn target_width(&self, asset_id: &str) -> Option<f32> {
+        self.entry(asset_id).and_then(|entry| entry.target_width)
+    }
+
+    /// Scale applied at spawn time.
+    ///
+    /// Priority: `uniform_scale` → width-based XZ for floor pads → `target_height` as
+    /// uniform scale (legacy Tripo import convention until bounds-based scaling lands).
+    pub fn spawn_scale(&self, asset_id: &str) -> Vec3 {
+        let Some(entry) = self.entry(asset_id) else {
+            return Vec3::ONE;
+        };
+
+        if let Some(scale) = entry.uniform_scale {
+            return Vec3::splat(scale.max(0.01));
+        }
+
+        if let Some(width) = entry.target_width {
+            let w = width.max(0.01);
+            return Vec3::new(w, 1.0, w);
+        }
+
+        Vec3::splat(entry.target_height.max(0.01))
     }
 
     pub fn glb_asset_path(&self, asset_id: &str) -> String {
         format!("models/{asset_id}/{asset_id}.glb")
+    }
+
+    pub fn glb_disk_path(&self, asset_id: &str, assets_root: impl AsRef<Path>) -> std::path::PathBuf {
+        assets_root.as_ref().join(self.glb_asset_path(asset_id))
+    }
+
+    pub fn contains(&self, asset_id: &str) -> bool {
+        self.entry(asset_id).is_some()
     }
 }
 
@@ -76,5 +120,31 @@ mod tests {
         let registry =
             StudioRegistry::load("assets/studio_registry.json").expect("registry loads");
         assert!(registry.target_height("env_breaker_panel_01").is_some());
+    }
+
+    #[test]
+    fn floor_pad_uses_target_width() {
+        let registry =
+            StudioRegistry::load("assets/studio_registry.json").expect("registry loads");
+        let scale = registry.spawn_scale("safety_mat_floor_pad_01");
+        assert!((scale.x - 2.0).abs() < f32::EPSILON);
+        assert!((scale.z - 2.0).abs() < f32::EPSILON);
+    }
+
+    #[test]
+    fn every_registry_asset_has_glb_on_disk() {
+        let registry =
+            StudioRegistry::load("assets/studio_registry.json").expect("registry loads");
+        let mut missing = Vec::new();
+        for entry in &registry.assets {
+            let path = registry.glb_disk_path(&entry.asset_id, "assets");
+            if !path.exists() {
+                missing.push(entry.asset_id.clone());
+            }
+        }
+        assert!(
+            missing.is_empty(),
+            "registry assets missing GLB files: {missing:?}"
+        );
     }
 }

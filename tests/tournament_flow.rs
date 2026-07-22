@@ -1,5 +1,5 @@
-use shiphappens::scoring::ci::{composite_score, CompositeInput};
-use shiphappens::tournament::{
+use pudgymon::scoring::ci::{composite_score, CompositeInput};
+use pudgymon::tournament::{
     TournamentConfig, TournamentDirector, TournamentPhase, DEFAULT_ONLINE_BRACKET_SIZE,
 };
 
@@ -19,7 +19,7 @@ fn online_host_bracket_defaults_to_sixteen() {
     let director = TournamentDirector::bootstrap(&config);
     assert_eq!(director.slots.len(), 16);
     assert_eq!(
-        shiphappens::tournament::types::RoomId::HrOrientation.duration_secs(false),
+        pudgymon::tournament::types::RoomId::HrOrientation.duration_secs(false),
         300.0
     );
 }

@@ -1,21 +1,25 @@
+[workspace]
+members = [".", "services/accounts"]
+resolver = "2"
+
 [package]
-name = "shiphappens"
+name = "pudgymon"
 version = "0.1.0"
 edition = "2021"
-description = "ShipHappens — cartoon space freight co-op with social deduction"
+description = "PugdyMon: Party Saga — cute Pugdy Monsters party mini-games on Boing Network"
 publish = false
-default-run = "shiphappens"
+default-run = "pudgymon"
 
 [lib]
-name = "shiphappens"
+name = "pudgymon"
 path = "src/lib.rs"
 
 [[bin]]
-name = "shiphappens"
+name = "pudgymon"
 path = "src/main.rs"
 
 [[bin]]
-name = "shiphappens_smoke"
+name = "pudgymon_smoke"
 path = "src/bin/smoke.rs"
 
 [dependencies]
@@ -25,6 +29,7 @@ bevy_replicon_renet = "0.17"
 clap = { version = "4", features = ["derive", "env"] }
 serde = { version = "1", features = ["derive"] }
 serde_json = "1"
+ureq = { version = "2", default-features = false, features = ["json", "tls"] }
 
 [dev-dependencies]
-shiphappens = { path = "." }
+pudgymon = { path = "." }

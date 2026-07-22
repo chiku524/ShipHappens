@@ -33,7 +33,14 @@ pub fn load_studio_registry(mut commands: Commands) {
     }
 }
 
-/// Spawns a GLB scene scaled to registry `target_height`, or a greybox cuboid on failure.
+/// True when `assets/models/{id}/{id}.glb` exists on disk.
+pub fn studio_asset_exists(registry: &StudioRegistry, asset_id: &str) -> bool {
+    let glb_path = registry.glb_asset_path(asset_id);
+    let full_path = format!("{}/assets/{glb_path}", env!("CARGO_MANIFEST_DIR"));
+    std::path::Path::new(&full_path).exists()
+}
+
+/// Spawns a GLB scene scaled from the registry, or returns `None` if the file is missing.
 pub fn spawn_studio_prop(
     commands: &mut Commands,
     asset_server: &AssetServer,
@@ -41,21 +48,26 @@ pub fn spawn_studio_prop(
     asset_id: &str,
     transform: Transform,
     bundle: impl Bundle,
-) -> Entity {
-    let target_height = registry.target_height(asset_id).unwrap_or(1.0);
-    let scale = target_height.max(0.1);
-    let glb_path = registry.glb_asset_path(asset_id);
-    let scene = asset_server.load(GltfAssetLabel::Scene(0).from_asset(glb_path.clone()));
+) -> Option<Entity> {
+    if !studio_asset_exists(registry, asset_id) {
+        return None;
+    }
 
-    commands
-        .spawn((
-            GameplayEntity,
-            WorldAssetRoot(scene),
-            transform.with_scale(Vec3::splat(scale)),
-            Name::new(asset_id.to_string()),
-            bundle,
-        ))
-        .id()
+    let scale = registry.spawn_scale(asset_id) * transform.scale;
+    let glb_path = registry.glb_asset_path(asset_id);
+    let scene = asset_server.load(GltfAssetLabel::Scene(0).from_asset(glb_path));
+
+    Some(
+        commands
+            .spawn((
+                GameplayEntity,
+                WorldAssetRoot(scene),
+                transform.with_scale(scale),
+                Name::new(asset_id.to_string()),
+                bundle,
+            ))
+            .id(),
+    )
 }
 
 /// Greybox fallback when GLB is unavailable (headless CI without assets).
@@ -98,20 +110,18 @@ pub fn spawn_job_station(
     greybox_color: Color,
     greybox_size: Vec3,
 ) -> Entity {
-    let glb_path = registry.glb_asset_path(asset_id);
-    let full_path = format!("{}/assets/{glb_path}", env!("CARGO_MANIFEST_DIR"));
-    if std::path::Path::new(&full_path).exists() {
-        return spawn_studio_prop(
-            commands,
-            asset_server,
-            registry,
-            asset_id,
-            transform,
-            interactable,
-        );
+    if let Some(entity) = spawn_studio_prop(
+        commands,
+        asset_server,
+        registry,
+        asset_id,
+        transform,
+        interactable,
+    ) {
+        return entity;
     }
 
-    warn!("GLB missing at {full_path}, using greybox");
+    info!("GLB missing for `{asset_id}`, using greybox station");
     spawn_greybox_prop(
         commands,
         meshes,
@@ -123,7 +133,7 @@ pub fn spawn_job_station(
     )
 }
 
-/// Decorative Studio prop (no interaction). Falls back silently to nothing when GLB missing.
+/// Decorative Studio prop. Returns `None` when the GLB is missing.
 pub fn spawn_decoration(
     commands: &mut Commands,
     asset_server: &AssetServer,
@@ -131,18 +141,5 @@ pub fn spawn_decoration(
     asset_id: &str,
     transform: Transform,
 ) -> Option<Entity> {
-    let glb_path = registry.glb_asset_path(asset_id);
-    let full_path = format!("{}/assets/{glb_path}", env!("CARGO_MANIFEST_DIR"));
-    if !std::path::Path::new(&full_path).exists() {
-        warn!("decoration GLB missing at {full_path}");
-        return None;
-    }
-    Some(spawn_studio_prop(
-        commands,
-        asset_server,
-        registry,
-        asset_id,
-        transform,
-        (),
-    ))
+    spawn_studio_prop(commands, asset_server, registry, asset_id, transform, ())
 }

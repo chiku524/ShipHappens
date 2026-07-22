@@ -1,20 +1,40 @@
+mod auth;
+mod overlays;
+pub mod menu_options;
+pub mod title;
+
 use bevy::prelude::*;
-use bevy_replicon::prelude::*;
 
 use crate::{
-    announcer::AnnouncerQueue,
-    economy::PracticeLedger,
-    interaction::InteractPrompt,
-    rooms::RoomRuntime,
-    tournament::{TournamentDirector, TournamentPhase, TournamentSnapshot},
+    boing::{BoingConfig, BoingStatus, ClaimVoucher},
+    challenges::ChallengeBoard,
+    cosmetics::EquippedCosmetic,
+    flow::AppScreen,
+    hub::HubPrompt,
+    party::{PartyDirector, PartyPhase, PartySnapshot},
+    player::LocalPlayer,
+    season::SeasonLedger,
+    session_flow::{NetworkBanner, Spectating},
 };
 
 pub struct UiPlugin;
 
 impl Plugin for UiPlugin {
     fn build(&self, app: &mut App) {
-        app.add_systems(Startup, spawn_hud_root)
-            .add_systems(Update, update_hud_text);
+        app.init_resource::<menu_options::MenuPartyOptions>()
+            .add_plugins(auth::AuthIntroPlugin)
+            .add_systems(
+                Startup,
+                (spawn_hud_root, overlays::spawn_phase_overlay).chain(),
+            )
+            .add_systems(
+                Update,
+                (
+                    update_hud.run_if(in_state(AppScreen::Playing)),
+                    overlays::update_phase_overlay.run_if(in_state(AppScreen::Playing)),
+                    set_hud_visible,
+                ),
+            );
     }
 }
 
@@ -22,13 +42,13 @@ impl Plugin for UiPlugin {
 struct HudRoot;
 
 #[derive(Component)]
-struct HudStatusText;
+struct HudMainText;
 
 #[derive(Component)]
-struct HudPromptText;
+struct HudSubText;
 
 #[derive(Component)]
-struct HudTournamentText;
+struct HudHintText;
 
 fn spawn_hud_root(mut commands: Commands) {
     commands.spawn((
@@ -37,130 +57,149 @@ fn spawn_hud_root(mut commands: Commands) {
             width: Val::Percent(100.0),
             height: Val::Percent(100.0),
             flex_direction: FlexDirection::Column,
-            padding: UiRect::all(Val::Px(16.0)),
+            padding: UiRect::all(Val::Px(18.0)),
             row_gap: Val::Px(8.0),
             ..Default::default()
         },
+        Visibility::Hidden,
         children![
             (
-                HudStatusText,
-                Text::new("ShipHappens — Vault Break"),
+                Text::new("PUGDYMON · THE NEST"),
                 TextFont {
-                    font_size: FontSize::Px(22.0),
+                    font_size: FontSize::Px(20.0),
                     ..Default::default()
                 },
-                TextColor(Color::srgb(0.9, 0.95, 1.0)),
+                TextColor(Color::srgb(1.0, 0.55, 0.35)),
             ),
             (
-                HudTournamentText,
+                HudMainText,
                 Text::new(""),
                 TextFont {
-                    font_size: FontSize::Px(18.0),
+                    font_size: FontSize::Px(24.0),
                     ..Default::default()
                 },
-                TextColor(Color::srgb(0.75, 0.95, 0.75)),
+                TextColor(Color::srgb(0.95, 0.95, 0.9)),
             ),
             (
-                HudPromptText,
+                HudSubText,
                 Text::new(""),
                 TextFont {
-                    font_size: FontSize::Px(18.0),
+                    font_size: FontSize::Px(15.0),
                     ..Default::default()
                 },
-                TextColor(Color::srgb(0.95, 0.85, 0.35)),
+                TextColor(Color::srgb(0.7, 0.85, 0.95)),
+            ),
+            (
+                HudHintText,
+                Text::new(
+                    "WASD · pads · E · Esc menu · C skin · M claim · Ctrl+O · Q Nest",
+                ),
+                TextFont {
+                    font_size: FontSize::Px(12.0),
+                    ..Default::default()
+                },
+                TextColor(Color::srgb(0.55, 0.6, 0.7)),
+                Node {
+                    margin: UiRect::top(Val::Auto),
+                    ..Default::default()
+                },
             ),
         ],
     ));
 }
 
-fn update_hud_text(
-    cli: Res<crate::Cli>,
-    prompt: Res<InteractPrompt>,
-    director: Res<TournamentDirector>,
-    announcer: Res<AnnouncerQueue>,
-    ledger: Res<PracticeLedger>,
-    room_runtime: Res<RoomRuntime>,
-    snapshots: Query<&TournamentSnapshot>,
-    server_state: Res<State<ServerState>>,
-    client_state: Res<State<ClientState>>,
-    mut status: Query<
-        &mut Text,
-        (
-            With<HudStatusText>,
-            Without<HudPromptText>,
-            Without<HudTournamentText>,
-        ),
-    >,
-    mut tournament: Query<
-        &mut Text,
-        (
-            With<HudTournamentText>,
-            Without<HudStatusText>,
-            Without<HudPromptText>,
-        ),
-    >,
-    mut prompts: Query<
-        &mut Text,
-        (
-            With<HudPromptText>,
-            Without<HudStatusText>,
-            Without<HudTournamentText>,
-        ),
-    >,
+fn set_hud_visible(
+    screen: Res<State<AppScreen>>,
+    mut roots: Query<&mut Visibility, With<HudRoot>>,
 ) {
-    let mode = match cli.as_ref() {
-        crate::Cli::Local => "local",
-        crate::Cli::Host { .. } => "host",
-        crate::Cli::Join { .. } => "join",
+    let Ok(mut vis) = roots.single_mut() else {
+        return;
+    };
+    *vis = if *screen.get() == AppScreen::Playing {
+        Visibility::Visible
+    } else {
+        Visibility::Hidden
+    };
+}
+
+fn update_hud(
+    director: Res<PartyDirector>,
+    snaps: Query<&PartySnapshot>,
+    season: Res<SeasonLedger>,
+    challenges: Res<ChallengeBoard>,
+    equipped: Res<EquippedCosmetic>,
+    banner: Res<NetworkBanner>,
+    hub_prompt: Res<HubPrompt>,
+    boing: Res<BoingConfig>,
+    status: Res<BoingStatus>,
+    voucher: Res<ClaimVoucher>,
+    spectating: Query<(), (With<LocalPlayer>, With<Spectating>)>,
+    mut main: Query<&mut Text, (With<HudMainText>, Without<HudSubText>)>,
+    mut sub: Query<&mut Text, (With<HudSubText>, Without<HudMainText>)>,
+) {
+    let snap = snaps.iter().next();
+    let phase = snap.map(|s| s.phase).unwrap_or(director.phase);
+    let timer = snap.map(|s| s.phase_timer).unwrap_or(director.phase_timer);
+    let line = snap
+        .map(|s| s.announcer.as_str())
+        .unwrap_or(director.announcer.as_str());
+    let pts = snap
+        .map(|s| s.match_points[0])
+        .unwrap_or(director.match_points[0]);
+
+    let phase_label = match phase {
+        PartyPhase::Hub => "THE NEST",
+        PartyPhase::Race => "RACE",
+        PartyPhase::Vibe => "VIBE COLLECT",
+        PartyPhase::Shooter => "SHOOTER",
+        PartyPhase::Intermission => "INTERMISSION",
+        PartyPhase::Results => "RESULTS",
     };
 
-    if let Ok(mut text) = status.single_mut() {
-        **text = format!(
-            "ShipHappens Vault Break — {mode} | server: {:?} | client: {:?}",
-            server_state.get(),
-            client_state.get(),
-        );
-    }
-
-    let snap = snapshots.iter().next();
-    let phase = snap.map(|s| s.phase).unwrap_or(director.phase);
-    let room_id = snap.map(|s| s.room).unwrap_or(director.room);
-    let progress = snap.map(|s| s.room_progress).unwrap_or(0);
-    let meltdown = snap.map(|s| s.meltdown_percent).unwrap_or(room_runtime.meltdown_percent());
-    let alive = snap
-        .map(|s| s.alive_slots as usize)
-        .unwrap_or_else(|| director.alive_count());
-    let announcer_line = snap
-        .map(|s| s.announcer_line.as_str())
-        .filter(|line| !line.is_empty())
-        .unwrap_or(announcer.last_bark.as_str());
-
-    if let Ok(mut text) = tournament.single_mut() {
-        **text = format!(
-            "Phase: {:?} | Room: {} | Alive: {} | Progress: {}% | Meltdown: {}% | VC: {}\nAnnouncer: {}",
-            phase,
-            room_id.label(),
-            alive,
-            progress,
-            meltdown,
-            ledger.balance_vc,
-            announcer_line,
-        );
-    }
-
-    if let Ok(mut text) = prompts.single_mut() {
-        let action = if prompt.message.is_empty() {
-            prompt.last_action.clone()
+    if let Ok(mut text) = main.single_mut() {
+        let timer_bit = if phase == PartyPhase::Hub {
+            String::new()
+        } else if timer < 9000.0 {
+            format!("  ·  {timer:.0}s")
         } else {
-            format!("{}\n{}", prompt.message, prompt.last_action)
+            String::new()
         };
-        if phase == TournamentPhase::Complete {
-            **text = format!(
-                "{action}\nPodium: {:?} | last payouts: {:?}",
-                director.placements, ledger.last_payouts_vc
-            );
+        let spec = if !spectating.is_empty() {
+            " · SPECTATING (Tab)"
         } else {
-            **text = action;
-        }
+            ""
+        };
+        let prompt = if phase == PartyPhase::Hub && !hub_prompt.line.is_empty() {
+            hub_prompt.line.as_str()
+        } else {
+            line
+        };
+        **text = format!("{phase_label}{timer_bit}{spec}\n{prompt}");
+    }
+
+    if let Ok(mut text) = sub.single_mut() {
+        let wallet = boing
+            .linked_account
+            .as_ref()
+            .map(|a| &a[..10.min(a.len())])
+            .unwrap_or("unlinked");
+        let rpc = if status.reachable {
+            format!("Boing ok h={}", status.tip_height.unwrap_or(0))
+        } else if status.last_error.is_empty() {
+            "Boing offline".into()
+        } else {
+            "Boing err".into()
+        };
+        let banner_line = if banner.message.is_empty() {
+            voucher.note.clone()
+        } else {
+            banner.message.clone()
+        };
+        **text = format!(
+            "Party pts {pts} · Season {} · Skin {} · {rpc} · {wallet}\n{}\n{banner_line}",
+            season.points,
+            equipped.id,
+            challenges.summary_line()
+        );
     }
 }

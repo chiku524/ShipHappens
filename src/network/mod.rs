@@ -5,6 +5,7 @@ use std::{
 
 use bevy::prelude::*;
 use bevy_replicon::prelude::*;
+use bevy_replicon::shared::backend::connected_client::NetworkId;
 use bevy_replicon_renet::{
     netcode::{
         ClientAuthentication, NetcodeClientTransport, NetcodeServerTransport, ServerAuthentication,
@@ -17,10 +18,17 @@ use bevy_replicon_renet::{
 use crate::{
     cli::Cli,
     core::{MAX_PLAYERS, PROTOCOL_ID},
+    data::PlayerDefaults,
     jobs::{JobBoard, JobSystem},
-    player::{NetworkPlayer, PlayerColor, PlayerName, PlayerRegistry},
+    player::{
+        CarryingFreight, Knockback, LocalPlayer, NetworkPlayer, PlayerColor, PlayerName, PlayerOwner,
+        PlayerRegistry, PlayerVisualSpec, HOST_OWNER_ID,
+    },
     world::GameplayEntity,
 };
+
+#[derive(Resource, Default)]
+pub struct SessionBooted(pub bool);
 
 #[derive(Resource, Default)]
 pub struct PlayerSlotCounter(u32);
@@ -33,30 +41,165 @@ impl PlayerSlotCounter {
     }
 }
 
+/// Host/join party line for HUD (contractor count + remotes).
+#[derive(Resource, Debug, Default, Clone)]
+pub struct PartyStatus {
+    pub contractors: usize,
+    pub remotes: usize,
+    pub line: String,
+}
+
 pub struct NetworkPlugin;
 
 impl Plugin for NetworkPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<PlayerRegistry>()
             .init_resource::<PlayerSlotCounter>()
+            .init_resource::<SessionBooted>()
+            .init_resource::<PartyStatus>()
             .replicate::<Transform>()
             .replicate::<NetworkPlayer>()
             .replicate::<PlayerName>()
             .replicate::<PlayerColor>()
+            .replicate::<PlayerOwner>()
+            .replicate::<PlayerVisualSpec>()
+            .replicate::<CarryingFreight>()
             .replicate::<JobBoard>()
             .replicate::<crate::jobs::SmokeJobFlags>()
             .add_client_event::<crate::player::MoveInput>(Channel::Unordered)
             .add_observer(spawn_player_for_client)
             .add_observer(despawn_player_for_client)
             .add_observer(crate::player::apply_move_input)
-            .add_systems(Update, sync_job_board_from_resource);
+            .add_systems(Update, (sync_job_board_from_resource, update_party_status));
     }
 }
 
-pub fn init_network_backend(
-    mut commands: Commands,
+fn update_party_status(
     cli: Res<Cli>,
+    clients: Query<(), With<ConnectedClient>>,
+    players: Query<(), With<NetworkPlayer>>,
+    mut status: ResMut<PartyStatus>,
+) {
+    let remotes = clients.iter().count();
+    let contractors = players.iter().count();
+    status.remotes = remotes;
+    status.contractors = contractors;
+    status.line = match cli.as_ref() {
+        Cli::Local => {
+            if contractors <= 1 {
+                "Solo practice".into()
+            } else {
+                format!("Solo · {contractors} in bay (bots fill bracket)")
+            }
+        }
+        Cli::Host { port, dedicated, .. } => {
+            let mode = if *dedicated { "dedicated" } else { "listen" };
+            if remotes == 0 {
+                format!("Hosting :{port} ({mode}) · waiting for joiners")
+            } else {
+                format!("Hosting :{port} ({mode}) · {contractors} contractors ({remotes} remote)")
+            }
+        }
+        Cli::Join { address, port, .. } => {
+            format!("Joined {address}:{port} · {contractors} in bay")
+        }
+    };
+}
+
+/// Boot network + local avatar once. Safe to call from Startup (headless/CLI) or title menu.
+pub fn boot_session(
+    commands: &mut Commands,
+    booted: &mut SessionBooted,
+    cli: &Cli,
+    channels: &RepliconChannels,
+    registry: &mut PlayerRegistry,
+    slots: &mut PlayerSlotCounter,
+    spawn_point: Option<&crate::rooms::RoomSpawnPoint>,
+    defaults: &PlayerDefaults,
+) -> Result<(), String> {
+    if booted.0 {
+        return Ok(());
+    }
+
+    init_network_backend_inner(commands, cli, channels).map_err(|e| e.to_string())?;
+
+    match cli {
+        Cli::Local => {
+            let Some(spawn_point) = spawn_point else {
+                return Err("RoomSpawnPoint missing — layouts not loaded".into());
+            };
+            let slot = slots.next();
+            let player = spawn_player_entity(
+                commands,
+                slot,
+                spawn_point.lobby,
+                PlayerOwner(HOST_OWNER_ID),
+                defaults,
+            );
+            registry.local_player = Some(player);
+            commands.entity(player).insert(LocalPlayer);
+            info!("authority local player spawned: slot {slot}, entity {player:?}");
+        }
+        Cli::Host { dedicated, .. } => {
+            if *dedicated {
+                info!("dedicated host — no local contractor body");
+            } else {
+                let Some(spawn_point) = spawn_point else {
+                    return Err("RoomSpawnPoint missing — layouts not loaded".into());
+                };
+                let slot = slots.next();
+                let player = spawn_player_entity(
+                    commands,
+                    slot,
+                    spawn_point.lobby,
+                    PlayerOwner(HOST_OWNER_ID),
+                    defaults,
+                );
+                registry.local_player = Some(player);
+                commands.entity(player).insert(LocalPlayer);
+                info!("listen-server host spawned: slot {slot}, entity {player:?}");
+            }
+        }
+        Cli::Join { .. } => {}
+    }
+
+    booted.0 = true;
+    Ok(())
+}
+
+pub fn boot_session_at_startup(
+    mut commands: Commands,
+    mut booted: ResMut<SessionBooted>,
+    cli: Res<Cli>,
+    screen: Res<State<crate::flow::AppScreen>>,
     channels: Res<RepliconChannels>,
+    mut registry: ResMut<PlayerRegistry>,
+    mut slots: ResMut<PlayerSlotCounter>,
+    spawn_point: Option<Res<crate::rooms::RoomSpawnPoint>>,
+    defaults: Res<PlayerDefaults>,
+) {
+    // Interactive local waits on auth intro (Title) before Nest boot.
+    if *screen.get() == crate::flow::AppScreen::Title {
+        return;
+    }
+    if let Err(err) = boot_session(
+        &mut commands,
+        &mut booted,
+        cli.as_ref(),
+        channels.as_ref(),
+        &mut registry,
+        &mut slots,
+        spawn_point.as_deref(),
+        defaults.as_ref(),
+    ) {
+        panic!("session boot failed: {err}");
+    }
+}
+
+fn init_network_backend_inner(
+    commands: &mut Commands,
+    cli: &Cli,
+    channels: &RepliconChannels,
 ) -> Result {
     match cli.clone() {
         Cli::Local => {
@@ -118,29 +261,32 @@ pub fn init_network_backend(
     Ok(())
 }
 
-pub fn spawn_offline_player(
-    mut commands: Commands,
-    cli: Res<Cli>,
-    mut registry: ResMut<PlayerRegistry>,
-    spawn_point: Res<crate::rooms::RoomSpawnPoint>,
-) {
-    if !matches!(*cli, Cli::Local) {
-        return;
-    }
-
-    let player = spawn_player_entity(&mut commands, 0, spawn_point.lobby);
-    registry.local_player = Some(player);
-    commands.entity(player).insert(crate::player::LocalPlayer);
-}
-
 fn spawn_player_for_client(
     add: On<Add, ConnectedClient>,
     mut commands: Commands,
     mut slots: ResMut<PlayerSlotCounter>,
+    network_ids: Query<&NetworkId>,
+    spawn_point: Res<crate::rooms::RoomSpawnPoint>,
+    defaults: Res<PlayerDefaults>,
 ) {
     let slot = slots.next();
-    let position = Vec3::new((slot as f32) * 4.0, 1.0, 8.0);
-    let player = spawn_player_entity(&mut commands, slot, position);
+    let Ok(network_id) = network_ids.get(add.entity) else {
+        warn!(
+            "ConnectedClient {:?} missing NetworkId — skipping player spawn",
+            add.entity
+        );
+        return;
+    };
+    let owner_id = network_id.get();
+    // Fan out joiners beside the room spawn so they don't stack on the host.
+    let position = spawn_point.current + Vec3::new((slot as f32) * 2.5, 0.0, 0.0);
+    let player = spawn_player_entity(
+        &mut commands,
+        slot,
+        position,
+        PlayerOwner(owner_id),
+        defaults.as_ref(),
+    );
     commands.entity(add.entity).insert(OwnedPlayer(player));
 }
 
@@ -153,25 +299,74 @@ fn despawn_player_for_client(
     mut commands: Commands,
     mut registry: ResMut<PlayerRegistry>,
     owners: Query<&OwnedPlayer>,
+    names: Query<&PlayerName>,
+    mut banner: Option<ResMut<crate::session_flow::NetworkBanner>>,
 ) {
     if let Ok(owned) = owners.get(remove.entity) {
         let player = owned.0;
+        let label = names
+            .get(player)
+            .map(|n| n.0.clone())
+            .unwrap_or_else(|_| "A contractor".into());
         registry.players.remove(&remove.entity);
         if registry.local_player == Some(player) {
             registry.local_player = None;
         }
         commands.entity(player).despawn();
+        if let Some(banner) = banner.as_mut() {
+            banner.show(format!("{label} disconnected"), 5.5);
+        }
     }
 }
 
-fn spawn_player_entity(commands: &mut Commands, slot: u32, position: Vec3) -> Entity {
+/// Tear down listen-server / client transport so the title menu can boot a fresh session.
+pub fn teardown_session(
+    commands: &mut Commands,
+    booted: &mut SessionBooted,
+    registry: &mut PlayerRegistry,
+    slots: &mut PlayerSlotCounter,
+    players: &Query<Entity, With<NetworkPlayer>>,
+) {
+    for entity in players.iter() {
+        commands.entity(entity).despawn();
+    }
+    registry.local_player = None;
+    registry.players.clear();
+    slots.0 = 0;
+    booted.0 = false;
+
+    commands.remove_resource::<RenetServer>();
+    commands.remove_resource::<NetcodeServerTransport>();
+    commands.remove_resource::<RenetClient>();
+    commands.remove_resource::<NetcodeClientTransport>();
+    info!("session torn down — ready for menu re-boot");
+}
+
+fn spawn_player_entity(
+    commands: &mut Commands,
+    slot: u32,
+    position: Vec3,
+    owner: PlayerOwner,
+    defaults: &PlayerDefaults,
+) -> Entity {
     let color = player_color_for_slot(slot);
+    let name = if owner.0 == HOST_OWNER_ID && slot == 0 {
+        "You".into()
+    } else {
+        format!("Player{slot}")
+    };
     commands
         .spawn((
             GameplayEntity,
             NetworkPlayer { slot },
-            PlayerName(format!("Player{slot}")),
+            PlayerName(name),
             PlayerColor(color),
+            PlayerVisualSpec {
+                model_id: defaults.resolved_crew_model(),
+                hat_slot: (slot % 8) as u8,
+            },
+            Knockback::default(),
+            owner,
             Transform::from_translation(position),
             Replicated,
             Visibility::default(),

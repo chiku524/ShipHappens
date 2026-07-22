@@ -17,6 +17,12 @@ Thumbs.db
 # Logs
 *.log
 
-# Secrets (future Steam keys)
+# Secrets
 .env
+.env.*
+!**/.env.example
 secrets/
+services/accounts/.env
+
+# Vercel CLI link
+.vercel/

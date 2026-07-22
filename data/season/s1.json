@@ -1,0 +1,7 @@
+{
+  "season_id": "s1",
+  "label": "Season 1 — Nest Opening",
+  "placement_points": { "1": 25, "2": 18, "3": 12, "default": 6 },
+  "vibe_points_per_orb": 3,
+  "ko_points": 8
+}

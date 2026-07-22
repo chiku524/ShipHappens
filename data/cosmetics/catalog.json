@@ -1,0 +1,32 @@
+{
+  "items": [
+    {
+      "id": "skin_starter",
+      "label": "Pugdy Sprout",
+      "cost_points": 0,
+      "tint": [0.95, 0.45, 0.35],
+      "boing_token_id": 1
+    },
+    {
+      "id": "skin_vibe",
+      "label": "Sunny Blob",
+      "cost_points": 50,
+      "tint": [1.0, 0.85, 0.25],
+      "boing_token_id": 2
+    },
+    {
+      "id": "skin_racer",
+      "label": "Turbo Dumpling",
+      "cost_points": 120,
+      "tint": [0.25, 0.8, 0.95],
+      "boing_token_id": 3
+    },
+    {
+      "id": "skin_blaster",
+      "label": "Party Peep",
+      "cost_points": 200,
+      "tint": [1.0, 0.4, 0.65],
+      "boing_token_id": 4
+    }
+  ]
+}

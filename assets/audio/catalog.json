@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "_comment": "Drop OGG/WAV files under assets/audio/ matching these paths. Missing files keep Pitch/silent fallbacks — no Rust change needed.",
+  "sfx": {
+    "pickup": "sfx/pickup.ogg",
+    "sort_ok": "sfx/sort_ok.ogg",
+    "sort_bad": "sfx/sort_bad.ogg",
+    "ok": "sfx/ok.ogg",
+    "bad": "sfx/bad.ogg",
+    "room_clear": "sfx/room_clear.ogg",
+    "meltdown_fail": "sfx/meltdown_fail.ogg",
+    "knockback": "sfx/knockback.ogg"
+  },
+  "music": {
+    "title": "music/title.ogg",
+    "lobby": "music/lobby.ogg",
+    "hr_orientation": "music/hr_orientation.ogg",
+    "cargo_gantry": "music/cargo_gantry.ogg",
+    "breaker_panic": "music/breaker_panic.ogg",
+    "shuttle_meltdown": "music/shuttle_meltdown.ogg",
+    "elimination": "music/elimination.ogg",
+    "podium": "music/podium.ogg"
+  },
+  "vo": {
+    "room_start": "vo/room_start.ogg",
+    "room_clear": "vo/room_clear.ogg",
+    "sort_wrong": "vo/sort_wrong.ogg",
+    "meltdown_fail": "vo/meltdown_fail.ogg",
+    "elimination": "vo/elimination.ogg",
+    "podium": "vo/podium.ogg"
+  }
+}

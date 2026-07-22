@@ -1,0 +1,9 @@
+{
+  "week": 1,
+  "challenges": [
+    { "id": "play_3", "label": "Finish 3 parties", "target": 3, "reward_points": 40 },
+    { "id": "race_podium", "label": "Finish top 3 in Race", "target": 1, "reward_points": 25 },
+    { "id": "vibe_10", "label": "Collect 10 vibes", "target": 10, "reward_points": 30 },
+    { "id": "ko_5", "label": "Score 5 KOs", "target": 5, "reward_points": 35 }
+  ]
+}

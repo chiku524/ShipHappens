@@ -1,4 +1,4 @@
-# ShipHappens — Technical Design
+# PugdyMon — Technical Design
 
 ## Stack
 
@@ -86,8 +86,8 @@ GLBs load from `assets/models/{asset_id}/{asset_id}.glb` via Bevy `AssetServer`.
 
 | Binary | Purpose |
 |--------|---------|
-| `shiphappens` | Interactive game (`cargo run -- local/host/join`) |
-| `shiphappens_smoke` | Headless LAN smoke test for CI |
+| `pudgymon` | Interactive game (`cargo run` / `host` / `join`) |
+| `pudgymon_smoke` | Headless LAN smoke test for CI |
 
 ## CI
 

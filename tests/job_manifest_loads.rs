@@ -1,4 +1,4 @@
-use shiphappens::data::load_job_manifest;
+use pudgymon::data::load_job_manifest;
 
 #[test]
 fn integration_loads_manifest_from_data_dir() {

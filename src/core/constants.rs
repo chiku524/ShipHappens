@@ -7,18 +7,25 @@ pub const POWER_HOUR_JOB_ID: &str = "power_hour";
 
 pub const INTERACT_RADIUS: f32 = 3.5;
 
-pub const PLAYER_SPEED: f32 = 6.0;
+pub const PLAYER_SPEED: f32 = 7.0;
 pub const PLAYER_SPRINT_MULTIPLIER: f32 = 1.6;
+
+/// Soft playable bounds for the arena shell (XZ half-extent).
+/// Nest floor / walls should stay slightly outside this.
+pub const ARENA_BOUNDS: f32 = 36.0;
+
+/// Seconds of grace after a room clears before elimination/finale advance.
+pub const ROOM_CLEAR_GRACE_SECS: f32 = 1.25;
 
 pub const MOUSE_SENSITIVITY: f32 = 0.0025;
 pub const MIN_CAMERA_PITCH: f32 = -35.0_f32.to_radians();
 pub const MAX_CAMERA_PITCH: f32 = 55.0_f32.to_radians();
 pub const CAMERA_MIN_DISTANCE: f32 = 2.5;
-pub const CAMERA_MAX_DISTANCE: f32 = 8.0;
-pub const CAMERA_DEFAULT_DISTANCE: f32 = 5.0;
+pub const CAMERA_MAX_DISTANCE: f32 = 12.0;
+pub const CAMERA_DEFAULT_DISTANCE: f32 = 6.5;
 
-/// Godot `JobSystem.POWER_HOUR_SEQUENCE`
-pub const POWER_HOUR_SEQUENCE: [u8; 4] = [0, 2, 1, 3];
+/// Breaker Panic sequence (12 switches — GDD party scale; labels lie).
+pub const POWER_HOUR_SEQUENCE: [u8; 12] = [0, 5, 2, 9, 1, 7, 3, 11, 4, 8, 6, 10];
 
 pub const CRANE_CONSOLE_ASSET: &str = "env_cargo_crane_operator_console_01";
 pub const BREAKER_PANEL_ASSET: &str = "env_breaker_panel_01";

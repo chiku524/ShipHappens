@@ -1,0 +1,6 @@
+{
+  "rpc_url": "http://127.0.0.1:8545",
+  "nft_collection": null,
+  "fungible_token": null,
+  "notes": "Fill nft_collection / fungible_token AccountIds after running scripts/boing/deploy_reference_assets.mjs against Boing testnet."
+}

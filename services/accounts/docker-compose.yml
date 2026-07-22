@@ -1,0 +1,39 @@
+services:
+  db:
+    image: postgres:16-alpine
+    env_file:
+      - .env
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-pudgymon}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-pudgymon_accounts}
+    ports:
+      # Host 5432 is often taken by a local Postgres install.
+      - "${POSTGRES_HOST_PORT:-5434}:5432"
+    volumes:
+      - accounts_pg:/var/lib/postgresql/data
+      - ./migrations/001_users.sql:/docker-entrypoint-initdb.d/001_users.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 3s
+      timeout: 5s
+      retries: 10
+
+  api:
+    build: .
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-pudgymon}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-pudgymon_accounts}
+      JWT_SECRET: ${JWT_SECRET:?set JWT_SECRET in .env}
+      PORT: "8787"
+      RUST_LOG: info
+    ports:
+      # Host 8787 may be used by other local APIs.
+      - "${API_HOST_PORT:-8788}:8787"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  accounts_pg:

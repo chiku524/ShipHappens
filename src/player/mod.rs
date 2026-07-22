@@ -1,40 +1,65 @@
+pub mod carry;
+pub mod collision;
+pub mod freight;
+pub mod knockback;
 pub mod leaseholder;
 
+pub use carry::CarryingFreight;
+pub use freight::WorldFreight;
+pub use knockback::Knockback;
 pub use leaseholder::Leaseholder;
 
 use std::collections::HashMap;
+
 use bevy::input::mouse::{AccumulatedMouseMotion, MouseWheel};
 use bevy::prelude::*;
 use bevy::window::{CursorGrabMode, CursorOptions, PrimaryWindow};
 use bevy_replicon::prelude::*;
+use bevy_replicon_renet::{netcode::NetcodeClientTransport, RenetClient};
 use serde::{Deserialize, Serialize};
 
 use crate::{
     core::{
-        CAMERA_DEFAULT_DISTANCE, CAMERA_MAX_DISTANCE, CAMERA_MIN_DISTANCE,
-        MAX_CAMERA_PITCH, MIN_CAMERA_PITCH, MOUSE_SENSITIVITY,
-        PLAYER_SPEED, PLAYER_SPRINT_MULTIPLIER,
+        ARENA_BOUNDS, CAMERA_DEFAULT_DISTANCE, CAMERA_MAX_DISTANCE, CAMERA_MIN_DISTANCE,
+        MAX_CAMERA_PITCH, MIN_CAMERA_PITCH, PLAYER_SPEED,
+        PLAYER_SPRINT_MULTIPLIER,
     },
+    flow::AppScreen,
     network::OwnedPlayer,
     world::{GameplayEntity, MainCamera},
 };
+
+/// Owner id for the listen-server / offline avatar (not a netcode client).
+pub const HOST_OWNER_ID: u64 = 0;
 
 pub struct PlayerPlugin;
 
 impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ThirdPersonCamera>()
+            .init_resource::<freight::FreightCadence>()
             .add_observer(init_player_visuals)
             .add_systems(
                 Update,
                 (
                     assign_local_player,
-                    capture_cursor_when_playing,
-                    toggle_cursor_capture,
-                    camera_mouse_look,
-                    camera_scroll_zoom,
-                    local_movement_input,
-                    follow_camera.after(camera_mouse_look),
+                    capture_cursor_when_playing.run_if(in_state(AppScreen::Playing)),
+                    toggle_cursor_capture.run_if(in_state(AppScreen::Playing)),
+                    camera_mouse_look.run_if(in_state(AppScreen::Playing)),
+                    camera_scroll_zoom.run_if(in_state(AppScreen::Playing)),
+                    local_movement_input
+                        .run_if(in_state(AppScreen::Playing))
+                        .run_if(|pause: Option<Res<crate::settings::PauseState>>| {
+                            !pause.map(|p| p.paused).unwrap_or(false)
+                        }),
+                    knockback::apply_knockback_motion.run_if(in_state(AppScreen::Playing)),
+                    collision::resolve_player_push
+                        .after(knockback::apply_knockback_motion)
+                        .run_if(in_state(AppScreen::Playing)),
+                    carry::sync_carry_visuals.run_if(in_state(AppScreen::Playing)),
+                    follow_camera
+                        .after(camera_mouse_look)
+                        .run_if(in_state(AppScreen::Playing)),
                 ),
             );
     }
@@ -64,14 +89,31 @@ pub struct NetworkPlayer {
     pub slot: u32,
 }
 
+/// Netcode [`NetworkId`] that owns this avatar. [`HOST_OWNER_ID`] = local/host.
+#[derive(Component, Serialize, Deserialize, Clone, Copy, Debug, PartialEq, Eq)]
+pub struct PlayerOwner(pub u64);
+
 #[derive(Component, Serialize, Deserialize, Clone, Debug, Default)]
 pub struct PlayerName(pub String);
 
 #[derive(Component, Serialize, Deserialize, Clone, Copy, Debug)]
 pub struct PlayerColor(pub [f32; 3]);
 
+/// Visual swap hook for character GLBs. `model_id = None` keeps the capsule placeholder.
+#[derive(Component, Serialize, Deserialize, Clone, Debug, Default, PartialEq, Eq)]
+pub struct PlayerVisualSpec {
+    /// Studio `asset_id` for a character GLB once authored.
+    pub model_id: Option<String>,
+    /// Roster hat slot 0–7 (see docs/CHARACTERS.md).
+    pub hat_slot: u8,
+}
+
 #[derive(Component, Debug, Clone, Copy, Default)]
 pub struct LocalPlayer;
+
+/// Procedural Pugdy body part — tinted when cosmetics change.
+#[derive(Component, Debug, Clone, Copy, Default)]
+pub struct PugdyTintPart;
 
 #[derive(Resource, Default, Debug)]
 pub struct PlayerRegistry {
@@ -88,7 +130,7 @@ pub struct MoveInput {
 pub fn apply_move_input(
     input: On<FromClient<MoveInput>>,
     owners: Query<&OwnedPlayer>,
-    mut players: Query<(&mut Transform, &NetworkPlayer)>,
+    mut players: Query<&mut Transform, With<NetworkPlayer>>,
     time: Res<Time>,
 ) {
     let Some(client_entity) = input.client_id.entity() else {
@@ -99,22 +141,39 @@ pub fn apply_move_input(
         return;
     };
 
-    let Ok((mut transform, _)) = players.get_mut(owned.0) else {
+    let Ok(mut transform) = players.get_mut(owned.0) else {
         return;
     };
 
-    let direction = Vec3::new(input.direction.x, 0.0, input.direction.y);
+    apply_planar_move(
+        &mut transform,
+        input.direction,
+        input.sprint,
+        time.delta_secs(),
+    );
+}
+
+fn apply_planar_move(transform: &mut Transform, direction: Vec2, sprint: bool, dt: f32) {
+    let direction = Vec3::new(direction.x, 0.0, direction.y);
     if direction.length_squared() <= f32::EPSILON {
         return;
     }
 
-    let speed = if input.sprint {
+    let speed = if sprint {
         PLAYER_SPEED * PLAYER_SPRINT_MULTIPLIER
     } else {
         PLAYER_SPEED
     };
 
-    transform.translation += direction.normalize() * speed * time.delta_secs();
+    let flat = direction.normalize();
+    transform.translation += flat * speed * dt;
+    // Keep feet on the playable floor plane (no physics yet).
+    transform.translation.y = 1.0;
+    // Soft arena walls — greybox shell has no colliders yet.
+    transform.translation.x = transform.translation.x.clamp(-ARENA_BOUNDS, ARENA_BOUNDS);
+    transform.translation.z = transform.translation.z.clamp(-ARENA_BOUNDS, ARENA_BOUNDS);
+    // Face movement direction (Y-up).
+    transform.look_to(flat, Vec3::Y);
 }
 
 fn capture_cursor_when_playing(
@@ -142,7 +201,8 @@ fn toggle_cursor_capture(
     mut camera: ResMut<ThirdPersonCamera>,
     mut cursor: Query<&mut CursorOptions, With<PrimaryWindow>>,
 ) {
-    if local_player.is_empty() || !keyboard.just_pressed(KeyCode::Escape) {
+    // Backquote frees cursor; Esc is reserved for pause.
+    if local_player.is_empty() || !keyboard.just_pressed(KeyCode::Backquote) {
         return;
     }
 
@@ -164,6 +224,7 @@ fn camera_mouse_look(
     local_player: Query<(), With<LocalPlayer>>,
     motion: Res<AccumulatedMouseMotion>,
     mut camera: ResMut<ThirdPersonCamera>,
+    settings: Res<crate::settings::GameSettings>,
 ) {
     if local_player.is_empty() || !camera.captured {
         return;
@@ -174,8 +235,8 @@ fn camera_mouse_look(
         return;
     }
 
-    camera.yaw -= delta.x * MOUSE_SENSITIVITY;
-    camera.pitch = (camera.pitch - delta.y * MOUSE_SENSITIVITY)
+    camera.yaw -= delta.x * settings.mouse_sensitivity;
+    camera.pitch = (camera.pitch - delta.y * settings.mouse_sensitivity)
         .clamp(MIN_CAMERA_PITCH, MAX_CAMERA_PITCH);
 }
 
@@ -218,11 +279,12 @@ fn camera_relative_direction(keyboard: &ButtonInput<KeyCode>, yaw: f32) -> Vec3 
 fn local_movement_input(
     keyboard: Res<ButtonInput<KeyCode>>,
     mut commands: Commands,
-    cli: Res<crate::Cli>,
     camera: Res<ThirdPersonCamera>,
-    local_player: Query<(), With<LocalPlayer>>,
+    client: Option<Res<RenetClient>>,
+    local_player: Query<(), (With<LocalPlayer>, Without<crate::session_flow::Spectating>)>,
 ) {
-    if local_player.is_empty() {
+    // Pure clients only — host/offline apply movement directly in `offline_movement`.
+    if client.is_none() || local_player.is_empty() {
         return;
     }
 
@@ -232,24 +294,22 @@ fn local_movement_input(
     }
 
     let sprint = keyboard.pressed(KeyCode::ShiftLeft) || keyboard.pressed(KeyCode::ShiftRight);
-
-    if cli.is_online() {
-        let flat = direction.normalize();
-        commands.client_trigger(MoveInput {
-            direction: Vec2::new(flat.x, flat.z),
-            sprint,
-        });
-    }
+    let flat = direction.normalize();
+    commands.client_trigger(MoveInput {
+        direction: Vec2::new(flat.x, flat.z),
+        sprint,
+    });
 }
 
+/// Direct movement for offline greybox and listen-server host (no RenetClient).
 pub fn offline_movement(
     keyboard: Res<ButtonInput<KeyCode>>,
     camera: Res<ThirdPersonCamera>,
-    mut players: Query<&mut Transform, With<LocalPlayer>>,
+    mut players: Query<&mut Transform, (With<LocalPlayer>, Without<crate::session_flow::Spectating>)>,
     time: Res<Time>,
-    cli: Res<crate::Cli>,
+    client: Option<Res<RenetClient>>,
 ) {
-    if cli.is_online() {
+    if client.is_some() {
         return;
     }
 
@@ -263,23 +323,24 @@ pub fn offline_movement(
     }
 
     let sprint = keyboard.pressed(KeyCode::ShiftLeft) || keyboard.pressed(KeyCode::ShiftRight);
-    let speed = if sprint {
-        PLAYER_SPEED * PLAYER_SPRINT_MULTIPLIER
-    } else {
-        PLAYER_SPEED
-    };
-
-    transform.translation += direction.normalize() * speed * time.delta_secs();
+    let flat = direction.normalize();
+    apply_planar_move(
+        &mut transform,
+        Vec2::new(flat.x, flat.z),
+        sprint,
+        time.delta_secs(),
+    );
 }
 
 fn assign_local_player(
     mut commands: Commands,
     mut registry: ResMut<PlayerRegistry>,
-    cli: Res<crate::Cli>,
+    client: Option<Res<RenetClient>>,
+    transport: Option<Res<NetcodeClientTransport>>,
     client_state: Option<Res<State<ClientState>>>,
-    players: Query<(Entity, &NetworkPlayer), Without<LocalPlayer>>,
+    players: Query<(Entity, &PlayerOwner), (With<NetworkPlayer>, Without<LocalPlayer>)>,
 ) {
-    if !cli.is_online() || registry.local_player.is_some() {
+    if registry.local_player.is_some() || client.is_none() {
         return;
     }
 
@@ -290,10 +351,15 @@ fn assign_local_player(
         return;
     }
 
-    if let Some((player, _)) = players.iter().max_by_key(|(_, owner)| owner.slot) {
+    let Some(transport) = transport else {
+        return;
+    };
+    let my_id = transport.client_id();
+
+    if let Some((player, _)) = players.iter().find(|(_, owner)| owner.0 == my_id) {
         commands.entity(player).insert(LocalPlayer);
         registry.local_player = Some(player);
-        info!("local player assigned: {player:?}");
+        info!("local player assigned: {player:?} (owner {my_id})");
     }
 }
 
@@ -302,26 +368,98 @@ fn init_player_visuals(
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
-    players: Query<&PlayerColor, With<NetworkPlayer>>,
+    asset_server: Res<AssetServer>,
+    registry: Option<Res<crate::data::StudioRegistry>>,
+    players: Query<(&PlayerColor, Option<&PlayerVisualSpec>), With<NetworkPlayer>>,
 ) {
-    let Ok(color) = players.get(add.entity) else {
+    let Ok((color, visual)) = players.get(add.entity) else {
         return;
     };
 
+    // Prefer a character GLB when PlayerVisualSpec.model_id is set and the file exists.
+    if let Some(visual) = visual {
+        if let Some(model_id) = visual.model_id.as_deref() {
+            let disk = format!(
+                "{}/assets/models/{model_id}/{model_id}.glb",
+                env!("CARGO_MANIFEST_DIR")
+            );
+            if std::path::Path::new(&disk).is_file() {
+                let scale = registry
+                    .as_ref()
+                    .map(|r| r.spawn_scale(model_id))
+                    .unwrap_or(Vec3::ONE);
+                let glb_path = format!("models/{model_id}/{model_id}.glb");
+                let scene = asset_server
+                    .load(bevy::gltf::GltfAssetLabel::Scene(0).from_asset(glb_path));
+                commands.entity(add.entity).insert((GameplayEntity, Knockback::default())).with_children(|parent| {
+                    parent.spawn((
+                        WorldAssetRoot(scene),
+                        Transform::from_scale(scale),
+                        Visibility::default(),
+                    ));
+                });
+                return;
+            }
+        }
+    }
+
+    // Procedural Pugdy stub until char_pugdy_base_01.glb drops in.
     let [r, g, b] = color.0;
-    commands.entity(add.entity).insert((
-        Mesh3d(meshes.add(Capsule3d::new(0.45, 1.0))),
-        MeshMaterial3d(materials.add(StandardMaterial {
-            base_color: Color::srgb(r, g, b),
-            ..Default::default()
-        })),
-        GameplayEntity,
-    ));
+    let body_mat = materials.add(StandardMaterial {
+        base_color: Color::srgb(r, g, b),
+        ..Default::default()
+    });
+    let eye_mat = materials.add(StandardMaterial {
+        base_color: Color::srgb(0.08, 0.08, 0.1),
+        ..Default::default()
+    });
+    let cheek_mat = materials.add(StandardMaterial {
+        base_color: Color::srgb((r * 0.7 + 0.3).min(1.0), g * 0.55, b * 0.55),
+        ..Default::default()
+    });
+
+    commands
+        .entity(add.entity)
+        .insert((GameplayEntity, Knockback::default()))
+        .with_children(|parent| {
+            parent.spawn((
+                PugdyTintPart,
+                Mesh3d(meshes.add(Sphere::new(0.55))),
+                MeshMaterial3d(body_mat.clone()),
+                Transform::from_xyz(0.0, 0.55, 0.0),
+                Name::new("PugdyBody"),
+            ));
+            parent.spawn((
+                PugdyTintPart,
+                Mesh3d(meshes.add(Sphere::new(0.42))),
+                MeshMaterial3d(body_mat),
+                Transform::from_xyz(0.0, 1.25, 0.05),
+                Name::new("PugdyHead"),
+            ));
+            parent.spawn((
+                Mesh3d(meshes.add(Sphere::new(0.08))),
+                MeshMaterial3d(eye_mat.clone()),
+                Transform::from_xyz(-0.14, 1.32, 0.34),
+                Name::new("PugdyEyeL"),
+            ));
+            parent.spawn((
+                Mesh3d(meshes.add(Sphere::new(0.08))),
+                MeshMaterial3d(eye_mat),
+                Transform::from_xyz(0.14, 1.32, 0.34),
+                Name::new("PugdyEyeR"),
+            ));
+            parent.spawn((
+                Mesh3d(meshes.add(Sphere::new(0.09))),
+                MeshMaterial3d(cheek_mat),
+                Transform::from_xyz(0.0, 1.12, 0.38),
+                Name::new("PugdySnout"),
+            ));
+        });
 }
 
 fn follow_camera(
     camera_state: Res<ThirdPersonCamera>,
-    local_player: Query<&Transform, With<LocalPlayer>>,
+    local_player: Query<&Transform, (With<LocalPlayer>, Without<crate::session_flow::Spectating>)>,
     mut camera: Query<&mut Transform, (With<MainCamera>, Without<LocalPlayer>)>,
 ) {
     let Ok(player) = local_player.single() else {

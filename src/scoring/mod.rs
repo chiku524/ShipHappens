@@ -27,6 +27,14 @@ impl ScoringService {
         self.room_ci.clear();
     }
 
+    /// Full wipe for rematch / leave (composites + slot maps).
+    pub fn reset_tournament(&mut self) {
+        self.room_sheets.clear();
+        self.room_ci.clear();
+        self.slot_composite.clear();
+        self.slot_to_players.clear();
+    }
+
     pub fn register_slot(&mut self, slot: SlotId, players: Vec<PlayerScoreId>) {
         self.slot_to_players.insert(slot.clone(), players.clone());
         for player in players {

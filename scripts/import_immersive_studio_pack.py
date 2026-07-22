@@ -156,7 +156,11 @@ def _import_pack(pack_root: Path, *, update: bool, copy_textures: bool) -> int:
         print(f"  - {aid}")
     print(f"Registry: +{added} new, ~{upd} updated, {skipped} unchanged (use --update to refresh heights)")
     print(f"Updated {_REGISTRY_PATH.relative_to(_REPO_ROOT)}")
-    print("Next: run `cargo run -- local` to verify the new GLB in-game.")
+    print("Next:")
+    print("  1. Add/update a marker in data/rooms/<room>.json with \"asset_id\": \"<id>\"")
+    print("  2. Keep a greybox fallback on interactable markers")
+    print("  3. python scripts/validate_studio_assets.py")
+    print("  4. cargo run -- local")
     return 0
 
 

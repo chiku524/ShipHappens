@@ -2,10 +2,14 @@
 
 ShipHappens uses [Immersive Labs Studio](https://github.com/chiku524/immersive.labs) to generate **Tripo AI** meshes with baked PBR, then imports GLBs into `assets/models/` for the Bevy runtime.
 
+Placement is **data-driven**: import a pack → register the asset → add a marker in `data/rooms/*.json` → play. No Rust spawn code required for props/stations.
+
+**This-week drop checklist (meshes + audio):** [DROP_IN.md](DROP_IN.md)
+
 ## Prerequisites
 
 1. **Immersive Studio desktop** v0.1.7+ (or local worker) with `STUDIO_TRIPO_API_KEY` set — see `scripts/studio/worker.env.example`.
-2. Python 3 for the import script.
+2. Python 3 for the import / register scripts.
 
 ## Generate a pack (Studio)
 
@@ -29,17 +33,83 @@ The script:
 - Optionally copies `Textures/<asset_id>/` sidecars (skip with `--no-textures` when Tripo baked PBR into the GLB)
 - Merges entries into `assets/studio_registry.json`
 
+Register a single id without a full pack:
+
+```bash
+python scripts/register_studio_asset.py my_new_prop_01 --height 1.2
+```
+
+Validate registry ↔ disk ↔ room layouts:
+
+```bash
+python scripts/validate_studio_assets.py
+cargo test room_asset_ids_exist_in_registry_or_are_null
+```
+
+## Place in a room (required for playable)
+
+Edit the vault JSON under `data/rooms/` (or `arena.json` for the persistent shell).
+
+**Marker template** — copy/paste and fill in:
+
+```json
+{
+  "id": "my_station_slot",
+  "role": "station",
+  "asset_id": "my_new_prop_01",
+  "position": [0.0, 0.0, 0.0],
+  "rotation_y_deg": 0.0,
+  "scale": 1.0,
+  "interactable": { "kind": "vault_objective" },
+  "greybox": {
+    "size": [1.0, 1.0, 1.0],
+    "color": [0.5, 0.5, 0.5],
+    "label": "My Station"
+  }
+}
+```
+
+| Field | Notes |
+|-------|-------|
+| `id` | Stable slot name (used by interact RPCs). Never rename casually. |
+| `role` | `station` / `decoration` / `zone` / `sign` / `sort_chute` / `floor_vfx` / `floor` / `wall` / `ceiling` |
+| `asset_id` | Must exist in `studio_registry.json`. Omit or `null` to keep greybox-only. |
+| `position` | World meters. Floor-pivoted GLBs use `y = 0`. |
+| `scale` | Extra multiplier on top of registry scale (default `1.0`). |
+| `interactable` | Optional. Kinds: `crane`, `vault_objective`, `sort_chute`, `breaker`, `coolant_valve`, `meltdown_door`. |
+| `greybox` | **Required** for interactables — CI/headless fallback when GLB missing. |
+
+Then verify:
+
+```bash
+cargo run -- local
+```
+
+Walk to the marker and press **F** if it has an `interactable`.
+
 ## Runtime wiring (Bevy)
 
 | Piece | Location |
 |-------|----------|
 | Asset registry JSON | `assets/studio_registry.json` |
-| GLB loader | `src/assets/mod.rs` → `StudioRegistry::load()` |
-| Model path | `assets/models/{asset_id}/{asset_id}.glb` |
-| Greybox level | `src/world/mod.rs` spawns registered props at station markers |
+| Room / arena layouts | `data/rooms/*.json` |
+| Registry loader | `src/data/studio_registry.rs` |
+| Layout schema | `src/data/room_layout.rs` |
+| GLB spawn | `src/assets/mod.rs` (`WorldAssetRoot`) |
+| Marker spawn | `src/rooms/spawner.rs` |
+| Room swap | `src/rooms/layout.rs` |
+| Character hook | `PlayerVisualSpec` in `src/player/mod.rs` |
 
-After importing a new asset, add it to the greybox level or job station spawn logic in `src/world/mod.rs` / `src/interaction/mod.rs`.
+## Character models
+
+Players are capsules until a character GLB exists. Set `PlayerVisualSpec.model_id` to a registry `asset_id` (see `docs/CHARACTERS.md`). Hat slot `0–7` maps to the roster palette.
 
 ## Regenerating existing assets with Tripo
 
-Older packs may use ComfyUI sidecars or placeholder meshes. Re-run Studio jobs with the same `asset_id`, import with `--update`, and re-test scale/placement in the Bevy level.
+Older packs may use ComfyUI sidecars or placeholder meshes. Re-run Studio jobs with the same `asset_id`, import with `--update`, and re-test scale/placement in the Bevy level. Use marker `"scale"` or registry `"uniform_scale"` to fine-tune without re-exporting.
+
+## Still needed (wishlist)
+
+See [ASSET_WISHLIST.md](ASSET_WISHLIST.md) for dedicated sort-chute, door, floor, and character assets that still use stand-ins.
+
+**Ready-to-paste Immersive Studio / Tripo prompts:** [STUDIO_PROMPTS.md](STUDIO_PROMPTS.md)

@@ -1,0 +1,24 @@
+# Reference: free Cloudflare named tunnel for PugdyMon accounts.
+# Live file: %USERPROFILE%\.cloudflared\config.yml (credentials stay local).
+#
+# Hostname (free on the boing.network Cloudflare zone):
+#   https://pudgymon-api.boing.network  →  http://127.0.0.1:8788
+#
+# Run:
+#   pwsh scripts/run_accounts_tunnel.ps1
+#   # or:
+#   cloudflared tunnel --config %USERPROFILE%\.cloudflared\config.yml run boing-testnet-rpc
+#
+# Cost: $0. Your PC must stay on while the tunnel runs.
+# Always-on without a home PC: free-tier VM (Oracle Cloud) or Neon Postgres + free web host
+# (cold starts) — see docs/ACCOUNTS.md.
+
+tunnel: <your-tunnel-id>
+credentials-file: <path-to-tunnel-credentials.json>
+
+ingress:
+  - hostname: testnet-rpc.boing.network
+    service: http://127.0.0.1:8545
+  - hostname: pudgymon-api.boing.network
+    service: http://127.0.0.1:8788
+  - service: http_status:404

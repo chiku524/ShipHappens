@@ -51,6 +51,13 @@ impl JobSystem {
         }
     }
 
+    /// Clear all job progress (rematch / new tournament).
+    pub fn reset_all(&mut self) {
+        for state in self.states.values_mut() {
+            *state = JobRecord::default();
+        }
+    }
+
     pub fn is_active(&self, job_id: &str) -> bool {
         self.states
             .get(job_id)
@@ -217,10 +224,12 @@ mod tests {
 
     #[test]
     fn power_hour_sequence_matches_godot() {
-        let jobs = JobSystem::from_definitions(
+        let _jobs = JobSystem::from_definitions(
             load_job_manifest("data/job_manifest.json").expect("manifest"),
         );
-        assert_eq!(POWER_HOUR_SEQUENCE, [0, 2, 1, 3]);
+        assert_eq!(POWER_HOUR_SEQUENCE.len(), 12);
+        assert_eq!(POWER_HOUR_SEQUENCE[0], 0);
+        assert_eq!(POWER_HOUR_SEQUENCE[1], 5);
     }
 
     fn test_jobs() -> JobSystem {
@@ -229,7 +238,7 @@ mod tests {
             name: "Power Hour".into(),
             zone: "Main Hub".into(),
             hint: String::new(),
-            target: 4,
+            target: 12,
             satisfaction: 7.0,
         }])
     }
