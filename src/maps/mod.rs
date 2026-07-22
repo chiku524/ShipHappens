@@ -497,7 +497,7 @@ pub fn export_share_code(pack: &PartyPack) -> Result<(String, PathBuf), String> 
     let _ = fs::write(
         meta,
         format!(
-            "PugdyMon share code: {code}\nDrop the .json next to it into maps/ or import via My Maps.\n"
+            "PudgyMon share code: {code}\nDrop the .json next to it into maps/ or import via My Maps.\n"
         ),
     );
     Ok((code, path))

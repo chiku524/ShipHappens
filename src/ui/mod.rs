@@ -64,7 +64,7 @@ fn spawn_hud_root(mut commands: Commands) {
         Visibility::Hidden,
         children![
             (
-                Text::new("PUGDYMON · THE NEST"),
+                Text::new("PUDGYMON · THE NEST"),
                 TextFont {
                     font_size: FontSize::Px(20.0),
                     ..Default::default()

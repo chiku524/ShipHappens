@@ -1,12 +1,12 @@
-# PugdyMon: Party Saga
+# PudgyMon: Party Saga
 
-Cute **Pugdy Monsters** party game — race, collect vibes, and toy-blaster FFA in **The Nest**, then earn season points and claim skins on **[Boing Network](https://boing.network/)**.
+Cute **Pudgy Monsters** party game — race, collect vibes, and toy-blaster FFA in **The Nest**, then earn season points and claim skins on **[Boing Network](https://boing.network/)**.
 
 Built with **Bevy 0.19 (Rust)** · Third-person · LAN multiplayer · Boing-ready collectibles
 
 ## Elevator pitch
 
-Drop into **The Nest**, show off your Pugdy skin, and pick a mini-game pad: **Race**, **Vibe Collect**, **Shooter**, or the full **Party Saga** circuit. Solo bots fill empty seats; friends can host/join on LAN.
+Drop into **The Nest**, show off your Pudgy skin, and pick a mini-game pad: **Race**, **Vibe Collect**, **Shooter**, or the full **Party Saga** circuit. Solo bots fill empty seats; friends can host/join on LAN.
 
 ## Status
 
@@ -16,7 +16,7 @@ Drop into **The Nest**, show off your Pugdy skin, and pick a mini-game pad: **Ra
 - [x] Race / Vibe / Shooter + Party Saga loop
 - [x] Season points + cosmetics unlocks
 - [x] Boing RPC bridge + claim vouchers
-- [ ] Art drop-in for Pugdy characters / Nest props
+- [ ] Art drop-in for Pudgy characters / Nest props
 
 See [docs/PARTY_ROADMAP.md](docs/PARTY_ROADMAP.md) and [docs/BRAND.md](docs/BRAND.md).
 
@@ -28,8 +28,8 @@ See [docs/PARTY_ROADMAP.md](docs/PARTY_ROADMAP.md) and [docs/BRAND.md](docs/BRAN
 ## Quick start
 
 ```bash
-git clone https://github.com/chiku524/PugdyMon.git
-cd PugdyMon
+git clone https://github.com/chiku524/PudgyMon.git
+cd PudgyMon
 
 cargo run                         # The Nest (offline)
 cargo run -- host --port 7777

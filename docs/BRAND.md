@@ -1,16 +1,16 @@
-# Brand — Pugdy Monsters
+# Brand — Pudgy Monsters
 
 ## Locked names
 
 | Layer | Name |
 |-------|------|
-| Universe / IP | **Pugdy Monsters** |
-| Game (full) | **PugdyMon: Party Saga** |
-| Short | **PugdyMon** |
+| Universe / IP | **Pudgy Monsters** |
+| Game (full) | **PudgyMon: Party Saga** |
+| Short | **PudgyMon** |
 | Full mini-game circuit | **Party Saga** (Race → Vibe → Shooter) |
 | Social hub | **The Nest** |
 
-Spelling is **Pugdy** (not “Pudgy”) — intentional brand mark for this title.
+Spelling is **Pudgy** (not “Pugdy”) — intentional brand mark for this title.
 
 ## Tone
 

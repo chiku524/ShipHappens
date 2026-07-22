@@ -1,4 +1,4 @@
-# Reference: free Cloudflare named tunnel for PugdyMon accounts.
+# Reference: free Cloudflare named tunnel for PudgyMon accounts.
 # Live file: %USERPROFILE%\.cloudflared\config.yml (credentials stay local).
 #
 # Hostname (free on the boing.network Cloudflare zone):

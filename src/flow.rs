@@ -15,7 +15,7 @@ pub enum AppScreen {
 pub fn should_skip_title(cli: &crate::Cli) -> bool {
     matches!(cli, crate::Cli::Host { .. } | crate::Cli::Join { .. })
         || std::env::var("MP_TEST_ROLE").is_ok()
-        || std::env::var("PUGDYMON_SKIP_AUTH").ok().is_some_and(|v| {
+        || std::env::var("PUDGYMON_SKIP_AUTH").ok().is_some_and(|v| {
             let v = v.to_ascii_lowercase();
             v == "1" || v == "true" || v == "yes"
         })

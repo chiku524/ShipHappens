@@ -2,22 +2,22 @@
 
 ## Title
 
-**PugdyMon: Party Saga**
+**PudgyMon: Party Saga**
 
 ## Short description
 
-Cute Pugdy Monsters party mini-games. Show off skins in The Nest, then race, vibe-collect, or toy-blaster FFA — season rewards on Boing Network.
+Cute Pudgy Monsters party mini-games. Show off skins in The Nest, then race, vibe-collect, or toy-blaster FFA — season rewards on Boing Network.
 
 ## About this game
 
-Welcome to **The Nest** — home base for chunky little **Pugdy Monsters**. Strut your cosmetics, then step onto a glowing pad and dive into a mini-game:
+Welcome to **The Nest** — home base for chunky little **Pudgy Monsters**. Strut your cosmetics, then step onto a glowing pad and dive into a mini-game:
 
 - **Race** — hit the gates, claim placement points
 - **Vibe Collect** — scoop glowing vibes before time runs out
 - **Shooter** — friendly toy blasters, KO points
 - **Party Saga** — all three in one circuit
 
-Earn **season points**, unlock Pugdy skins, and claim collectibles on **Boing Network** (no real-money prize pools).
+Earn **season points**, unlock Pudgy skins, and claim collectibles on **Boing Network** (no real-money prize pools).
 
 **Solo or LAN with friends.** Bots fill empty seats so you can always party.
 
@@ -29,7 +29,7 @@ Earn **season points**, unlock Pugdy skins, and claim collectibles on **Boing Ne
 - Boing Network NFT / soft-currency claims (testnet → mainnet)
 - Family-friendly cartoon chaos — built for clips
 
-*PugdyMon reminds you: vibes are not calories. Collect responsibly.*
+*PudgyMon reminds you: vibes are not calories. Collect responsibly.*
 
 ## Tags
 
@@ -39,4 +39,4 @@ Earn **season points**, unlock Pugdy skins, and claim collectibles on **Boing Ne
 
 ## Early Access framing
 
-> Early Access: Nest hub, three mini-games, offline bots, LAN host/join, season points, Boing claim path. Polished Pugdy art and Nest props landing next.
+> Early Access: Nest hub, three mini-games, offline bots, LAN host/join, season points, Boing claim path. Polished Pudgy art and Nest props landing next.

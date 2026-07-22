@@ -1,13 +1,13 @@
 //! Product naming — see docs/BRAND.md.
 
 /// Universe / IP line.
-pub const UNIVERSE: &str = "Pugdy Monsters";
+pub const UNIVERSE: &str = "Pudgy Monsters";
 
 /// Full game title.
-pub const TITLE: &str = "PugdyMon: Party Saga";
+pub const TITLE: &str = "PudgyMon: Party Saga";
 
 /// Short product name (window chrome, folders).
-pub const SHORT: &str = "PugdyMon";
+pub const SHORT: &str = "PudgyMon";
 
 /// Full three-stage circuit label.
 pub const PARTY_SAGA: &str = "Party Saga";
@@ -16,7 +16,7 @@ pub const PARTY_SAGA: &str = "Party Saga";
 pub const NEST: &str = "The Nest";
 
 /// Local app data folder under LOCALAPPDATA.
-pub const APP_DATA_DIR: &str = "PugdyMon";
+pub const APP_DATA_DIR: &str = "PudgyMon";
 
 /// Window title when playing.
 pub fn window_title() -> String {

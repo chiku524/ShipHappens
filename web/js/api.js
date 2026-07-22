@@ -13,7 +13,7 @@
     } catch (_) {}
     return (
       localStorage.getItem("pudgymon_api_base") ||
-      window.PUGDYMON_API_BASE ||
+      window.PUDGYMON_API_BASE ||
       DEFAULT_API
     ).replace(/\/$/, "");
   }
@@ -98,7 +98,7 @@
     URL.revokeObjectURL(a.href);
   }
 
-  window.PugdyMonApi = {
+  window.PudgyMonApi = {
     apiBase,
     getToken,
     setToken,

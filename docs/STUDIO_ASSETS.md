@@ -1,6 +1,6 @@
-# Immersive Studio → PugdyMon workflow
+# Immersive Studio → PudgyMon workflow
 
-PugdyMon uses [Immersive Labs Studio](https://github.com/chiku524/immersive.labs) to generate **Tripo AI** meshes with baked PBR, then imports GLBs into `assets/models/` for the Bevy runtime.
+PudgyMon uses [Immersive Labs Studio](https://github.com/chiku524/immersive.labs) to generate **Tripo AI** meshes with baked PBR, then imports GLBs into `assets/models/` for the Bevy runtime.
 
 Placement is **data-driven**: import a pack → register the asset → add a marker in `data/rooms/*.json` → play. No Rust spawn code required for props/stations.
 

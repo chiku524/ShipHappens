@@ -78,7 +78,7 @@ pub fn update_phase_overlay(
 
     let content = match phase {
         PartyPhase::Results => Some((
-            "PUGDYMON RESULTS".to_string(),
+            "PUDGYMON RESULTS".to_string(),
             format!(
                 "Your party pts: {}\nSeason total: {}\nR rematch · Q Nest · M claim on Boing",
                 director.match_points[0], season.points

@@ -3,7 +3,7 @@
   "id": "official_vibe_ring",
   "label": "Official Vibe Ring",
   "mode": "vibe",
-  "author": "PugdyMon",
+  "author": "PudgyMon",
   "spawns": [[0.0, 1.0, 0.0]],
   "orbs": [
     [16.0, 0.6, 0.0],

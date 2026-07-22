@@ -1,6 +1,6 @@
 # Packaging & playtester builds
 
-**PugdyMon: Party Saga** — Nest plaza, mini-games, season points, optional Boing Network rewards.
+**PudgyMon: Party Saga** — Nest plaza, mini-games, season points, optional Boing Network rewards.
 
 ## Windows release folder
 
@@ -8,7 +8,7 @@
 pwsh scripts/build_windows_release.ps1
 ```
 
-Output: `dist/PugdyMon/` with `pudgymon.exe`, `assets/`, `data/`, and `README.txt`.
+Output: `dist/PudgyMon/` with `pudgymon.exe`, `assets/`, `data/`, and `README.txt`.
 
 ### In-game
 
@@ -28,12 +28,12 @@ pudgymon.exe host --port 7777
 pudgymon.exe join --address 192.168.1.10 --port 7777
 ```
 
-Host is listen-server authority. Joiners see each other in **The Nest**, can press **E** on pads to queue a mode for everyone, and share Race / Vibe / Shooter (movement + scoring on host; shooters send fire to host). Custom My Maps need the same map JSON on host (and ideally joiners) under `%LOCALAPPDATA%/PugdyMon/maps/`.
+Host is listen-server authority. Joiners see each other in **The Nest**, can press **E** on pads to queue a mode for everyone, and share Race / Vibe / Shooter (movement + scoring on host; shooters send fire to host). Custom My Maps need the same map JSON on host (and ideally joiners) under `%LOCALAPPDATA%/PudgyMon/maps/`.
 
 ## Crash / log path
 
-`%LOCALAPPDATA%\PugdyMon\logs\crash.log`  
-Claim vouchers: `%LOCALAPPDATA%\PugdyMon\logs\claim_voucher.json`
+`%LOCALAPPDATA%\PudgyMon\logs\crash.log`  
+Claim vouchers: `%LOCALAPPDATA%\PudgyMon\logs\claim_voucher.json`
 
 ## Boing
 

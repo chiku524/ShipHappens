@@ -145,7 +145,7 @@ fn spawn_auth_intro(mut commands: Commands, account: Res<PlayerAccount>) {
         GlobalZIndex(500),
         children![
             (
-                Text::new("PUGDYMON"),
+                Text::new("PUDGYMON"),
                 TextFont {
                     font_size: FontSize::Px(58.0),
                     ..Default::default()

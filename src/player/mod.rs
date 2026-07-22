@@ -111,9 +111,9 @@ pub struct PlayerVisualSpec {
 #[derive(Component, Debug, Clone, Copy, Default)]
 pub struct LocalPlayer;
 
-/// Procedural Pugdy body part — tinted when cosmetics change.
+/// Procedural Pudgy body part — tinted when cosmetics change.
 #[derive(Component, Debug, Clone, Copy, Default)]
-pub struct PugdyTintPart;
+pub struct PudgyTintPart;
 
 #[derive(Resource, Default, Debug)]
 pub struct PlayerRegistry {
@@ -403,7 +403,7 @@ fn init_player_visuals(
         }
     }
 
-    // Procedural Pugdy stub until char_pugdy_base_01.glb drops in.
+    // Procedural Pudgy stub until char_pudgy_base_01.glb drops in.
     let [r, g, b] = color.0;
     let body_mat = materials.add(StandardMaterial {
         base_color: Color::srgb(r, g, b),
@@ -423,36 +423,36 @@ fn init_player_visuals(
         .insert((GameplayEntity, Knockback::default()))
         .with_children(|parent| {
             parent.spawn((
-                PugdyTintPart,
+                PudgyTintPart,
                 Mesh3d(meshes.add(Sphere::new(0.55))),
                 MeshMaterial3d(body_mat.clone()),
                 Transform::from_xyz(0.0, 0.55, 0.0),
-                Name::new("PugdyBody"),
+                Name::new("PudgyBody"),
             ));
             parent.spawn((
-                PugdyTintPart,
+                PudgyTintPart,
                 Mesh3d(meshes.add(Sphere::new(0.42))),
                 MeshMaterial3d(body_mat),
                 Transform::from_xyz(0.0, 1.25, 0.05),
-                Name::new("PugdyHead"),
+                Name::new("PudgyHead"),
             ));
             parent.spawn((
                 Mesh3d(meshes.add(Sphere::new(0.08))),
                 MeshMaterial3d(eye_mat.clone()),
                 Transform::from_xyz(-0.14, 1.32, 0.34),
-                Name::new("PugdyEyeL"),
+                Name::new("PudgyEyeL"),
             ));
             parent.spawn((
                 Mesh3d(meshes.add(Sphere::new(0.08))),
                 MeshMaterial3d(eye_mat),
                 Transform::from_xyz(0.14, 1.32, 0.34),
-                Name::new("PugdyEyeR"),
+                Name::new("PudgyEyeR"),
             ));
             parent.spawn((
                 Mesh3d(meshes.add(Sphere::new(0.09))),
                 MeshMaterial3d(cheek_mat),
                 Transform::from_xyz(0.0, 1.12, 0.38),
-                Name::new("PugdySnout"),
+                Name::new("PudgySnout"),
             ));
         });
 }

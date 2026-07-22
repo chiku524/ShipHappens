@@ -1,4 +1,4 @@
-//! Cloud PugdyMon account session (JWT from web signup/login).
+//! Cloud PudgyMon account session (JWT from web signup/login).
 
 use std::fs;
 use std::path::PathBuf;
@@ -82,12 +82,12 @@ fn app_data_dir() -> PathBuf {
 }
 
 fn default_api_base() -> String {
-    std::env::var("PUGDYMON_ACCOUNTS_URL")
+    std::env::var("PUDGYMON_ACCOUNTS_URL")
         .unwrap_or_else(|_| "http://127.0.0.1:8788".into())
 }
 
 pub fn web_index_path() -> PathBuf {
-    if let Ok(url) = std::env::var("PUGDYMON_WEB_URL") {
+    if let Ok(url) = std::env::var("PUDGYMON_WEB_URL") {
         return PathBuf::from(url);
     }
     PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("web/index.html")
@@ -154,10 +154,10 @@ pub struct AccountPlugin;
 impl Plugin for AccountPlugin {
     fn build(&self, app: &mut App) {
         let mut account = PlayerAccount::load();
-        if let Ok(token) = std::env::var("PUGDYMON_ACCOUNT_TOKEN") {
+        if let Ok(token) = std::env::var("PUDGYMON_ACCOUNT_TOKEN") {
             if !token.trim().is_empty() {
                 account.access_token = token.trim().to_string();
-                account.note = "Loaded PUGDYMON_ACCOUNT_TOKEN env.".into();
+                account.note = "Loaded PUDGYMON_ACCOUNT_TOKEN env.".into();
                 account.save();
             }
         }
@@ -186,15 +186,15 @@ pub fn open_website(account: &mut PlayerAccount) -> String {
     let path = web_index_path();
     let target = if path.is_file() {
         path.to_string_lossy().to_string()
-    } else if let Ok(url) = std::env::var("PUGDYMON_WEB_URL") {
+    } else if let Ok(url) = std::env::var("PUDGYMON_WEB_URL") {
         url
     } else {
-        account.note = "Website missing (web/index.html). Set PUGDYMON_WEB_URL.".into();
+        account.note = "Website missing (web/index.html). Set PUDGYMON_WEB_URL.".into();
         return account.note.clone();
     };
     match open_path_or_url(&target) {
         Ok(()) => {
-            account.note = "Opened PugdyMon website.".into();
+            account.note = "Opened PudgyMon website.".into();
         }
         Err(e) => {
             account.note = format!("Could not open website: {e}");
@@ -203,9 +203,9 @@ pub fn open_website(account: &mut PlayerAccount) -> String {
     account.note.clone()
 }
 
-/// Consume `%LOCALAPPDATA%/PugdyMon/pending_token.txt` or `PUGDYMON_ACCOUNT_TOKEN`.
+/// Consume `%LOCALAPPDATA%/PudgyMon/pending_token.txt` or `PUDGYMON_ACCOUNT_TOKEN`.
 pub fn link_pending_token(account: &mut PlayerAccount) -> String {
-    let mut token = std::env::var("PUGDYMON_ACCOUNT_TOKEN")
+    let mut token = std::env::var("PUDGYMON_ACCOUNT_TOKEN")
         .ok()
         .map(|s| s.trim().to_string())
         .filter(|s| !s.is_empty());

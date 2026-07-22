@@ -8,8 +8,8 @@
 
   // Optional live API probe for footers that include #apiHealth.
   const healthEl = document.getElementById("apiHealth");
-  if (!healthEl || !window.PugdyMonApi) return;
-  const base = PugdyMonApi.apiBase();
+  if (!healthEl || !window.PudgyMonApi) return;
+  const base = PudgyMonApi.apiBase();
   healthEl.textContent = `API ${base} · checking…`;
   fetch(`${base}/health`, { method: "GET" })
     .then((res) => {

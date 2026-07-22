@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Log In — PugdyMon</title>
+  <title>Log In — PudgyMon</title>
   <link rel="stylesheet" href="css/site.css" />
 </head>
 <body>
   <nav class="nav">
-    <a class="nav-brand" href="index.html">PugdyMon</a>
+    <a class="nav-brand" href="index.html">PudgyMon</a>
     <div class="nav-links">
       <a data-nav href="learn.html">Learn</a>
       <a data-nav href="signup.html">Create Account</a>
@@ -20,7 +20,7 @@
   <main class="shell">
     <p class="eyebrow">Accounts</p>
     <h1 class="brand-hero" style="font-size: clamp(2.2rem, 6vw, 3.2rem)">Welcome back</h1>
-    <p class="lede">Log in, then paste or drop the token into PugdyMon’s Nest Account page.</p>
+    <p class="lede">Log in, then paste or drop the token into PudgyMon’s Nest Account page.</p>
 
     <section class="panel">
       <form id="loginForm">
@@ -45,7 +45,7 @@
           <a class="btn ghost" href="account.html">Manage profile</a>
         </div>
         <p class="lede" style="margin-top: 1rem; font-size: 0.95rem">
-          Game path: <code class="mono">%LOCALAPPDATA%\PugdyMon\pending_token.txt</code>
+          Game path: <code class="mono">%LOCALAPPDATA%\PudgyMon\pending_token.txt</code>
           then Nest menu → Account → Link pending token.
         </p>
       </div>
@@ -57,7 +57,7 @@
   <script src="js/api.js"></script>
   <script src="js/nav.js"></script>
   <script>
-    document.getElementById("apiLabel").textContent = PugdyMonApi.apiBase();
+    document.getElementById("apiLabel").textContent = PudgyMonApi.apiBase();
     const status = document.getElementById("status");
     const tokenPanel = document.getElementById("tokenPanel");
     const tokenOut = document.getElementById("tokenOut");
@@ -69,7 +69,7 @@
       status.textContent = "Signing in…";
       tokenPanel.hidden = true;
       try {
-        const data = await PugdyMonApi.login(email.value.trim(), password.value);
+        const data = await PudgyMonApi.login(email.value.trim(), password.value);
         status.textContent = `Hi, ${data.profile.display_name}`;
         tokenOut.textContent = data.access_token;
         tokenPanel.hidden = false;
@@ -85,7 +85,7 @@
       status.classList.remove("err");
     };
     document.getElementById("downloadBtn").onclick = () =>
-      PugdyMonApi.downloadGameToken(tokenOut.textContent);
+      PudgyMonApi.downloadGameToken(tokenOut.textContent);
   </script>
 </body>
 </html>

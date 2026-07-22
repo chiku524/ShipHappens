@@ -1,4 +1,4 @@
-# PugdyMon accounts + website
+# PudgyMon accounts + website
 
 Online email/password accounts for Nest identity, plus a small marketing site.
 
@@ -73,16 +73,16 @@ Optional query override: `?api=http://127.0.0.1:8788`
 1. Start accounts API (+ tunnel if you want the hosted site to work)
 2. `cargo run` / `pudgymon`
 3. **Register** or **Sign In** on the intro
-4. JWT persisted at `%LOCALAPPDATA%\PugdyMon\account_session.json`
+4. JWT persisted at `%LOCALAPPDATA%\PudgyMon\account_session.json`
 
 Controls: **Sign In** / **Register** · `F1`/`F2` · `Tab` · type · `Enter` / **Continue**
 
 Game env:
 
-- `PUGDYMON_ACCOUNTS_URL` — default `http://127.0.0.1:8788` (game talks to local API; use the public URL if you want)
-- `PUGDYMON_ACCOUNT_TOKEN` — inject JWT
-- `PUGDYMON_WEB_URL` — Nest “Open website”
-- `PUGDYMON_SKIP_AUTH=1` — skip intro (smoke / tooling); Host/Join CLI also skip
+- `PUDGYMON_ACCOUNTS_URL` — default `http://127.0.0.1:8788` (game talks to local API; use the public URL if you want)
+- `PUDGYMON_ACCOUNT_TOKEN` — inject JWT
+- `PUDGYMON_WEB_URL` — Nest “Open website”
+- `PUDGYMON_SKIP_AUTH=1` — skip intro (smoke / tooling); Host/Join CLI also skip
 
 ## API sketch
 

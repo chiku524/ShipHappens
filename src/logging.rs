@@ -4,7 +4,7 @@ use std::fs::{self, OpenOptions};
 use std::io::Write;
 use std::path::PathBuf;
 
-/// `%LOCALAPPDATA%/PugdyMon/logs` on Windows, else `./logs`.
+/// `%LOCALAPPDATA%/PudgyMon/logs` on Windows, else `./logs`.
 pub fn log_dir() -> PathBuf {
     if let Ok(base) = std::env::var("LOCALAPPDATA") {
         PathBuf::from(base)

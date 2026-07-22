@@ -1,19 +1,19 @@
-# Immersive Studio prompt pack — PugdyMon
+# Immersive Studio prompt pack — PudgyMon
 
-Copy-paste prompts for [Immersive Labs Studio](https://github.com/chiku524/immersive.labs) / Tripo jobs. Each entry includes the **`asset_id`**, target height, where it plugs into PugdyMon, and a ready prompt.
+Copy-paste prompts for [Immersive Labs Studio](https://github.com/chiku524/immersive.labs) / Tripo jobs. Each entry includes the **`asset_id`**, target height, where it plugs into PudgyMon, and a ready prompt.
 
 After generation → import → place (see [STUDIO_ASSETS.md](STUDIO_ASSETS.md)). Stand-in map: [ASSET_WISHLIST.md](ASSET_WISHLIST.md).
 
 ---
 
-## Priority — Pugdy + Nest
+## Priority — Pudgy + Nest
 
-### `char_pugdy_base_01` · target height **1.2**
+### `char_pudgy_base_01` · target height **1.2**
 
 **Plugs into:** `data/player_defaults.json` / `PlayerVisualSpec.model_id`
 
 ```
-Cute chunky cartoon monster character for a party game called PugdyMon.
+Cute chunky cartoon monster character for a party game called PudgyMon.
 Round soft body like a dumpling with an oversized round head, stubby limbs,
 big friendly eyes, tiny snout, rubbery plastic toy materials, coral-peach base color.
 Standing idle A-pose, floor-pivoted, single character, no weapons, no text, family-friendly.
@@ -47,7 +47,7 @@ floor-pivoted, single object, no characters.
 Use this block (or Studio’s style preset) on **every** job so the set matches:
 
 ```
-Cartoon stylized 3D game asset for PugdyMon: Party Saga — cute chunky monster party world.
+Cartoon stylized 3D game asset for PudgyMon: Party Saga — cute chunky monster party world.
 Bright readable colors, soft rounded edges, slightly rubbery plastic materials,
 exaggerated silhouettes, clean PBR, no gore, no realistic dirt, no photorealism.
 Single isolated object, centered, floor-pivoted (origin at ground center),

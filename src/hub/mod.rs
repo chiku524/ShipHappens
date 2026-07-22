@@ -1,4 +1,4 @@
-//! The Nest — walk, show Pugdy skins, pick a mini-game.
+//! The Nest — walk, show Pudgy skins, pick a mini-game.
 
 use bevy::prelude::*;
 use bevy_replicon::prelude::*;
@@ -8,7 +8,7 @@ use crate::{
     flow::AppScreen,
     maps::{ActiveStageMaps, PartyPack},
     party::{PartyDirector, PartyPhase, PartyPlan, PartySpawn, StageKind},
-    player::{LocalPlayer, PlayerColor, PugdyTintPart},
+    player::{LocalPlayer, PlayerColor, PudgyTintPart},
     season::SeasonLedger,
     world::GameplayEntity,
 };
@@ -313,7 +313,7 @@ fn spawn_social_hub(
         ));
     }
 
-    // Skin showcase ring — round Pugdy mannequins.
+    // Skin showcase ring — round Pudgy mannequins.
     for (i, item) in catalog.items.iter().enumerate() {
         let angle = i as f32 * 1.05;
         let pos = hub + Vec3::new(angle.cos() * 20.0, 0.55, angle.sin() * 20.0 + 4.0);
@@ -494,7 +494,7 @@ fn apply_equipped_skin_tint(
     catalog: Res<CosmeticsCatalog>,
     mut players: Query<(Entity, &mut PlayerColor), With<LocalPlayer>>,
     children: Query<&Children>,
-    tint_parts: Query<&MeshMaterial3d<StandardMaterial>, With<PugdyTintPart>>,
+    tint_parts: Query<&MeshMaterial3d<StandardMaterial>, With<PudgyTintPart>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     let Some(item) = catalog.items.iter().find(|i| i.id == equipped.id) else {

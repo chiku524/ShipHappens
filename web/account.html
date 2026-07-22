@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Account — PugdyMon</title>
+  <title>Account — PudgyMon</title>
   <link rel="stylesheet" href="css/site.css" />
 </head>
 <body>
   <nav class="nav">
-    <a class="nav-brand" href="index.html">PugdyMon</a>
+    <a class="nav-brand" href="index.html">PudgyMon</a>
     <div class="nav-links">
       <a data-nav href="learn.html">Learn</a>
       <a data-nav href="signup.html">Create Account</a>
@@ -59,27 +59,27 @@
   <script src="js/api.js"></script>
   <script src="js/nav.js"></script>
   <script>
-    document.getElementById("apiLabel").textContent = PugdyMonApi.apiBase();
+    document.getElementById("apiLabel").textContent = PudgyMonApi.apiBase();
     const guest = document.getElementById("guestPanel");
     const user = document.getElementById("userPanel");
     const status = document.getElementById("status");
     const who = document.getElementById("who");
 
     async function load() {
-      if (!PugdyMonApi.getToken()) {
+      if (!PudgyMonApi.getToken()) {
         guest.hidden = false;
         user.hidden = true;
         return;
       }
       try {
-        const profile = await PugdyMonApi.me();
+        const profile = await PudgyMonApi.me();
         guest.hidden = true;
         user.hidden = false;
         who.textContent = `${profile.email} · id ${profile.id}`;
         display_name.value = profile.display_name || "";
         boing_wallet.value = profile.boing_wallet || "";
       } catch (err) {
-        PugdyMonApi.logout();
+        PudgyMonApi.logout();
         guest.hidden = false;
         user.hidden = true;
       }
@@ -90,7 +90,7 @@
       status.hidden = false;
       status.classList.remove("err");
       try {
-        const profile = await PugdyMonApi.patchMe({
+        const profile = await PudgyMonApi.patchMe({
           display_name: display_name.value.trim(),
           boing_wallet: boing_wallet.value.trim(),
         });
@@ -104,11 +104,11 @@
 
     document.getElementById("tokenBtn").onclick = () => {
       tokenPanel.hidden = false;
-      tokenOut.textContent = PugdyMonApi.getToken();
+      tokenOut.textContent = PudgyMonApi.getToken();
     };
-    document.getElementById("downloadBtn").onclick = () => PugdyMonApi.downloadGameToken();
+    document.getElementById("downloadBtn").onclick = () => PudgyMonApi.downloadGameToken();
     document.getElementById("logoutBtn").onclick = () => {
-      PugdyMonApi.logout();
+      PudgyMonApi.logout();
       location.reload();
     };
 

@@ -6,16 +6,16 @@ Related: [CHARACTERS.md](CHARACTERS.md) · [STUDIO_ASSETS.md](STUDIO_ASSETS.md) 
 
 ---
 
-## Pugdy character (priority)
+## Pudgy character (priority)
 
 | What | Drop path | Then |
 |------|-----------|------|
-| Base Pugdy | `assets/models/char_pugdy_base_01/char_pugdy_base_01.glb` | `python scripts/register_studio_asset.py char_pugdy_base_01 --height 1.2` |
+| Base Pudgy | `assets/models/char_pudgy_base_01/char_pudgy_base_01.glb` | `python scripts/register_studio_asset.py char_pudgy_base_01 --height 1.2` |
 | Nest egg | `assets/models/env_nest_egg_01/env_nest_egg_01.glb` | Register; later wire into Nest spawn |
 | Nest bench | `assets/models/env_nest_bench_01/…` | Same |
 | Vibe mushroom | `assets/models/prop_vibe_mushroom_01/…` | Same |
 
-Until the Pugdy GLB exists, players use a **procedural stub** (round body + head).
+Until the Pudgy GLB exists, players use a **procedural stub** (round body + head).
 
 Validate:
 
@@ -41,7 +41,7 @@ Restart after dropping clips.
 
 ## Quick checklist
 
-1. [ ] `char_pugdy_base_01.glb` → auto-swap from stub  
+1. [ ] `char_pudgy_base_01.glb` → auto-swap from stub  
 2. [ ] Nest props (`env_nest_egg_01`, benches, mushrooms)  
 3. [ ] Music bed for The Nest / Party Saga  
 4. [ ] SFX: pickup / KO / finish  

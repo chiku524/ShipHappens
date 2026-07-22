@@ -2,7 +2,7 @@
   "items": [
     {
       "id": "skin_starter",
-      "label": "Pugdy Sprout",
+      "label": "Pudgy Sprout",
       "cost_points": 0,
       "tint": [0.95, 0.45, 0.35],
       "boing_token_id": 1

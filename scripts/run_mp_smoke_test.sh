@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Two-process headless LAN smoke test for PugdyMon (Bevy).
+# Two-process headless LAN smoke test for PudgyMon (Bevy).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"

@@ -1,4 +1,4 @@
-//! PugdyMon accounts API — email/password auth + profile.
+//! PudgyMon accounts API — email/password auth + profile.
 
 use std::{env, net::SocketAddr, time::Duration};
 

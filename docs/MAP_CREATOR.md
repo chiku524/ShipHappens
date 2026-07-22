@@ -1,6 +1,6 @@
 # Map Creator — Race / Vibe / Shooter + Party Saga packs
 
-In-game UGC for **PugdyMon: Party Saga**. Create layouts in The Nest, save locally, playtest, export share codes.
+In-game UGC for **PudgyMon: Party Saga**. Create layouts in The Nest, save locally, playtest, export share codes.
 
 Playable XZ half-extent is `ARENA_BOUNDS` (**36**) — Nest floor is ~**72×72**. Place props anywhere inside ±36.
 
@@ -12,7 +12,7 @@ Playable XZ half-extent is `ARENA_BOUNDS` (**36**) — Nest floor is ~**72×72**
 4. **F** / LMB place · **X** delete
 5. **F5** save current layer · **F8** save full Party Saga pack
 6. **F6** playtest layer · **F9** playtest full Party Saga
-7. **F7** export share code → `%LOCALAPPDATA%/PugdyMon/maps/shares/`
+7. **F7** export share code → `%LOCALAPPDATA%/PudgyMon/maps/shares/`
 8. Purple **My Maps** → **[ ]** cycle Race / Vibe / Shooter / packs · **E** play
 
 Companion import desk: [`companion/maps/`](../companion/maps/index.html)

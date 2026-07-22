@@ -9,7 +9,7 @@ Write-Host "Building release…"
 cargo build --release
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-$Out = Join-Path $Root "dist\PugdyMon"
+$Out = Join-Path $Root "dist\PudgyMon"
 if (Test-Path $Out) { Remove-Item -Recurse -Force $Out }
 New-Item -ItemType Directory -Path $Out | Out-Null
 New-Item -ItemType Directory -Path (Join-Path $Out "assets") | Out-Null
@@ -20,7 +20,7 @@ Copy-Item -Recurse (Join-Path $Root "assets\*") (Join-Path $Out "assets")
 Copy-Item -Recurse (Join-Path $Root "data\*") (Join-Path $Out "data")
 
 @"
-PugdyMon: Party Saga (practice build)
+PudgyMon: Party Saga (practice build)
 
 Run: pudgymon.exe
 
@@ -28,7 +28,7 @@ Boots into The Nest — walk a glowing pad, press E to play.
 Pads: Race · Vibe · Shooter · Party Saga
 Controls: WASD · C skins · M Boing claim · Esc pause · R rematch · Q Nest
 
-Crash logs: %LOCALAPPDATA%\PugdyMon\logs\crash.log
+Crash logs: %LOCALAPPDATA%\PudgyMon\logs\crash.log
 
 Host for friends: pudgymon.exe host --port 7777
 Join:           pudgymon.exe join --address <HOST_IP> --port 7777

@@ -1,4 +1,4 @@
-# PugdyMon — Technical Design
+# PudgyMon — Technical Design
 
 ## Stack
 

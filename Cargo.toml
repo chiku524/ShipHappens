@@ -6,7 +6,7 @@ resolver = "2"
 name = "pudgymon"
 version = "0.1.0"
 edition = "2021"
-description = "PugdyMon: Party Saga — cute Pugdy Monsters party mini-games on Boing Network"
+description = "PudgyMon: Party Saga — cute Pudgy Monsters party mini-games on Boing Network"
 publish = false
 default-run = "pudgymon"
 

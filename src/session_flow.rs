@@ -1,4 +1,4 @@
-//! Rematch / leave-to-Nest / disconnect / spectate for PugdyMon.
+//! Rematch / leave-to-Nest / disconnect / spectate for PudgyMon.
 
 use bevy::prelude::*;
 use bevy_replicon::prelude::*;

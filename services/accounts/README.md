@@ -1,4 +1,4 @@
-# PugdyMon Accounts API
+# PudgyMon Accounts API
 
 Email/password auth + profile for Nest / web.
 

@@ -3,14 +3,14 @@
   "_comment": "Reserved Studio asset_ids. Register + drop GLB when ready; until then rooms keep stand-ins. See docs/DROP_IN.md.",
   "assets": [
     {
-      "asset_id": "char_pugdy_base_01",
+      "asset_id": "char_pudgy_base_01",
       "target_height": 1.2,
-      "notes": "Default Pugdy character. Auto-used via data/player_defaults.json when GLB exists."
+      "notes": "Default Pudgy character. Auto-used via data/player_defaults.json when GLB exists."
     },
     {
       "asset_id": "char_crew_base_01",
       "target_height": 1.8,
-      "notes": "Legacy crew id (retired). Prefer char_pugdy_base_01."
+      "notes": "Legacy crew id (retired). Prefer char_pudgy_base_01."
     },
     {
       "asset_id": "env_nest_egg_01",

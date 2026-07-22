@@ -5,6 +5,6 @@
 (() => {
   const host = location.hostname || "";
   if (host.includes("vercel.app") || host === "pudgymon.vercel.app") {
-    window.PUGDYMON_API_BASE = "https://pudgymon-api.boing.network";
+    window.PUDGYMON_API_BASE = "https://pudgymon-api.boing.network";
   }
 })();

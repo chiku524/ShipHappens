@@ -140,7 +140,7 @@ fn spawn_party_arena(
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
-    // Nest playground floor + soft coral walls (PugdyMon greybox).
+    // Nest playground floor + soft coral walls (PudgyMon greybox).
     // Sized for spacious hub + room for future pads / props (~72×72).
     let floor_mat = materials.add(StandardMaterial {
         base_color: Color::srgb(0.16, 0.28, 0.26),

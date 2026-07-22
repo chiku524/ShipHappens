@@ -6,7 +6,7 @@ use crate::core::DEFAULT_PORT;
 
 /// Matches Godot smoke-test env var naming for future CI parity.
 #[derive(Parser, PartialEq, Resource, Debug, Clone)]
-#[command(name = "pudgymon", about = "PugdyMon: Party Saga — Nest plaza + mini-games")]
+#[command(name = "pudgymon", about = "PudgyMon: Party Saga — Nest plaza + mini-games")]
 pub enum Cli {
     /// Offline greybox — movement + crane console without networking.
     #[command(name = "local")]

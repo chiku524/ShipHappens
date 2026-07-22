@@ -1,6 +1,6 @@
-# Party Product Roadmap — PugdyMon: Party Saga
+# Party Product Roadmap — PudgyMon: Party Saga
 
-**PugdyMon: Party Saga** is a **Pugdy Monsters** mini-game loop: Race → Vibe Collect → Shooter, season points, and Boing Network NFT/currency rewards.
+**PudgyMon: Party Saga** is a **Pudgy Monsters** mini-game loop: Race → Vibe Collect → Shooter, season points, and Boing Network NFT/currency rewards.
 
 Brand lock: [BRAND.md](BRAND.md). Vault tournament docs live under `docs/archive/vault/`.
 
@@ -8,7 +8,7 @@ Related: [BOING_INTEGRATION.md](BOING_INTEGRATION.md) · [PACKAGING.md](PACKAGIN
 
 ## Loop
 
-1. **The Nest** (no main menu) — walk, show Pugdy skins, link wallet
+1. **The Nest** (no main menu) — walk, show Pudgy skins, link wallet
 2. Stand on a mode pad → **E** / Enter: Race, Vibe, Shooter, or full **Party Saga**
 3. Play stage(s) → Results → season points → back to Nest
 4. Claim cosmetics / currency on Boing (testnet)
@@ -24,16 +24,16 @@ Related: [BOING_INTEGRATION.md](BOING_INTEGRATION.md) · [PACKAGING.md](PACKAGIN
 - [x] Boing RPC bridge + claim docs
 - [x] Weekly challenges JSON
 - [x] Spectate after race finish
-- [x] PugdyMon brand pass
+- [x] PudgyMon brand pass
 
 ### Next
-- [x] Procedural Pugdy stub + `char_pugdy_base_01` drop path
+- [x] Procedural Pudgy stub + `char_pudgy_base_01` drop path
 - [x] Nest props greybox (egg, benches, vibe mushrooms)
 - [x] Companion claim page (`companion/claim`, Ctrl+O)
 - [x] Race map creator (Nest Create Map / My Maps) — see [MAP_CREATOR.md](MAP_CREATOR.md)
 - [x] Vibe / Shooter map kits + Party Saga pack save/play/share — [MAP_CREATOR.md](MAP_CREATOR.md)
 - [x] Companion map share desk (`companion/maps`)
-- [ ] Drop real Pugdy / Nest GLBs via Studio
+- [ ] Drop real Pudgy / Nest GLBs via Studio
 - [ ] Live GLB meshes for map deco `asset_id` in stage boot
 - [ ] Host-attested anti-cheat for claims
 - [x] LAN Nest + stage co-op (director sync, pad RPC, stage boot, shoot RPC) — soak 2–8 still open

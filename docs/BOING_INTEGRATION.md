@@ -1,6 +1,6 @@
 # Boing Network integration
 
-**PugdyMon: Party Saga** uses **[Boing Network](https://boing.network/)** for NFT skins and soft currency.
+**PudgyMon: Party Saga** uses **[Boing Network](https://boing.network/)** for NFT skins and soft currency.
 
 Boing is a **native L1** (32-byte `AccountId`, Ed25519, Boing VM) — not MetaMask / ERC-721.
 
@@ -19,7 +19,7 @@ Chain id (testnet): **6913** / `0x1b01`.
 Use **[Boing Express](https://boing.express)** for signing. Desktop Bevy cannot inject `window.boing`; claim flow:
 
 1. Earn season points in-game (M builds a voucher).
-2. Voucher written to `%LOCALAPPDATA%/PugdyMon/logs/claim_voucher.json`.
+2. Voucher written to `%LOCALAPPDATA%/PudgyMon/logs/claim_voucher.json`.
 3. Companion page / operator uses **boing-sdk** `buildReferenceNftCollectionDeployMetaTx` / mint `contract_call` with Express.
 
 ## Deploy reference assets
@@ -37,7 +37,7 @@ Paste resulting AccountIds into `data/boing/contracts.json`.
 
 Static page: [`companion/claim/`](../companion/claim/README.md)
 
-In-game **Ctrl+O** opens it. Paste `%LOCALAPPDATA%/PugdyMon/logs/claim_voucher.json` and continue in Boing Express.
+In-game **Ctrl+O** opens it. Paste `%LOCALAPPDATA%/PudgyMon/logs/claim_voucher.json` and continue in Boing Express.
 
 ## In-game keys
 

@@ -38,7 +38,7 @@ async function main() {
   if (typeof sdk.buildReferenceNftCollectionDeployMetaTx !== "function") {
     console.log(`
 Manual deploy checklist (boing-sdk):
-  1. buildReferenceNftCollectionDeployMetaTx({ assetName: 'PugdyMon Skins', assetSymbol: 'PUGDY', bytecodeHexOverride })
+  1. buildReferenceNftCollectionDeployMetaTx({ assetName: 'PudgyMon Skins', assetSymbol: 'PUGDY', bytecodeHexOverride })
   2. preflightContractDeployMetaWithUi(client, tx)
   3. boing_sendTransaction via Express / submitDeployWithPurposeFlow
   4. Repeat for fungible: buildReferenceFungibleDeployMetaTx({ assetName: 'Party Coin', assetSymbol: 'PTY' })

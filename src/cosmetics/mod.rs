@@ -26,7 +26,7 @@ impl Default for CosmeticsCatalog {
             items: vec![
                 CosmeticItem {
                     id: "skin_starter".into(),
-                    label: "Pugdy Sprout".into(),
+                    label: "Pudgy Sprout".into(),
                     cost_points: 0,
                     tint: [0.95, 0.45, 0.35],
                     boing_token_id: Some(1),

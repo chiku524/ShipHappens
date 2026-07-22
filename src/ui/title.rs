@@ -44,7 +44,7 @@ pub fn spawn_title_ui(commands: &mut Commands) {
         GlobalZIndex(500),
         children![
             (
-                Text::new("PUGDYMON"),
+                Text::new("PUDGYMON"),
                 TextFont {
                     font_size: FontSize::Px(60.0),
                     ..Default::default()
@@ -60,7 +60,7 @@ pub fn spawn_title_ui(commands: &mut Commands) {
                 TextColor(Color::srgb(0.35, 0.85, 0.75)),
             ),
             (
-                Text::new("Pugdy Monsters · The Nest · Race · Vibe · Shooter · Boing rewards"),
+                Text::new("Pudgy Monsters · The Nest · Race · Vibe · Shooter · Boing rewards"),
                 TextFont {
                     font_size: FontSize::Px(15.0),
                     ..Default::default()

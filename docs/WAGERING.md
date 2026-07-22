@@ -1,6 +1,6 @@
 # Wager Economy & Prize Pools
 
-> **SUPERSEDED:** PugdyMon: Party Saga uses **season points + Boing Network NFTs/currency** (collectibles), not real-money prize pools. See [PARTY_ROADMAP.md](PARTY_ROADMAP.md) and [BOING_INTEGRATION.md](BOING_INTEGRATION.md). No stake-to-win until legal review. The text below is archived vault-era design only.
+> **SUPERSEDED:** PudgyMon: Party Saga uses **season points + Boing Network NFTs/currency** (collectibles), not real-money prize pools. See [PARTY_ROADMAP.md](PARTY_ROADMAP.md) and [BOING_INTEGRATION.md](BOING_INTEGRATION.md). No stake-to-win until legal review. The text below is archived vault-era design only.
 
 ## Overview
 
