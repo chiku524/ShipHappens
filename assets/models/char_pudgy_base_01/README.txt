@@ -1,15 +1,9 @@
-PudgyMon base character drop-in
-================================
+PudgyMon shared base — char_pudgy_base_01
+=========================================
 
-Drop your Studio / Tripo GLB here as:
+Source: Immersive Studio job ff7ef050-4f9c-4300-962a-d5231c519270
+Pack asset_id: pudgy_mon_base_01 (remapped to char_pudgy_base_01)
 
-  assets/models/char_pudgy_base_01/char_pudgy_base_01.glb
-
-Then register (target height ~1.2 for chunky Pudgy proportions):
-
-  python scripts/register_studio_asset.py char_pudgy_base_01 --height 1.2
-
-`data/player_defaults.json` already points at this asset_id.
-Until the GLB exists, the game uses a procedural Pudgy stub (round body + head).
-
-Prompt reference: docs/STUDIO_PROMPTS.md → char_pudgy_base_01
+Registry: target_height 1.2 · uniform_scale 0.27
+Contract: docs/CHARACTERS.md
+Prompt: docs/STUDIO_PROMPTS.md → char_pudgy_base_01

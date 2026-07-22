@@ -11,7 +11,7 @@ Stand-ins keep The Nest and stages playable. Replace these when dedicated Tripo 
 
 | Priority | Suggested `asset_id` | Plugs into | Current stand-in |
 |----------|----------------------|------------|------------------|
-| Done | `char_pudgy_base_01` | `PlayerVisualSpec.model_id` / `player_defaults.json` | Procedural stub if GLB missing; provisional Ocean mesh ok |
+| Done | `char_pudgy_base_01` | `PlayerVisualSpec.model_id` / `player_defaults.json` | Studio job ff7ef050… imported (scale 0.27) |
 | High | `oceanic_pudgymon_01` | Species skin override | Same mesh as provisional base |
 | High | `char_pudgy_forest_01` | Species skin | — |
 | High | `char_pudgy_lava_01` | Species skin | — |

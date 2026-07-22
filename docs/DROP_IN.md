@@ -43,7 +43,7 @@ Restart after dropping clips.
 
 ## Quick checklist
 
-1. [x] `char_pudgy_base_01.glb` → auto-swap from stub (provisional Ocean mesh; see CHARACTERS.md)  
+1. [x] `char_pudgy_base_01.glb` → shared base from Studio job ff7ef050… (see CHARACTERS.md)  
 2. [ ] Accessory starter pack (hats / necklaces / shoes)  
 3. [ ] Nest props (`env_nest_egg_01`, benches, mushrooms)  
 4. [ ] Music bed for The Nest / Party Saga  

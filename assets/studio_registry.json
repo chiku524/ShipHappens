@@ -13,7 +13,7 @@
       "asset_id": "char_pudgy_base_01",
       "target_height": 1.2,
       "uniform_scale": 0.27,
-      "notes": "Provisional shared Pudgy base (Ocean mesh). Species skins must match Pudgy Character Contract - see docs/CHARACTERS.md."
+      "notes": "Shared Pudgy base from Studio job ff7ef050-4f9c-4300-962a-d5231c519270 (pack id pudgy_mon_base_01). Species/accessories must match CHARACTERS.md contract."
     },
     {
       "asset_id": "duct_tape_dispenser_cart_01",
