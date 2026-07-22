@@ -13,7 +13,7 @@
       "asset_id": "char_pudgy_base_01",
       "target_height": 1.2,
       "uniform_scale": 1.0,
-      "notes": "Polished shared base: floor-pivot, face -Z, baked 1.2m height, accessory sockets. Studio job ff7ef050\u2026"
+      "notes": "Shared Pudgy base from Studio job 2ddc5433-9306-4919-b5e9-09d0205a2866 (pack id pudgy_mon_base_body_01). Polished + vinyl pass."
     },
     {
       "asset_id": "duct_tape_dispenser_cart_01",
@@ -58,12 +58,6 @@
     {
       "asset_id": "env_space_station_wall_04",
       "target_height": 2.0
-    },
-    {
-      "asset_id": "oceanic_pudgymon_01",
-      "target_height": 1.2,
-      "uniform_scale": 1.0,
-      "notes": "Polished Ocean species: floor-pivot, face -Z, baked 1.2m height, accessory sockets. Studio job 4e2bd668\u2026"
     },
     {
       "asset_id": "office_printer_cartoon_space_station_01",

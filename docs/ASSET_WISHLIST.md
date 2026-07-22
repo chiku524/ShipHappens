@@ -11,8 +11,8 @@ Stand-ins keep The Nest and stages playable. Replace these when dedicated Tripo 
 
 | Priority | Suggested `asset_id` | Plugs into | Current stand-in |
 |----------|----------------------|------------|------------------|
-| Done | `char_pudgy_base_01` | `PlayerVisualSpec.model_id` / `player_defaults.json` | Studio job ff7ef050… imported (scale 0.27) |
-| Done | `oceanic_pudgymon_01` | Species skin override | Studio job 4e2bd668… imported (scale 0.27) |
+| Done | `char_pudgy_base_01` | `PlayerVisualSpec.model_id` / `player_defaults.json` | Studio job 2ddc5433… imported (polished, scale 1.0) |
+| High | `oceanic_pudgymon_01` | Species skin override | — |
 | High | `char_pudgy_forest_01` | Species skin | — |
 | High | `char_pudgy_lava_01` | Species skin | — |
 | High | `char_pudgy_sky_01` | Species skin | — |

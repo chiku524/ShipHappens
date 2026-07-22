@@ -8,8 +8,7 @@ Chunky party creatures for **PudgyMon: Party Saga**. One shared base figure, spe
 - Smooth **vinyl designer-toy** look (Blankos / Pokémon vibes) — glossy plastic, not clay; family-friendly
 - Playable height ~1.2 m (read as “cute chunky,” not adult humanoid)
 - GLB: `assets/models/char_pudgy_base_01/char_pudgy_base_01.glb`
-- **Current mesh:** Studio job `ff7ef050-4f9c-4300-962a-d5231c519270` (pack id `pudgy_mon_base_01`, remapped)
-- First species skin still available as `oceanic_pudgymon_01`
+- **Current mesh:** Studio job `2ddc5433-9306-4919-b5e9-09d0205a2866` (pack id `pudgy_mon_base_body_01`, remapped)
 
 Default crew id: [`data/player_defaults.json`](../data/player_defaults.json). If the GLB is missing, runtime uses a **procedural Pudgy stub**.
 
@@ -24,7 +23,7 @@ All playable Pudgys (base + species skins) must obey this contract so one animat
 | Playable height | ~1.2 m |
 | Pivot | Floor center, +Y up, character faces **−Z** (Bevy forward) |
 | Studio pose | Neutral **A-pose**, arms slightly out, feet planted — not a swim/run pose |
-| Registry scale | Prefer `uniform_scale` (base uses `0.27`). Do **not** put Studio `target_height_m` straight into spawn scale |
+| Registry scale | Prefer `uniform_scale` `1.0` after polish (baked ~1.2 m height). Do **not** put raw Studio `target_height_m` straight into spawn scale |
 | Required nodes (retarget target) | `Root`, `Hips`, `Spine`, `Head`, `L_Arm`, `R_Arm`, `L_Leg`, `R_Leg` |
 | Accessory sockets | See table below — leave wear volumes clear (do not bake accessories into the body) |
 | Shared clip names | `idle`, `walk`, `run`, `jump`, `emote_wave` |
@@ -60,7 +59,7 @@ Until GLBs exist, `accessories.*` may be empty and `hat_slot` remains a legacy t
 
 | Id | Label | Notes |
 |----|-------|--------|
-| `oceanic_pudgymon_01` | Ocean PudgyMon | Studio job `4e2bd668…` (pack id `ocean_pudgymon_01`); scale matches base |
+| `oceanic_pudgymon_01` | Ocean PudgyMon | Wishlist (regen after base sign-off) |
 | `char_pudgy_forest_01` | Forest PudgyMon | Wishlist |
 | `char_pudgy_lava_01` | Lava PudgyMon | Wishlist |
 | `char_pudgy_sky_01` | Sky PudgyMon | Wishlist |
