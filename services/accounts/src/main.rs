@@ -1,4 +1,6 @@
-//! PudgyMon accounts API — email/password auth + profile.
+//! PudgyMon accounts API — email/password auth + custodial Boing wallets.
+
+mod wallet;
 
 use std::{env, net::SocketAddr, time::Duration};
 
@@ -25,6 +27,8 @@ use uuid::Uuid;
 struct AppState {
     pool: PgPool,
     jwt_secret: String,
+    /// AES master for encrypting custodial Boing secrets (defaults to JWT_SECRET).
+    wallet_master: String,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -88,6 +92,15 @@ struct PatchMeRequest {
 struct AuthResponse {
     access_token: String,
     profile: Profile,
+    /// Present only when a new custodial wallet was just created (save this offline).
+    #[serde(skip_serializing_if = "Option::is_none")]
+    boing_wallet_secret: Option<String>,
+}
+
+#[derive(Debug, Serialize)]
+struct WalletSecretResponse {
+    boing_wallet: String,
+    boing_wallet_secret: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -108,6 +121,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         "postgres://pudgymon:pudgymon@127.0.0.1:5434/pudgymon_accounts".into()
     });
     let jwt_secret = env::var("JWT_SECRET").unwrap_or_else(|_| "dev-only-change-me".into());
+    let wallet_master = env::var("WALLET_MASTER_KEY")
+        .ok()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty())
+        .unwrap_or_else(|| jwt_secret.clone());
     let port: u16 = env::var("PORT")
         .ok()
         .and_then(|p| p.parse().ok())
@@ -124,6 +142,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     let state = AppState {
         pool,
         jwt_secret,
+        wallet_master,
     };
 
     // Open CORS for local web + Vercel static site talking to this API.
@@ -137,6 +156,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route("/v1/auth/signup", post(signup))
         .route("/v1/auth/login", post(login))
         .route("/v1/me", get(me).patch(patch_me))
+        .route("/v1/me/wallet/secret", get(export_wallet_secret))
         .layer(cors)
         .with_state(state);
 
@@ -169,6 +189,14 @@ async fn run_migrations(pool: &PgPool) -> Result<(), sqlx::Error> {
     sqlx::query(r#"CREATE INDEX IF NOT EXISTS users_email_idx ON users (email)"#)
         .execute(pool)
         .await?;
+    sqlx::query(
+        r#"
+        ALTER TABLE users
+        ADD COLUMN IF NOT EXISTS boing_wallet_secret_enc TEXT NULL
+        "#,
+    )
+    .execute(pool)
+    .await?;
     Ok(())
 }
 
@@ -185,17 +213,23 @@ async fn signup(
         return Err(ApiError::bad("password must be at least 8 characters"));
     }
 
+    let (boing_wallet, boing_secret) = wallet::generate_boing_wallet();
+    let secret_enc = wallet::encrypt_wallet_secret(&state.wallet_master, &boing_secret)
+        .map_err(ApiError::internal)?;
+
     let hash = hash_password(&body.password)?;
     let row = sqlx::query_as::<_, UserRow>(
         r#"
-        INSERT INTO users (email, password_hash, display_name)
-        VALUES ($1, $2, $3)
+        INSERT INTO users (email, password_hash, display_name, boing_wallet, boing_wallet_secret_enc)
+        VALUES ($1, $2, $3, $4, $5)
         RETURNING id, email, password_hash, display_name, boing_wallet, created_at
         "#,
     )
     .bind(&email)
     .bind(&hash)
     .bind(&display_name)
+    .bind(&boing_wallet)
+    .bind(&secret_enc)
     .fetch_one(&state.pool)
     .await
     .map_err(|e| {
@@ -209,9 +243,15 @@ async fn signup(
 
     let profile = Profile::from(row);
     let token = issue_token(&state.jwt_secret, &profile)?;
+    tracing::info!(
+        user_id = %profile.id,
+        wallet = %boing_wallet,
+        "created custodial Boing wallet on signup"
+    );
     Ok(Json(AuthResponse {
         access_token: token,
         profile,
+        boing_wallet_secret: Some(boing_secret),
     }))
 }
 
@@ -233,12 +273,50 @@ async fn login(
     .ok_or_else(|| ApiError::unauthorized("invalid email or password"))?;
 
     verify_password(&body.password, &row.password_hash)?;
-    let profile = Profile::from(row);
+
+    let (profile, new_secret) = ensure_custodial_wallet(&state, row).await?;
     let token = issue_token(&state.jwt_secret, &profile)?;
     Ok(Json(AuthResponse {
         access_token: token,
         profile,
+        boing_wallet_secret: new_secret,
     }))
+}
+
+/// Backfill a custodial wallet for accounts created before wallet-on-signup.
+async fn ensure_custodial_wallet(
+    state: &AppState,
+    row: UserRow,
+) -> Result<(Profile, Option<String>), ApiError> {
+    if row
+        .boing_wallet
+        .as_deref()
+        .is_some_and(wallet::is_valid_boing_account)
+    {
+        return Ok((Profile::from(row), None));
+    }
+
+    let (boing_wallet, boing_secret) = wallet::generate_boing_wallet();
+    let secret_enc = wallet::encrypt_wallet_secret(&state.wallet_master, &boing_secret)
+        .map_err(ApiError::internal)?;
+    sqlx::query(
+        r#"
+        UPDATE users
+        SET boing_wallet = $1, boing_wallet_secret_enc = $2
+        WHERE id = $3
+        "#,
+    )
+    .bind(&boing_wallet)
+    .bind(&secret_enc)
+    .bind(row.id)
+    .execute(&state.pool)
+    .await
+    .map_err(|e| ApiError::internal(e.to_string()))?;
+
+    let mut profile = Profile::from(row);
+    profile.boing_wallet = Some(boing_wallet);
+    tracing::info!(user_id = %profile.id, "backfilled custodial Boing wallet");
+    Ok((profile, Some(boing_secret)))
 }
 
 async fn me(
@@ -284,17 +362,26 @@ async fn patch_me(
         let wallet = wallet.trim();
         let value = if wallet.is_empty() {
             None
-        } else if wallet.starts_with("0x") && wallet.len() >= 42 {
+        } else if wallet::is_valid_boing_account(wallet) {
             Some(wallet.to_string())
         } else {
-            return Err(ApiError::bad("boing_wallet must be 0x… address"));
+            return Err(ApiError::bad(
+                "boing_wallet must be a Boing AccountId (0x + 64 hex)",
+            ));
         };
-        sqlx::query("UPDATE users SET boing_wallet = $1 WHERE id = $2")
-            .bind(value)
-            .bind(user_id)
-            .execute(&state.pool)
-            .await
-            .map_err(|e| ApiError::internal(e.to_string()))?;
+        // Replacing/clearing the public address drops the custodial secret.
+        sqlx::query(
+            r#"
+            UPDATE users
+            SET boing_wallet = $1, boing_wallet_secret_enc = NULL
+            WHERE id = $2
+            "#,
+        )
+        .bind(value)
+        .bind(user_id)
+        .execute(&state.pool)
+        .await
+        .map_err(|e| ApiError::internal(e.to_string()))?;
     }
 
     let row = sqlx::query_as::<_, UserRow>(
@@ -308,6 +395,38 @@ async fn patch_me(
     .await
     .map_err(|e| ApiError::internal(e.to_string()))?;
     Ok(Json(Profile::from(row)))
+}
+
+async fn export_wallet_secret(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> Result<Json<WalletSecretResponse>, ApiError> {
+    let user_id = auth_user_id(&state, &headers)?;
+    let row = sqlx::query_as::<_, (Option<String>, Option<String>)>(
+        r#"
+        SELECT boing_wallet, boing_wallet_secret_enc
+        FROM users WHERE id = $1
+        "#,
+    )
+    .bind(user_id)
+    .fetch_optional(&state.pool)
+    .await
+    .map_err(|e| ApiError::internal(e.to_string()))?
+    .ok_or_else(|| ApiError::unauthorized("user not found"))?;
+
+    let (wallet, enc) = row;
+    let wallet = wallet
+        .filter(|w| wallet::is_valid_boing_account(w))
+        .ok_or_else(|| ApiError::bad("no Boing wallet on this account"))?;
+    let enc = enc.ok_or_else(|| {
+        ApiError::bad("no custodial secret (wallet was linked externally)")
+    })?;
+    let secret = wallet::decrypt_wallet_secret(&state.wallet_master, &enc)
+        .map_err(ApiError::internal)?;
+    Ok(Json(WalletSecretResponse {
+        boing_wallet: wallet,
+        boing_wallet_secret: secret,
+    }))
 }
 
 fn normalize_email(email: &str) -> Result<String, ApiError> {

@@ -1,6 +1,16 @@
 {
   "rpc_url": "http://127.0.0.1:8545",
-  "nft_collection": null,
-  "fungible_token": null,
-  "notes": "Fill nft_collection / fungible_token AccountIds after running scripts/boing/deploy_reference_assets.mjs against Boing testnet."
+  "chain_id": 6913,
+  "deployer": "0xc063512f42868f1278c59a1f61ec0944785c304dbc48dec7e4c41f70f666733f",
+  "fungible_name": "Saga Token",
+  "fungible_symbol": "SAGA",
+  "nft_collection_name": "PudgyMon Skins",
+  "nft_collection_symbol": "PUDGY",
+  "nft_collection": "0x1df0cbec457fd453cc587a8ced1922b0af148bbd799196c5ddf0d780f49e63ec",
+  "fungible_token": "0x43512485acd559aef009ff87f956778775d1e11f78f03270558c570b937fd5cf",
+  "deploy": {
+    "fungible_tx": "ok",
+    "nft_tx": "ok"
+  },
+  "notes": "Deployed by scripts/boing/deploy_reference_assets.mjs — NFT skins + Saga Token fungible."
 }

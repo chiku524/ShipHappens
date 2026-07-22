@@ -20,7 +20,7 @@
   <main class="shell">
     <p class="eyebrow">Accounts</p>
     <h1 class="brand-hero" style="font-size: clamp(2.2rem, 6vw, 3.2rem)">Join The Nest</h1>
-    <p class="lede">Create a PudgyMon account. You’ll get a token to link the desktop game.</p>
+    <p class="lede">Create a PudgyMon account. A Boing wallet is created and linked automatically.</p>
 
     <section class="panel">
       <form id="signupForm">
@@ -40,10 +40,16 @@
       </form>
       <p id="status" class="status" hidden></p>
       <div id="tokenPanel" hidden>
-        <p class="status">Account created. Copy this token into the game (Nest menu → Account → Link token file).</p>
+        <p class="status">Account created. Save your Boing wallet secret now — it is only shown once.</p>
+        <p class="lede" style="margin: 0 0 8px">Boing wallet</p>
+        <div class="token-box mono" id="walletOut"></div>
+        <p class="lede" style="margin: 12px 0 8px">Wallet secret (private)</p>
+        <div class="token-box mono" id="secretOut"></div>
+        <p class="lede" style="margin: 12px 0 8px">Game token</p>
         <div class="token-box mono" id="tokenOut"></div>
         <div class="row">
-          <button class="btn" type="button" id="copyBtn">Copy token</button>
+          <button class="btn" type="button" id="copyWalletBtn">Copy wallet</button>
+          <button class="btn ghost" type="button" id="copySecretBtn">Copy secret</button>
           <button class="btn ghost" type="button" id="downloadBtn">Download pending_token.txt</button>
           <a class="btn ghost" href="account.html">Go to account</a>
         </div>
@@ -60,12 +66,14 @@
     const status = document.getElementById("status");
     const tokenPanel = document.getElementById("tokenPanel");
     const tokenOut = document.getElementById("tokenOut");
+    const walletOut = document.getElementById("walletOut");
+    const secretOut = document.getElementById("secretOut");
 
     document.getElementById("signupForm").onsubmit = async (e) => {
       e.preventDefault();
       status.hidden = false;
       status.classList.remove("err");
-      status.textContent = "Creating…";
+      status.textContent = "Creating account + Boing wallet…";
       tokenPanel.hidden = true;
       try {
         const data = await PudgyMonApi.signup(
@@ -74,6 +82,8 @@
           display_name.value.trim()
         );
         status.textContent = `Welcome, ${data.profile.display_name}`;
+        walletOut.textContent = data.profile.boing_wallet || "(missing wallet)";
+        secretOut.textContent = data.boing_wallet_secret || "(not returned — use Account → Export)";
         tokenOut.textContent = data.access_token;
         tokenPanel.hidden = false;
       } catch (err) {
@@ -82,9 +92,14 @@
       }
     };
 
-    document.getElementById("copyBtn").onclick = async () => {
-      await navigator.clipboard.writeText(tokenOut.textContent);
-      status.textContent = "Token copied.";
+    document.getElementById("copyWalletBtn").onclick = async () => {
+      await navigator.clipboard.writeText(walletOut.textContent);
+      status.textContent = "Wallet address copied.";
+      status.classList.remove("err");
+    };
+    document.getElementById("copySecretBtn").onclick = async () => {
+      await navigator.clipboard.writeText(secretOut.textContent);
+      status.textContent = "Wallet secret copied. Store it offline.";
       status.classList.remove("err");
     };
     document.getElementById("downloadBtn").onclick = () =>

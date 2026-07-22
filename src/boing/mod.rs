@@ -62,9 +62,11 @@ impl Plugin for BoingPlugin {
         app.insert_resource(config)
             .init_resource::<BoingStatus>()
             .init_resource::<ClaimVoucher>()
+            .add_systems(Startup, sync_cloud_wallet_on_boot)
             .add_systems(
                 Update,
                 (
+                    sync_cloud_wallet_when_account_changes,
                     poll_boing_health,
                     handle_wallet_paste,
                     handle_claim_key,
@@ -72,6 +74,51 @@ impl Plugin for BoingPlugin {
                 ),
             );
     }
+}
+
+/// Prefer the cloud profile wallet (created at registration) as the session link.
+pub fn link_cloud_wallet(
+    account: &crate::account::PlayerAccount,
+    config: &mut BoingConfig,
+    voucher: Option<&mut ClaimVoucher>,
+) -> bool {
+    let Some(wallet) = account.boing_wallet.as_deref() else {
+        return false;
+    };
+    // Boing AccountId: 0x + 64 hex (32 bytes), same check as accounts API.
+    if !(wallet.starts_with("0x") && wallet.len() == 66) {
+        return false;
+    }
+    if config.linked_account.as_deref() == Some(wallet) {
+        return true;
+    }
+    config.linked_account = Some(wallet.to_string());
+    if let Some(voucher) = voucher {
+        voucher.account = wallet.to_string();
+        if voucher.note.is_empty() {
+            voucher.note = "Boing wallet linked from account".into();
+        }
+    }
+    true
+}
+
+fn sync_cloud_wallet_on_boot(
+    account: Res<crate::account::PlayerAccount>,
+    mut config: ResMut<BoingConfig>,
+    mut voucher: ResMut<ClaimVoucher>,
+) {
+    let _ = link_cloud_wallet(&account, &mut config, Some(&mut voucher));
+}
+
+fn sync_cloud_wallet_when_account_changes(
+    account: Res<crate::account::PlayerAccount>,
+    mut config: ResMut<BoingConfig>,
+    mut voucher: ResMut<ClaimVoucher>,
+) {
+    if !account.is_changed() {
+        return;
+    }
+    let _ = link_cloud_wallet(&account, &mut config, Some(&mut voucher));
 }
 
 #[derive(Debug, Deserialize)]
@@ -156,14 +203,14 @@ fn open_claim_companion(keyboard: Res<ButtonInput<KeyCode>>, mut voucher: ResMut
 /// Link `BOING_ACCOUNT` env into config/voucher. Returns a short status note.
 pub fn link_wallet_from_env(config: &mut BoingConfig, voucher: &mut ClaimVoucher) -> String {
     match std::env::var("BOING_ACCOUNT") {
-        Ok(account) if account.starts_with("0x") && account.len() >= 66 => {
+        Ok(account) if account.starts_with("0x") && account.len() == 66 => {
             config.linked_account = Some(account.clone());
             voucher.account = account;
             voucher.note = "Wallet linked from BOING_ACCOUNT env".into();
             voucher.note.clone()
         }
         Ok(_) => {
-            voucher.note = "BOING_ACCOUNT looks invalid (want 0x… ≥66 chars)".into();
+            voucher.note = "BOING_ACCOUNT looks invalid (want 0x + 64 hex)".into();
             voucher.note.clone()
         }
         Err(_) => {

@@ -85,6 +85,10 @@
     });
   }
 
+  async function exportWalletSecret() {
+    return request("/v1/me/wallet/secret");
+  }
+
   function logout() {
     setToken("");
   }
@@ -106,6 +110,7 @@
     login,
     me,
     patchMe,
+    exportWalletSecret,
     logout,
     downloadGameToken,
   };

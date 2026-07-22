@@ -1103,10 +1103,15 @@ fn refresh_menu_labels(
             }
             (MenuBodyText::Account, MenuPage::Account) => {
                 if account.signed_in() {
+                    let wallet = account
+                        .boing_wallet
+                        .as_deref()
+                        .unwrap_or("(no Boing wallet)");
                     **text = format!(
-                        "Signed in as {}\n{}\nAPI {}\n{}\nDrop pending_token.txt into {}",
+                        "Signed in as {}\n{}\nBoing wallet {}\nAPI {}\n{}\nDrop pending_token.txt into {}",
                         account.display_name,
                         account.email,
+                        wallet,
                         account.api_base,
                         if account.note.is_empty() {
                             "Ready."

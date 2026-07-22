@@ -35,11 +35,16 @@
         <label for="display_name">Display name</label>
         <input id="display_name" maxlength="48" required />
 
-        <label for="boing_wallet">Boing wallet (optional 0x…)</label>
+        <label for="boing_wallet">Boing wallet (0x + 64 hex AccountId)</label>
         <input id="boing_wallet" class="mono" placeholder="0x…" />
+        <p class="lede" style="margin: 0 0 12px; font-size: 0.9rem">
+          Created automatically at registration and linked to this account.
+          Editing replaces the custodial wallet with an external AccountId.
+        </p>
 
         <div class="row">
           <button class="btn" type="submit">Save</button>
+          <button class="btn ghost" type="button" id="exportWalletBtn">Export wallet secret</button>
           <button class="btn ghost" type="button" id="tokenBtn">Show game token</button>
           <button class="btn ghost" type="button" id="logoutBtn">Log out</button>
         </div>
@@ -96,6 +101,20 @@
         });
         status.textContent = "Saved.";
         who.textContent = `${profile.email} · id ${profile.id}`;
+      } catch (err) {
+        status.classList.add("err");
+        status.textContent = err.message || String(err);
+      }
+    };
+
+    document.getElementById("exportWalletBtn").onclick = async () => {
+      status.hidden = false;
+      status.classList.remove("err");
+      try {
+        const data = await PudgyMonApi.exportWalletSecret();
+        tokenPanel.hidden = false;
+        tokenOut.textContent = `wallet: ${data.boing_wallet}\nsecret: ${data.boing_wallet_secret}`;
+        status.textContent = "Custodial wallet secret loaded — store offline.";
       } catch (err) {
         status.classList.add("err");
         status.textContent = err.message || String(err);

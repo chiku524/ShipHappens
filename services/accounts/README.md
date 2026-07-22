@@ -33,5 +33,10 @@ cargo run -p pudgymon-accounts
 | POST | `/v1/auth/login` | `{ email, password }` |
 | GET | `/v1/me` | Bearer token |
 | PATCH | `/v1/me` | `{ display_name?, boing_wallet? }` |
+| GET | `/v1/me/wallet/secret` | Bearer — export custodial key |
 
-Signup/login return `{ access_token, profile }`.
+Signup creates a custodial Boing AccountId, stores `boing_wallet` + encrypted secret, and returns:
+
+`{ access_token, profile, boing_wallet_secret? }`
+
+Set `WALLET_MASTER_KEY` in `.env` (falls back to `JWT_SECRET`).

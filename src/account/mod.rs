@@ -271,7 +271,10 @@ pub fn login(account: &mut PlayerAccount, email: &str, password: &str) -> String
         Ok(auth) => {
             account.access_token = auth.access_token;
             apply_profile(account, auth.profile);
-            account.note = format!("Signed in as {}", account.display_name);
+            account.note = match account.boing_wallet.as_deref() {
+                Some(w) => format!("Signed in as {} · wallet {}", account.display_name, w),
+                None => format!("Signed in as {}", account.display_name),
+            };
             account.save();
             account.note.clone()
         }
@@ -301,7 +304,13 @@ pub fn signup(
         Ok(auth) => {
             account.access_token = auth.access_token;
             apply_profile(account, auth.profile);
-            account.note = format!("Registered as {}", account.display_name);
+            account.note = match account.boing_wallet.as_deref() {
+                Some(w) => format!(
+                    "Registered as {} · Boing wallet linked {}",
+                    account.display_name, w
+                ),
+                None => format!("Registered as {}", account.display_name),
+            };
             account.save();
             account.note.clone()
         }

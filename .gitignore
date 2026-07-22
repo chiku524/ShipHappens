@@ -23,6 +23,8 @@ Thumbs.db
 !**/.env.example
 secrets/
 services/accounts/.env
+scripts/boing/.env
+scripts/boing/local-node-data/
 
 # Vercel CLI link
 .vercel/
