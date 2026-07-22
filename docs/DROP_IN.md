@@ -41,7 +41,7 @@ Restart after dropping clips.
 
 ## Quick checklist
 
-1. [ ] `char_pudgy_base_01.glb` → auto-swap from stub  
+1. [x] `char_pudgy_base_01.glb` → auto-swap from stub (provisional Ocean mesh; see CHARACTERS.md)  
 2. [ ] Nest props (`env_nest_egg_01`, benches, mushrooms)  
 3. [ ] Music bed for The Nest / Party Saga  
 4. [ ] SFX: pickup / KO / finish  

@@ -3,11 +3,6 @@
   "_comment": "Reserved Studio asset_ids. Register + drop GLB when ready; until then rooms keep stand-ins. See docs/DROP_IN.md.",
   "assets": [
     {
-      "asset_id": "char_pudgy_base_01",
-      "target_height": 1.2,
-      "notes": "Default Pudgy character. Auto-used via data/player_defaults.json when GLB exists."
-    },
-    {
       "asset_id": "char_crew_base_01",
       "target_height": 1.8,
       "notes": "Legacy crew id (retired). Prefer char_pudgy_base_01."
@@ -82,12 +77,12 @@
     {
       "asset_id": "char_hat_zip_01",
       "target_height": 0.35,
-      "notes": "Hat slot 0 — child of crew base"
+      "notes": "Hat slot 0 \u2014 child of crew base"
     },
     {
       "asset_id": "char_hat_pax_01",
       "target_height": 0.35,
-      "notes": "Hat slot 7 — see CHARACTERS.md for full set"
+      "notes": "Hat slot 7 \u2014 see CHARACTERS.md for full set"
     }
   ]
 }

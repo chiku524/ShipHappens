@@ -8,16 +8,48 @@ After generation → import → place (see [STUDIO_ASSETS.md](STUDIO_ASSETS.md))
 
 ## Priority — Pudgy + Nest
 
-### `char_pudgy_base_01` · target height **1.2**
+### `char_pudgy_base_01` · playable height **1.2** · `uniform_scale` **0.27**
 
-**Plugs into:** `data/player_defaults.json` / `PlayerVisualSpec.model_id`
+**Plugs into:** `data/player_defaults.json` / `PlayerVisualSpec.model_id`  
+**Contract:** [CHARACTERS.md — Pudgy Character Contract](CHARACTERS.md)
+
+Canonical shared base. Future species must match its proportions so one animation set retargets cleanly.
 
 ```
-Cute chunky cartoon monster character for a party game called PudgyMon.
-Round soft body like a dumpling with an oversized round head, stubby limbs,
+Cartoon stylized 3D game character for PudgyMon: Party Saga — the SHARED BASE body.
+Cute chunky monster, round soft dumpling body, oversized round head, stubby limbs of equal length,
 big friendly eyes, tiny snout, rubbery plastic toy materials, coral-peach base color.
-Standing idle A-pose, floor-pivoted, single character, no weapons, no text, family-friendly.
-Clean PBR, exaggerated silhouette, game-ready low-to-mid poly.
+Neutral A-pose only: arms slightly away from sides, feet planted flat, standing upright.
+Floor-pivoted at ground center, faces camera-forward, single character, no weapons, no text.
+Do NOT pose swimming, running, or mid-action — idle A-pose only so animations can drive motion.
+Clean PBR, exaggerated silhouette, game-ready low-to-mid poly, about 1.2 meters tall playable.
+```
+
+**Import:** `python scripts/register_studio_asset.py char_pudgy_base_01 --height 1.2 --scale 0.27 --update`
+
+### Pudgy species variant template · same scale as base
+
+**Plugs into:** cosmetics / `PlayerVisualSpec.model_id` override  
+**Id pattern:** `char_pudgy_<biome>_01` or `*_pudgymon_01` (example: `oceanic_pudgymon_01`)
+
+Copy this block for every new species. Change only the biome details line; keep proportions locked.
+
+```
+Cartoon stylized 3D game character for PudgyMon: Party Saga — SPECIES VARIANT of char_pudgy_base_01.
+MUST match the shared base: same overall height, same stubby limb lengths, same torso roundness,
+same head-to-body ratio, same A-pose (arms slightly out, feet planted), floor-pivoted ground center.
+Only change biome silhouette details and palette — e.g. [FINS / GILLS / HORNS / FUR / SHELL].
+Theme: [BIOME VIBE — ocean / forest / lava / sky / …]. Colors: [PALETTE].
+Single character, no weapons, no text, family-friendly, clean PBR, game-ready low-to-mid poly.
+Do NOT invent a unique locomotion pose; idle A-pose only for animation retarget compatibility.
+```
+
+**Import rule:** register with the same `uniform_scale` as the base (`0.27`) unless you measure a different mesh height:
+
+```bash
+python scripts/import_immersive_studio_pack.py path/to/pack
+python scripts/register_studio_asset.py <asset_id> --height 1.2 --scale 0.27 --update \
+  --notes "Species skin on char_pudgy_base_01 contract"
 ```
 
 ### `env_nest_egg_01` · target height **2.0**
@@ -67,8 +99,10 @@ tiny unreadable labels, multiple objects, diorama, landscape, character holding 
 |---------|--------|
 | Format | GLB with baked Tripo PBR |
 | Pivot | Floor center |
+| Facing | Character faces −Z (Bevy forward) when possible |
 | Units | 1 unit ≈ 1 meter |
 | Naming | Folder + file = `asset_id` / `asset_id.glb` |
+| Characters | Register with `uniform_scale` (do not use large Studio `target_height_m` as spawn scale) |
 
 ---
 

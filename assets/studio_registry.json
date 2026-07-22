@@ -10,6 +10,12 @@
       "target_height": 1.5
     },
     {
+      "asset_id": "char_pudgy_base_01",
+      "target_height": 1.2,
+      "uniform_scale": 0.27,
+      "notes": "Provisional shared Pudgy base (Ocean mesh). Species skins must match Pudgy Character Contract - see docs/CHARACTERS.md."
+    },
+    {
       "asset_id": "duct_tape_dispenser_cart_01",
       "target_height": 1.0
     },
@@ -54,6 +60,12 @@
       "target_height": 2.0
     },
     {
+      "asset_id": "oceanic_pudgymon_01",
+      "target_height": 1.2,
+      "uniform_scale": 0.27,
+      "notes": "First species skin on char_pudgy_base_01 contract (Ocean). Same playable scale as base."
+    },
+    {
       "asset_id": "office_printer_cartoon_space_station_01",
       "target_height": 0.8
     },
@@ -66,6 +78,10 @@
       "target_height": 2.0
     },
     {
+      "asset_id": "prop_cartoon_vending_machine",
+      "target_height": 1.9
+    },
+    {
       "asset_id": "prop_coolant_console_01",
       "target_height": 1.4
     },
@@ -76,10 +92,6 @@
     {
       "asset_id": "prop_coolant_pipe_wheel_02",
       "target_height": 0.5
-    },
-    {
-      "asset_id": "prop_cartoon_vending_machine",
-      "target_height": 1.9
     },
     {
       "asset_id": "prop_hull_patch_plate_01",
@@ -117,7 +129,7 @@
       "asset_id": "safety_mat_floor_pad_01",
       "target_height": 0.05,
       "target_width": 2.0,
-      "notes": "Floor pad — width drives XZ scale"
+      "notes": "Floor pad \u2014 width drives XZ scale"
     },
     {
       "asset_id": "satellite_dish_maintenance_wheel_crank_01",

@@ -8,7 +8,7 @@ Stand-in assets are already placed so rooms stay playable. Replace these when de
 |----------|----------------------|-------------------|------------------|
 | High | `env_sort_chute_hot_dogs_01` (×4 variants or one reusable) | `sort_chute_*` in `hr_orientation.json` | `prop_pneumatic_tube_intake_funnel` |
 | High | `env_shuttle_seal_door_01` | `meltdown_door_*` in `shuttle_meltdown.json` | `env_break_glass_panel_01` |
-| High | `char_pudgy_base_01` | `PlayerVisualSpec.model_id` | Procedural Pudgy stub |
+| Done | `char_pudgy_base_01` | `PlayerVisualSpec.model_id` | Provisional Ocean mesh (species variants next) |
 | High | `env_nest_egg_01` | Nest centerpiece | Greybox sphere |
 | Medium | `env_nest_bench_01` | Nest seating | Greybox benches |
 | Medium | `prop_vibe_mushroom_01` | Nest flora | Greybox mushrooms |

@@ -100,9 +100,13 @@ pub struct PlayerName(pub String);
 pub struct PlayerColor(pub [f32; 3]);
 
 /// Visual swap hook for character GLBs. `model_id = None` keeps the capsule placeholder.
+///
+/// Default crew mesh is `char_pudgy_base_01` (shared Pudgy base). Species skins
+/// (e.g. `oceanic_pudgymon_01`) may override `model_id` later via cosmetics, but must
+/// obey the Pudgy Character Contract in `docs/CHARACTERS.md` so clips stay in sync.
 #[derive(Component, Serialize, Deserialize, Clone, Debug, Default, PartialEq, Eq)]
 pub struct PlayerVisualSpec {
-    /// Studio `asset_id` for a character GLB once authored.
+    /// Studio `asset_id` for the equipped character GLB (`char_pudgy_base_01` or a species skin).
     pub model_id: Option<String>,
     /// Roster hat slot 0–7 (see docs/CHARACTERS.md).
     pub hat_slot: u8,
@@ -403,7 +407,7 @@ fn init_player_visuals(
         }
     }
 
-    // Procedural Pudgy stub until char_pudgy_base_01.glb drops in.
+    // Procedural Pudgy stub when no crew/species GLB is on disk.
     let [r, g, b] = color.0;
     let body_mat = materials.add(StandardMaterial {
         base_color: Color::srgb(r, g, b),
