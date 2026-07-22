@@ -25,10 +25,11 @@ jobs:
             libwayland-dev \
             libxkbcommon-dev \
             libx11-dev \
-            libxcb1-dev
+            libxcb1-dev \
+            xvfb
 
       - name: Unit and integration tests
         run: cargo test
 
       - name: Headless multiplayer smoke test
-        run: bash scripts/run_mp_smoke_test.sh
+        run: xvfb-run -a bash scripts/run_mp_smoke_test.sh
