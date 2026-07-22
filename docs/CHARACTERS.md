@@ -60,7 +60,7 @@ Until GLBs exist, `accessories.*` may be empty and `hat_slot` remains a legacy t
 
 | Id | Label | Notes |
 |----|-------|--------|
-| `oceanic_pudgymon_01` | Ocean PudgyMon | First species skin; same mesh/scale as provisional base |
+| `oceanic_pudgymon_01` | Ocean PudgyMon | Studio job `4e2bd668…` (pack id `ocean_pudgymon_01`); scale matches base |
 | `char_pudgy_forest_01` | Forest PudgyMon | Wishlist |
 | `char_pudgy_lava_01` | Lava PudgyMon | Wishlist |
 | `char_pudgy_sky_01` | Sky PudgyMon | Wishlist |

@@ -63,7 +63,7 @@
       "asset_id": "oceanic_pudgymon_01",
       "target_height": 1.2,
       "uniform_scale": 0.27,
-      "notes": "First species skin on char_pudgy_base_01 contract (Ocean). Same playable scale as base."
+      "notes": "Ocean species skin from Studio job 4e2bd668-5a41-46bf-aaa7-968988401061 (pack id ocean_pudgymon_01). Same scale as char_pudgy_base_01."
     },
     {
       "asset_id": "office_printer_cartoon_space_station_01",
