@@ -6,8 +6,7 @@ use bevy::prelude::*;
 use bevy_replicon::prelude::*;
 
 use crate::{
-    hub::ModeQueued,
-    party::{HubReady, PartyDirector, PartyPhase, PartyPlan},
+    party::{HubReady, PartyDirector, PartyPhase},
     player::ThirdPersonCamera,
 };
 
@@ -42,14 +41,23 @@ pub struct SmokeAutomationPlugin;
 impl Plugin for SmokeAutomationPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SmokeResult>()
-            .add_systems(Startup, (init_smoke_automation, disable_cursor_for_smoke))
+            .add_systems(Startup, init_smoke_automation)
             .add_observer(on_remote_client_connected)
-            .add_systems(Update, (run_party_smoke, finish_smoke).chain());
+            .add_systems(
+                Update,
+                (
+                    disable_cursor_for_smoke,
+                    run_party_smoke,
+                    finish_smoke,
+                )
+                    .chain(),
+            );
     }
 }
 
 fn disable_cursor_for_smoke(mut camera: ResMut<ThirdPersonCamera>) {
     // Invisible / Xvfb windows cannot confine the cursor — avoid grab spam.
+    // Keep forcing this: session_flow / pause code re-enables capture on player spawn.
     camera.captured = false;
 }
 
@@ -93,7 +101,6 @@ fn run_party_smoke(
     time: Res<Time>,
     automation: Option<ResMut<SmokeAutomation>>,
     mut ready: ResMut<HubReady>,
-    mut queued: ResMut<ModeQueued>,
     director: Res<PartyDirector>,
     mut result: ResMut<SmokeResult>,
 ) {
@@ -116,13 +123,13 @@ fn run_party_smoke(
 
     automation.timer.tick(time.delta());
 
-    // Host: force FullParty once a client joins (or immediately for local).
-    if matches!(automation.role, SmokeRole::Host) {
+    // Host: only signal ready after a remote client connects (local sets saw_client at init).
+    // Setting host_ready every frame used to auto-start FullParty before join arrived.
+    if matches!(automation.role, SmokeRole::Host)
+        && automation.saw_client
+        && matches!(director.phase, PartyPhase::Hub)
+    {
         ready.host_ready = true;
-        if automation.saw_client && queued.0.is_none() && matches!(director.phase, PartyPhase::Hub)
-        {
-            queued.0 = Some(PartyPlan::FullParty);
-        }
     }
 
     if !matches!(director.phase, PartyPhase::Hub) {

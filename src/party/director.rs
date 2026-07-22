@@ -145,7 +145,7 @@ impl Plugin for PartyPlugin {
             .replicate::<PartySnapshot>()
             .replicate::<PartyBot>()
             .add_plugins(crate::party::PartyNetPlugin)
-            .add_systems(Startup, spawn_party_snapshot)
+            .add_systems(Startup, spawn_party_snapshot_on_authority)
             .add_systems(
                 Update,
                 (
@@ -167,7 +167,12 @@ pub struct HubReady {
     pub host_ready: bool,
 }
 
-fn spawn_party_snapshot(mut commands: Commands) {
+fn spawn_party_snapshot_on_authority(mut commands: Commands, cli: Res<Cli>) {
+    // Join clients must not spawn a local snapshot — it races the replicated one and
+    // breaks `Query::single` in apply_party_snapshot_on_clients (phase stays Hub forever).
+    if matches!(*cli, Cli::Join { .. }) {
+        return;
+    }
     commands.spawn((
         PartySnapshot::default(),
         Replicated,
