@@ -8,7 +8,7 @@ Chunky party creatures for **PudgyMon: Party Saga**. One shared base figure, spe
 - Soft **stylized cartoon 3D** look (Pokémon / Kirby / Animal Crossing vibes) — painted matte candy colors, not clay or glossy vinyl; family-friendly
 - Playable height ~1.2 m (read as “cute chunky,” not adult humanoid)
 - GLB: `assets/models/char_pudgy_base_01/char_pudgy_base_01.glb`
-- **Current mesh:** Studio job `2ddc5433-9306-4919-b5e9-09d0205a2866` (pack id `pudgy_mon_base_body_01`, remapped)
+- **Current mesh:** Studio job `5a0db910-520c-406d-987f-b3914d7ab296` (pack id `pudgy_mon_shared_base_01`, remapped)
 
 Default crew id: [`data/player_defaults.json`](../data/player_defaults.json). If the GLB is missing, runtime uses a **procedural Pudgy stub**.
 
