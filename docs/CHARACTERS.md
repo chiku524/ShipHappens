@@ -16,6 +16,11 @@ Chunky party creatures for **PudgyMon: Party Saga**. One shared base figure, spe
 - GLB: `assets/models/char_pudgy_base_02/char_pudgy_base_02.glb`
 - Studio job `c00ebe10-82b0-4f59-8f67-477d3852e0d4` (pack id `pudgy_mon_body_shared_base_01`, remapped)
 
+### `char_pudgy_procedural_01` — Procedural Agent
+- Blender-built cartoon dumpling (no Tripo) via `scripts/build_procedural_pudgy.py`
+- Same playable contract (~1.2 m, sockets, soft matte) for live Nest comparison
+- GLB: `assets/models/char_pudgy_procedural_01/char_pudgy_procedural_01.glb`
+
 Default crew id: [`data/player_defaults.json`](../data/player_defaults.json) (user pick saved under `%LOCALAPPDATA%/…/player_defaults.json`). Roster: [`data/characters/roster.json`](../data/characters/roster.json). If the GLB is missing, runtime uses a **procedural Pudgy stub**.
 
 ## Pudgy Character Contract

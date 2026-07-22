@@ -10,6 +10,11 @@
       "id": "char_pudgy_base_02",
       "label": "Vivid Cartoon",
       "blurb": "Studio c00ebe10 — vibrant color body variant"
+    },
+    {
+      "id": "char_pudgy_procedural_01",
+      "label": "Procedural Agent",
+      "blurb": "Blender-built dumpling mascot — no Tripo; compare shapes live"
     }
   ]
 }
