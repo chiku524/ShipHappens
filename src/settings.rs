@@ -73,7 +73,6 @@ pub struct PauseState {
 #[derive(Resource, Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum MenuPage {
     #[default]
-    Main,
     Settings,
     Profile,
     Account,
@@ -93,6 +92,13 @@ struct MenuPageRoot(MenuPage);
 
 #[derive(Component)]
 struct MenuNavButton(MenuAction);
+
+/// Top-bar tab; `page` marks which content page this tab highlights when active.
+#[derive(Component, Clone, Copy)]
+struct TopNavTab {
+    action: MenuAction,
+    page: Option<MenuPage>,
+}
 
 #[derive(Component)]
 struct SettingsActionButton(SettingsAction);
@@ -125,7 +131,6 @@ struct MarketRowLabel {
 enum MenuAction {
     Resume,
     Open(MenuPage),
-    Back,
     ReturnToNest,
     ConfirmQuitYes,
 }
@@ -246,6 +251,7 @@ impl Plugin for SettingsPlugin {
                     sync_pause_cursor.run_if(in_state(AppScreen::Playing)),
                     update_pause_visibility,
                     sync_menu_page_visibility,
+                    sync_top_nav_highlight,
                     menu_button_hover,
                     handle_menu_nav,
                     handle_settings_buttons,
@@ -302,8 +308,8 @@ fn spawn_nest_menu(mut commands: Commands, catalog: Res<CosmeticsCatalog>) {
                 flex_direction: FlexDirection::Column,
                 justify_content: JustifyContent::FlexStart,
                 align_items: AlignItems::Stretch,
-                padding: UiRect::all(Val::Px(28.0)),
-                row_gap: Val::Px(14.0),
+                padding: UiRect::axes(Val::Px(20.0), Val::Px(18.0)),
+                row_gap: Val::Px(16.0),
                 overflow: Overflow::scroll_y(),
                 ..Default::default()
             },
@@ -313,23 +319,36 @@ fn spawn_nest_menu(mut commands: Commands, catalog: Res<CosmeticsCatalog>) {
         ))
         .with_children(|panel| {
             panel.spawn((
-                Text::new("NEST MENU"),
-                TextFont {
-                    font_size: FontSize::Px(36.0),
+                Node {
+                    width: Val::Percent(100.0),
+                    flex_direction: FlexDirection::Row,
+                    justify_content: JustifyContent::SpaceBetween,
+                    align_items: AlignItems::Center,
                     ..Default::default()
                 },
-                TextColor(ACCENT),
-            ));
-            panel.spawn((
-                Text::new("Esc closes · full-screen pause · Quit exits the game"),
-                TextFont {
-                    font_size: FontSize::Px(14.0),
-                    ..Default::default()
-                },
-                TextColor(MUTED),
+                children![
+                    (
+                        Text::new("NEST MENU"),
+                        TextFont {
+                            font_size: FontSize::Px(28.0),
+                            ..Default::default()
+                        },
+                        TextColor(ACCENT),
+                    ),
+                    (
+                        Text::new("Esc closes · Quit exits"),
+                        TextFont {
+                            font_size: FontSize::Px(13.0),
+                            ..Default::default()
+                        },
+                        TextColor(MUTED),
+                    ),
+                ],
             ));
 
-            spawn_page_main(panel);
+            spawn_top_nav(panel);
+
+            // Content pages — Settings is the default first tab.
             spawn_page_settings(panel);
             spawn_page_profile(panel);
             spawn_page_account(panel);
@@ -342,46 +361,106 @@ fn spawn_nest_menu(mut commands: Commands, catalog: Res<CosmeticsCatalog>) {
         });
 }
 
-fn spawn_page_main(parent: &mut ChildSpawnerCommands) {
+fn spawn_top_nav(parent: &mut ChildSpawnerCommands) {
     parent
         .spawn((
-            MenuPageRoot(MenuPage::Main),
             Node {
                 width: Val::Percent(100.0),
-                max_width: Val::Px(720.0),
-                flex_direction: FlexDirection::Column,
-                row_gap: Val::Px(10.0),
+                flex_direction: FlexDirection::Row,
+                flex_wrap: FlexWrap::Wrap,
+                column_gap: Val::Px(8.0),
+                row_gap: Val::Px(8.0),
+                align_items: AlignItems::Stretch,
+                padding: UiRect::all(Val::Px(10.0)),
+                border_radius: BorderRadius::all(Val::Px(14.0)),
+                border: UiRect::all(Val::Px(1.0)),
                 ..Default::default()
             },
-            Visibility::Visible,
+            BackgroundColor(Color::srgba(0.06, 0.12, 0.11, 0.95)),
+            BorderColor::all(Color::srgba(1.0, 0.55, 0.35, 0.28)),
         ))
-        .with_children(|page| {
-            menu_btn(page, "Resume", MenuAction::Resume, false);
-            menu_btn(page, "Settings", MenuAction::Open(MenuPage::Settings), false);
-            menu_btn(page, "Profile", MenuAction::Open(MenuPage::Profile), false);
-            menu_btn(page, "Account", MenuAction::Open(MenuPage::Account), false);
-            menu_btn(
-                page,
-                "Inventory",
-                MenuAction::Open(MenuPage::Inventory),
-                false,
-            );
-            menu_btn(page, "Wallet", MenuAction::Open(MenuPage::Wallet), false);
-            menu_btn(page, "Market", MenuAction::Open(MenuPage::Market), false);
-            menu_btn(
-                page,
-                "Challenges",
-                MenuAction::Open(MenuPage::Challenges),
-                false,
-            );
-            menu_btn(page, "Controls", MenuAction::Open(MenuPage::Controls), false);
-            menu_btn(page, "Return to Nest", MenuAction::ReturnToNest, false);
-            menu_btn(
-                page,
-                "Quit Game",
-                MenuAction::Open(MenuPage::ConfirmQuit),
-                true,
-            );
+        .with_children(|bar| {
+            // First nav item = Settings (default open page).
+            top_nav_btn(bar, "⚙", "Settings", MenuAction::Open(MenuPage::Settings), Some(MenuPage::Settings), false);
+            top_nav_btn(bar, "◆", "Profile", MenuAction::Open(MenuPage::Profile), Some(MenuPage::Profile), false);
+            top_nav_btn(bar, "@", "Account", MenuAction::Open(MenuPage::Account), Some(MenuPage::Account), false);
+            top_nav_btn(bar, "▣", "Inventory", MenuAction::Open(MenuPage::Inventory), Some(MenuPage::Inventory), false);
+            top_nav_btn(bar, "¤", "Wallet", MenuAction::Open(MenuPage::Wallet), Some(MenuPage::Wallet), false);
+            top_nav_btn(bar, "✦", "Market", MenuAction::Open(MenuPage::Market), Some(MenuPage::Market), false);
+            top_nav_btn(bar, "★", "Challenges", MenuAction::Open(MenuPage::Challenges), Some(MenuPage::Challenges), false);
+            top_nav_btn(bar, "⌨", "Controls", MenuAction::Open(MenuPage::Controls), Some(MenuPage::Controls), false);
+            top_nav_btn(bar, "⌂", "Nest", MenuAction::ReturnToNest, None, false);
+            top_nav_btn(bar, "▶", "Resume", MenuAction::Resume, None, false);
+            top_nav_btn(bar, "✕", "Quit", MenuAction::Open(MenuPage::ConfirmQuit), Some(MenuPage::ConfirmQuit), true);
+        });
+}
+
+fn top_nav_btn(
+    parent: &mut ChildSpawnerCommands,
+    symbol: &str,
+    label: &str,
+    action: MenuAction,
+    page: Option<MenuPage>,
+    danger: bool,
+) {
+    let bg = if danger { DANGER } else { BTN_BG };
+    parent
+        .spawn((
+            Button,
+            MenuNavButton(action),
+            TopNavTab { action, page },
+            Node {
+                width: Val::Px(88.0),
+                min_height: Val::Px(72.0),
+                padding: UiRect::axes(Val::Px(8.0), Val::Px(10.0)),
+                flex_direction: FlexDirection::Column,
+                justify_content: JustifyContent::Center,
+                align_items: AlignItems::Center,
+                row_gap: Val::Px(4.0),
+                border_radius: BorderRadius::all(Val::Px(12.0)),
+                border: UiRect::all(Val::Px(2.0)),
+                ..Default::default()
+            },
+            BackgroundColor(bg),
+            BorderColor::all(Color::NONE),
+        ))
+        .with_children(|b| {
+            // Icon plate (colored glyph block — works without image assets).
+            b.spawn((
+                Node {
+                    width: Val::Px(36.0),
+                    height: Val::Px(36.0),
+                    justify_content: JustifyContent::Center,
+                    align_items: AlignItems::Center,
+                    border_radius: BorderRadius::all(Val::Px(10.0)),
+                    ..Default::default()
+                },
+                BackgroundColor(if danger {
+                    Color::srgba(0.95, 0.35, 0.3, 0.35)
+                } else {
+                    Color::srgba(0.35, 0.85, 0.72, 0.22)
+                }),
+                children![(
+                    Text::new(symbol.to_string()),
+                    TextFont {
+                        font_size: FontSize::Px(20.0),
+                        ..Default::default()
+                    },
+                    TextColor(if danger {
+                        Color::srgb(1.0, 0.85, 0.82)
+                    } else {
+                        TEAL
+                    }),
+                )],
+            ));
+            b.spawn((
+                Text::new(label.to_string()),
+                TextFont {
+                    font_size: FontSize::Px(12.0),
+                    ..Default::default()
+                },
+                TextColor(Color::srgb(0.96, 0.95, 0.9)),
+            ));
         });
 }
 
@@ -415,7 +494,7 @@ fn spawn_page_confirm_quit(parent: &mut ChildSpawnerCommands) {
                 TextColor(MUTED),
             ));
             menu_btn(page, "Yes, quit", MenuAction::ConfirmQuitYes, true);
-            menu_btn(page, "Cancel", MenuAction::Back, false);
+            menu_btn(page, "Cancel", MenuAction::Open(MenuPage::Settings), false);
         });
 }
 
@@ -425,11 +504,12 @@ fn spawn_page_settings(parent: &mut ChildSpawnerCommands) {
             MenuPageRoot(MenuPage::Settings),
             Node {
                 width: Val::Percent(100.0),
+                max_width: Val::Px(720.0),
                 flex_direction: FlexDirection::Column,
                 row_gap: Val::Px(8.0),
                 ..Default::default()
             },
-            Visibility::Hidden,
+            Visibility::Visible,
         ))
         .with_children(|page| {
             page.spawn((
@@ -454,7 +534,6 @@ fn spawn_page_settings(parent: &mut ChildSpawnerCommands) {
             settings_btn(page, "Sensitivity −", SettingsAction::SensDown);
             settings_btn(page, "Sensitivity +", SettingsAction::SensUp);
             settings_btn(page, "Toggle Fullscreen", SettingsAction::ToggleFullscreen);
-            menu_btn(page, "Back", MenuAction::Back, false);
         });
 }
 
@@ -488,7 +567,6 @@ fn spawn_page_profile(parent: &mut ChildSpawnerCommands) {
                 },
                 TextColor(MUTED),
             ));
-            menu_btn(page, "Back", MenuAction::Back, false);
         });
 }
 
@@ -529,7 +607,6 @@ fn spawn_page_account(parent: &mut ChildSpawnerCommands) {
             account_btn(page, "Register mode", AccountAction::ModeRegister);
             account_btn(page, "Submit email/password", AccountAction::SubmitAuth);
             account_btn(page, "Sign out", AccountAction::SignOut);
-            menu_btn(page, "Back", MenuAction::Back, false);
         });
 }
 
@@ -610,7 +687,6 @@ fn spawn_page_inventory(parent: &mut ChildSpawnerCommands, catalog: &CosmeticsCa
                     ],
                 ));
             }
-            menu_btn(page, "Back", MenuAction::Back, false);
         });
 }
 
@@ -651,7 +727,6 @@ fn spawn_page_wallet(parent: &mut ChildSpawnerCommands) {
                 "Advanced: link BOING_ACCOUNT",
                 BoingAction::LinkWallet,
             );
-            menu_btn(page, "Back", MenuAction::Back, false);
         });
 }
 
@@ -762,7 +837,6 @@ fn spawn_page_market(parent: &mut ChildSpawnerCommands, catalog: &CosmeticsCatal
             ));
             boing_btn(page, "Prepare claim voucher", BoingAction::ClaimVoucher);
             boing_btn(page, "Open Claim Desk", BoingAction::OpenCompanion);
-            menu_btn(page, "Back", MenuAction::Back, false);
         });
 }
 
@@ -796,7 +870,6 @@ fn spawn_page_challenges(parent: &mut ChildSpawnerCommands) {
                 },
                 TextColor(MUTED),
             ));
-            menu_btn(page, "Back", MenuAction::Back, false);
         });
 }
 
@@ -836,7 +909,6 @@ fn spawn_page_controls(parent: &mut ChildSpawnerCommands) {
                 },
                 TextColor(MUTED),
             ));
-            menu_btn(page, "Back", MenuAction::Back, false);
         });
 }
 
@@ -961,14 +1033,14 @@ fn toggle_pause(
         return;
     }
 
-    // Esc always toggles the Nest menu closed/open (no sub-page back step).
+    // Esc toggles Nest menu; always reopen on the first tab (Settings).
     if pause.paused {
         pause.paused = false;
-        *page = MenuPage::Main;
+        *page = MenuPage::Settings;
         camera.captured = true;
     } else {
         pause.paused = true;
-        *page = MenuPage::Main;
+        *page = MenuPage::Settings;
         camera.captured = false;
     }
 }
@@ -1025,17 +1097,72 @@ fn sync_menu_page_visibility(
     }
 }
 
+fn sync_top_nav_highlight(
+    pause: Res<PauseState>,
+    page: Res<MenuPage>,
+    mut tabs: Query<(&TopNavTab, &Interaction, &mut BackgroundColor, &mut BorderColor)>,
+) {
+    if !pause.paused {
+        return;
+    }
+    for (tab, interaction, mut bg, mut border) in &mut tabs {
+        let selected = tab.page == Some(*page);
+        let danger = matches!(
+            tab.action,
+            MenuAction::ConfirmQuitYes | MenuAction::Open(MenuPage::ConfirmQuit)
+        );
+        let base = if danger { DANGER } else { BTN_BG };
+        match *interaction {
+            Interaction::Pressed => {
+                *bg = BackgroundColor(if danger {
+                    Color::srgb(0.65, 0.22, 0.2)
+                } else {
+                    BTN_PRESS
+                });
+            }
+            Interaction::Hovered => {
+                *bg = BackgroundColor(if danger {
+                    Color::srgb(0.95, 0.42, 0.38)
+                } else {
+                    BTN_HOVER
+                });
+            }
+            Interaction::None => {
+                *bg = BackgroundColor(if selected {
+                    Color::srgb(0.22, 0.42, 0.36)
+                } else {
+                    base
+                });
+            }
+        }
+        *border = BorderColor::all(if selected {
+            ACCENT
+        } else {
+            Color::NONE
+        });
+    }
+}
+
 fn menu_button_hover(
     pause: Res<PauseState>,
     mut buttons: Query<
-        (&Interaction, &mut BackgroundColor, Option<&MenuNavButton>),
+        (
+            &Interaction,
+            &mut BackgroundColor,
+            Option<&MenuNavButton>,
+            Option<&TopNavTab>,
+        ),
         (Changed<Interaction>, With<Button>),
     >,
 ) {
     if !pause.paused {
         return;
     }
-    for (interaction, mut bg, nav) in &mut buttons {
+    for (interaction, mut bg, nav, top) in &mut buttons {
+        // Top nav colors are driven by sync_top_nav_highlight.
+        if top.is_some() {
+            continue;
+        }
         let danger = nav.is_some_and(|n| {
             matches!(
                 n.0,
@@ -1084,19 +1211,16 @@ fn handle_menu_nav(
             MenuAction::Resume => {
                 pause.paused = false;
                 camera.captured = true;
-                *page = MenuPage::Main;
+                *page = MenuPage::Settings;
             }
             MenuAction::Open(next) => {
                 *page = next;
-            }
-            MenuAction::Back => {
-                *page = MenuPage::Main;
             }
             MenuAction::ReturnToNest => {
                 leave.pending = true;
                 pause.paused = false;
                 camera.captured = true;
-                *page = MenuPage::Main;
+                *page = MenuPage::Settings;
                 banner.show("Returning to The Nest…", 2.5);
             }
             MenuAction::ConfirmQuitYes => {
