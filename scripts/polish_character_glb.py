@@ -145,17 +145,17 @@ for slot in body.material_slots:
     principled = next((n for n in nt.nodes if n.type == "BSDF_PRINCIPLED"), None)
     if not principled:
         continue
-    # Vinyl / designer-toy plastic (finer pass: scripts/vinyl_material_pass.py)
+    # Soft matte cartoon defaults (finer pass: scripts/toon_material_pass.py)
     if "Roughness" in principled.inputs and not principled.inputs["Roughness"].is_linked:
-        principled.inputs["Roughness"].default_value = 0.22
+        principled.inputs["Roughness"].default_value = 0.62
     if "Coat Weight" in principled.inputs and not principled.inputs["Coat Weight"].is_linked:
-        principled.inputs["Coat Weight"].default_value = 0.45
+        principled.inputs["Coat Weight"].default_value = 0.0
     if "Coat Roughness" in principled.inputs and not principled.inputs["Coat Roughness"].is_linked:
-        principled.inputs["Coat Roughness"].default_value = 0.12
+        principled.inputs["Coat Roughness"].default_value = 0.5
     if "Specular IOR Level" in principled.inputs and not principled.inputs["Specular IOR Level"].is_linked:
-        principled.inputs["Specular IOR Level"].default_value = 0.5
+        principled.inputs["Specular IOR Level"].default_value = 0.35
     elif "Specular" in principled.inputs and not principled.inputs["Specular"].is_linked:
-        principled.inputs["Specular"].default_value = 0.5
+        principled.inputs["Specular"].default_value = 0.35
     if "Metallic" in principled.inputs and not principled.inputs["Metallic"].is_linked:
         principled.inputs["Metallic"].default_value = 0.0
     if "Alpha" in principled.inputs and not principled.inputs["Alpha"].is_linked:

@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
-"""DEPRECATED: prefer scripts/toon_material_pass.py (soft matte cartoon).
+"""Apply a soft matte cartoon material pass to a character GLB (no geo rebuild).
 
-Legacy Blankos/vinyl clearcoat pass — kept only for reference.
+Steers Tripo PBR away from clay/vinyl shine toward Pokémon/Kirby-like painted surfaces:
+higher roughness, no clearcoat, almost-flat normals, mild saturation.
 """
 
 from __future__ import annotations
@@ -37,42 +38,48 @@ for obj in bpy.context.scene.objects:
         if not principled:
             continue
 
+        # Flatten micro-detail so it reads as painted cartoon, not clay scan.
         normal_in = principled.inputs.get("Normal")
         if normal_in and normal_in.is_linked:
             link = normal_in.links[0]
             from_node = link.from_node
             if from_node.type == "NORMAL_MAP":
-                from_node.inputs["Strength"].default_value = 0.22
+                from_node.inputs["Strength"].default_value = 0.06
+            else:
+                nt.links.remove(link)
 
+        # Soft matte: higher roughness, kill plastic clearcoat.
         rough_in = principled.inputs.get("Roughness")
         if rough_in and rough_in.is_linked:
             src = rough_in.links[0].from_socket
             nt.links.remove(rough_in.links[0])
             mul = nt.nodes.new("ShaderNodeMath")
             mul.operation = "MULTIPLY"
-            mul.inputs[1].default_value = 0.32
+            mul.inputs[1].default_value = 1.45
             mul.location = (principled.location.x - 220, principled.location.y - 120)
             nt.links.new(src, mul.inputs[0])
             nt.links.new(mul.outputs["Value"], rough_in)
+            # Clamp-ish via second math if values go >1 is fine for Principled.
         elif rough_in:
-            rough_in.default_value = 0.2
+            rough_in.default_value = 0.62
 
-        if "Coat Weight" in principled.inputs and not principled.inputs["Coat Weight"].is_linked:
-            principled.inputs["Coat Weight"].default_value = 0.5
-        if "Coat Roughness" in principled.inputs and not principled.inputs["Coat Roughness"].is_linked:
-            principled.inputs["Coat Roughness"].default_value = 0.1
-        if "Clearcoat" in principled.inputs and not principled.inputs["Clearcoat"].is_linked:
-            principled.inputs["Clearcoat"].default_value = 0.5
-        if "Clearcoat Roughness" in principled.inputs and not principled.inputs["Clearcoat Roughness"].is_linked:
-            principled.inputs["Clearcoat Roughness"].default_value = 0.1
+        for coat_key, val in (
+            ("Coat Weight", 0.0),
+            ("Coat Roughness", 0.5),
+            ("Clearcoat", 0.0),
+            ("Clearcoat Roughness", 0.5),
+        ):
+            if coat_key in principled.inputs and not principled.inputs[coat_key].is_linked:
+                principled.inputs[coat_key].default_value = val
 
+        # Slight color punch without plastic “wet” look.
         base_in = principled.inputs.get("Base Color")
         if base_in and base_in.is_linked:
             src = base_in.links[0].from_socket
             nt.links.remove(base_in.links[0])
             hsv = nt.nodes.new("ShaderNodeHueSaturation")
-            hsv.inputs["Saturation"].default_value = 1.25
-            hsv.inputs["Value"].default_value = 1.06
+            hsv.inputs["Saturation"].default_value = 1.12
+            hsv.inputs["Value"].default_value = 1.02
             hsv.location = (principled.location.x - 220, principled.location.y + 80)
             nt.links.new(src, hsv.inputs["Color"])
             nt.links.new(hsv.outputs["Color"], base_in)
@@ -90,7 +97,7 @@ bpy.ops.export_scene.gltf(
     export_image_format="AUTO",
     export_yup=True,
 )
-print("VINYL_OK", IN_PATH.name)
+print("TOON_OK", IN_PATH.name)
 '''
 
 
@@ -107,8 +114,8 @@ def main() -> int:
         if not glb.is_file():
             print(f"error: missing {glb}", file=sys.stderr)
             return 1
-        out = _MODELS / aid / f"{aid}.vinyl.glb"
-        worker = _MODELS / aid / "_vinyl_worker.py"
+        out = _MODELS / aid / f"{aid}.toon.glb"
+        worker = _MODELS / aid / "_toon_worker.py"
         script = (
             _WORKER.replace("__IN_PATH__", str(glb.resolve()).replace("\\", "/"))
             .replace("__OUT_PATH__", str(out.resolve()).replace("\\", "/"))
@@ -126,7 +133,7 @@ def main() -> int:
             print(proc.stderr[-3000:], file=sys.stderr)
             return 1
         out.replace(glb)
-        print(f"vinyl -> {glb.relative_to(_REPO)}")
+        print(f"toon -> {glb.relative_to(_REPO)}")
     return 0
 
 
