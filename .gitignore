@@ -28,3 +28,6 @@ scripts/boing/local-node-data/
 
 # Vercel CLI link
 .vercel/
+
+# Local Blender polish backups
+*.pre_polish.glb

@@ -12,8 +12,8 @@
     {
       "asset_id": "char_pudgy_base_01",
       "target_height": 1.2,
-      "uniform_scale": 0.27,
-      "notes": "Shared Pudgy base from Studio job ff7ef050-4f9c-4300-962a-d5231c519270 (pack id pudgy_mon_base_01). Species/accessories must match CHARACTERS.md contract."
+      "uniform_scale": 1.0,
+      "notes": "Polished shared base: floor-pivot, face -Z, baked 1.2m height, accessory sockets. Studio job ff7ef050\u2026"
     },
     {
       "asset_id": "duct_tape_dispenser_cart_01",
@@ -62,8 +62,8 @@
     {
       "asset_id": "oceanic_pudgymon_01",
       "target_height": 1.2,
-      "uniform_scale": 0.27,
-      "notes": "Ocean species skin from Studio job 4e2bd668-5a41-46bf-aaa7-968988401061 (pack id ocean_pudgymon_01). Same scale as char_pudgy_base_01."
+      "uniform_scale": 1.0,
+      "notes": "Polished Ocean species: floor-pivot, face -Z, baked 1.2m height, accessory sockets. Studio job 4e2bd668\u2026"
     },
     {
       "asset_id": "office_printer_cartoon_space_station_01",
