@@ -252,7 +252,12 @@ pub struct SettingsPlugin;
 
 impl Plugin for SettingsPlugin {
     fn build(&self, app: &mut App) {
+        let roster_path = format!(
+            "{}/data/characters/roster.json",
+            env!("CARGO_MANIFEST_DIR")
+        );
         app.insert_resource(GameSettings::load())
+            .insert_resource(CharacterRoster::load(roster_path))
             .init_resource::<PauseState>()
             .init_resource::<MenuPage>()
             .init_resource::<NestAuthForm>()
