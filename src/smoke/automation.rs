@@ -5,7 +5,11 @@ use std::{fs, path::PathBuf, time::Duration};
 use bevy::prelude::*;
 use bevy_replicon::prelude::*;
 
-use crate::party::{HubReady, PartyDirector, PartyPhase};
+use crate::{
+    hub::ModeQueued,
+    party::{HubReady, PartyDirector, PartyPhase, PartyPlan},
+    player::ThirdPersonCamera,
+};
 
 pub const SMOKE_RESULT_DIR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/.bevy");
 
@@ -20,6 +24,7 @@ pub struct SmokeResult {
     pub pass: bool,
     pub message: String,
     pub finished: bool,
+    pub written: bool,
 }
 
 #[derive(Resource, Debug)]
@@ -34,10 +39,15 @@ pub struct SmokeAutomationPlugin;
 impl Plugin for SmokeAutomationPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<SmokeResult>()
-            .add_systems(Startup, init_smoke_automation)
+            .add_systems(Startup, (init_smoke_automation, disable_cursor_for_smoke))
             .add_observer(on_remote_client_connected)
-            .add_systems(Update, (run_party_smoke, finish_smoke));
+            .add_systems(Update, (run_party_smoke, finish_smoke).chain());
     }
+}
+
+fn disable_cursor_for_smoke(mut camera: ResMut<ThirdPersonCamera>) {
+    // Invisible / Xvfb windows cannot confine the cursor — avoid grab spam.
+    camera.captured = false;
 }
 
 fn on_remote_client_connected(
@@ -69,7 +79,7 @@ fn init_smoke_automation(mut commands: Commands, cli: Res<crate::Cli>) {
 
     commands.insert_resource(SmokeAutomation {
         role,
-        timer: Timer::new(Duration::from_secs(30), TimerMode::Once),
+        timer: Timer::new(Duration::from_secs(45), TimerMode::Once),
         saw_client: false,
     });
 }
@@ -78,6 +88,7 @@ fn run_party_smoke(
     time: Res<Time>,
     automation: Option<ResMut<SmokeAutomation>>,
     mut ready: ResMut<HubReady>,
+    mut queued: ResMut<ModeQueued>,
     director: Res<PartyDirector>,
     mut result: ResMut<SmokeResult>,
 ) {
@@ -89,8 +100,14 @@ fn run_party_smoke(
     }
 
     automation.timer.tick(time.delta());
+
+    // Host: force FullParty once a client joins (or immediately for local).
     if matches!(automation.role, SmokeRole::Host) {
         ready.host_ready = true;
+        if automation.saw_client && queued.0.is_none() && matches!(director.phase, PartyPhase::Hub)
+        {
+            queued.0 = Some(PartyPlan::FullParty);
+        }
     }
 
     if !matches!(director.phase, PartyPhase::Hub) {
@@ -102,23 +119,48 @@ fn run_party_smoke(
 
     if automation.timer.just_finished() {
         result.pass = false;
-        result.message = "timed out waiting for party stage".into();
+        result.message = format!(
+            "timed out waiting for party stage (role={:?}, saw_client={})",
+            automation.role, automation.saw_client
+        );
         result.finished = true;
     }
 }
 
-fn finish_smoke(result: Res<SmokeResult>, mut exit: MessageWriter<AppExit>) {
-    if !result.finished || !result.is_changed() {
+fn finish_smoke(
+    mut result: ResMut<SmokeResult>,
+    automation: Option<Res<SmokeAutomation>>,
+    mut exit: MessageWriter<AppExit>,
+) {
+    if !result.finished || result.written {
         return;
     }
+    result.written = true;
+
+    let role_name = automation
+        .as_ref()
+        .map(|a| match a.role {
+            SmokeRole::Host => "host",
+            SmokeRole::Join => "join",
+        })
+        .unwrap_or("unknown");
+
     let _ = fs::create_dir_all(SMOKE_RESULT_DIR);
-    let path = PathBuf::from(SMOKE_RESULT_DIR).join("smoke_result.txt");
+    let path = PathBuf::from(SMOKE_RESULT_DIR).join(format!("mp_smoke_{role_name}.result"));
+    // Also write legacy name for local tooling.
+    let legacy = PathBuf::from(SMOKE_RESULT_DIR).join("smoke_result.txt");
     let body = format!(
-        "pass={}\nmessage={}\n",
+        "pass={}\nmessage={}\nrole={role_name}\n",
         result.pass, result.message
     );
-    let _ = fs::write(&path, body);
-    info!("smoke finished: {} — {}", result.pass, result.message);
+    let _ = fs::write(&path, &body);
+    let _ = fs::write(&legacy, &body);
+    info!(
+        "smoke finished: {} — {} (wrote {})",
+        result.pass,
+        result.message,
+        path.display()
+    );
     if result.pass {
         exit.write(AppExit::Success);
     } else {

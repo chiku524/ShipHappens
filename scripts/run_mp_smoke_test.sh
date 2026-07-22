@@ -21,13 +21,14 @@ if [[ ! -f "$SMOKE_BIN" ]]; then
 fi
 
 echo "Starting host..."
-MP_TEST_ROLE=host "$SMOKE_BIN" host --port 7777 &
+MP_TEST_ROLE=host MP_TEST_PORT=7777 "$SMOKE_BIN" host --port 7777 &
 HOST_PID=$!
 sleep 5
 
 echo "Starting client..."
 set +e
-MP_TEST_ROLE=join "$SMOKE_BIN" join --address 127.0.0.1 --port 7777
+MP_TEST_ROLE=join MP_TEST_PORT=7777 MP_TEST_ADDRESS=127.0.0.1 \
+  "$SMOKE_BIN" join --address 127.0.0.1 --port 7777
 JOIN_EXIT=$?
 set -e
 
