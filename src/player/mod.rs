@@ -1,4 +1,5 @@
 pub mod accessories;
+pub mod animation;
 pub mod carry;
 pub mod collision;
 pub mod freight;
@@ -8,6 +9,7 @@ pub mod leaseholder;
 pub use accessories::{
     accessory_glb_exists, apply_slot, AccessoriesPlugin, AccessoryCatalog, EquipAccessoryRequest,
 };
+pub use animation::{CrewAnimationPlugin, PlayerMotion};
 pub use carry::CarryingFreight;
 pub use freight::WorldFreight;
 pub use knockback::Knockback;
@@ -46,6 +48,7 @@ impl Plugin for PlayerPlugin {
     fn build(&self, app: &mut App) {
         app.init_resource::<ThirdPersonCamera>()
             .init_resource::<freight::FreightCadence>()
+            .add_plugins(animation::CrewAnimationPlugin)
             .add_client_event::<SelectCharacterRequest>(Channel::Unordered)
             .add_observer(handle_select_character)
             .add_systems(
@@ -171,7 +174,7 @@ pub struct MoveInput {
 pub fn apply_move_input(
     input: On<FromClient<MoveInput>>,
     owners: Query<&OwnedPlayer>,
-    mut players: Query<&mut Transform, With<NetworkPlayer>>,
+    mut players: Query<(&mut Transform, &mut PlayerMotion), With<NetworkPlayer>>,
     time: Res<Time>,
 ) {
     let Some(client_entity) = input.client_id.entity() else {
@@ -182,21 +185,30 @@ pub fn apply_move_input(
         return;
     };
 
-    let Ok(mut transform) = players.get_mut(owned.0) else {
+    let Ok((mut transform, mut motion)) = players.get_mut(owned.0) else {
         return;
     };
 
     apply_planar_move(
         &mut transform,
+        &mut motion,
         input.direction,
         input.sprint,
         time.delta_secs(),
     );
 }
 
-fn apply_planar_move(transform: &mut Transform, direction: Vec2, sprint: bool, dt: f32) {
+fn apply_planar_move(
+    transform: &mut Transform,
+    motion: &mut PlayerMotion,
+    direction: Vec2,
+    sprint: bool,
+    dt: f32,
+) {
     let direction = Vec3::new(direction.x, 0.0, direction.y);
     if direction.length_squared() <= f32::EPSILON {
+        motion.speed = 0.0;
+        motion.sprint = false;
         return;
     }
 
@@ -215,6 +227,8 @@ fn apply_planar_move(transform: &mut Transform, direction: Vec2, sprint: bool, d
     transform.translation.z = transform.translation.z.clamp(-ARENA_BOUNDS, ARENA_BOUNDS);
     // Face movement direction (Y-up).
     transform.look_to(flat, Vec3::Y);
+    motion.speed = speed;
+    motion.sprint = sprint;
 }
 
 fn capture_cursor_when_playing(
@@ -330,15 +344,16 @@ fn local_movement_input(
     }
 
     let direction = camera_relative_direction(&keyboard, camera.yaw);
-    if direction.length_squared() <= f32::EPSILON {
-        return;
-    }
-
     let sprint = keyboard.pressed(KeyCode::ShiftLeft) || keyboard.pressed(KeyCode::ShiftRight);
-    let flat = direction.normalize();
+    let dir = if direction.length_squared() <= f32::EPSILON {
+        Vec2::ZERO
+    } else {
+        let flat = direction.normalize();
+        Vec2::new(flat.x, flat.z)
+    };
     commands.client_trigger(MoveInput {
-        direction: Vec2::new(flat.x, flat.z),
-        sprint,
+        direction: dir,
+        sprint: sprint && dir != Vec2::ZERO,
     });
 }
 
@@ -346,7 +361,10 @@ fn local_movement_input(
 pub fn offline_movement(
     keyboard: Res<ButtonInput<KeyCode>>,
     camera: Res<ThirdPersonCamera>,
-    mut players: Query<&mut Transform, (With<LocalPlayer>, Without<crate::session_flow::Spectating>)>,
+    mut players: Query<
+        (&mut Transform, &mut PlayerMotion),
+        (With<LocalPlayer>, Without<crate::session_flow::Spectating>),
+    >,
     time: Res<Time>,
     client: Option<Res<RenetClient>>,
 ) {
@@ -354,21 +372,23 @@ pub fn offline_movement(
         return;
     }
 
-    let Ok(mut transform) = players.single_mut() else {
+    let Ok((mut transform, mut motion)) = players.single_mut() else {
         return;
     };
 
     let direction = camera_relative_direction(&keyboard, camera.yaw);
-    if direction.length_squared() <= f32::EPSILON {
-        return;
-    }
-
     let sprint = keyboard.pressed(KeyCode::ShiftLeft) || keyboard.pressed(KeyCode::ShiftRight);
-    let flat = direction.normalize();
+    let dir = if direction.length_squared() <= f32::EPSILON {
+        Vec2::ZERO
+    } else {
+        let flat = direction.normalize();
+        Vec2::new(flat.x, flat.z)
+    };
     apply_planar_move(
         &mut transform,
-        Vec2::new(flat.x, flat.z),
-        sprint,
+        &mut motion,
+        dir,
+        sprint && dir != Vec2::ZERO,
         time.delta_secs(),
     );
 }
@@ -452,7 +472,7 @@ fn sync_player_visuals(
 
         commands
             .entity(entity)
-            .insert((GameplayEntity, Knockback::default()));
+            .insert((GameplayEntity, Knockback::default(), PlayerMotion::default()));
 
         let model_id = visual.and_then(|v| v.model_id.as_deref()).filter(|id| {
             let disk = format!(
@@ -469,9 +489,9 @@ fn sync_player_visuals(
                 .unwrap_or(Vec3::ONE);
             let glb_path = format!("models/{model_id}/{model_id}.glb");
             let scene =
-                asset_server.load(bevy::gltf::GltfAssetLabel::Scene(0).from_asset(glb_path));
-            commands.entity(entity).with_children(|parent| {
-                parent.spawn((
+                asset_server.load(bevy::gltf::GltfAssetLabel::Scene(0).from_asset(glb_path.clone()));
+            let visual_entity = commands
+                .spawn((
                     PlayerVisualRoot,
                     WorldAssetRoot(scene),
                     Transform {
@@ -481,8 +501,15 @@ fn sync_player_visuals(
                     },
                     Visibility::default(),
                     Name::new(format!("CrewMesh:{model_id}")),
-                ));
-            });
+                    ChildOf(entity),
+                ))
+                .id();
+            animation::attach_crew_animation(
+                visual_entity,
+                &mut commands,
+                &asset_server,
+                model_id,
+            );
             continue;
         }
 

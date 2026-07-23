@@ -367,6 +367,7 @@ fn spawn_player_entity(
                 accessories: Default::default(),
             },
             Knockback::default(),
+            crate::player::PlayerMotion::default(),
             owner,
             Transform::from_translation(position),
             Replicated,

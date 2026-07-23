@@ -227,6 +227,7 @@ fn spawn_bots_for_match(
                 accessories: Default::default(),
             },
             crate::player::Knockback::default(),
+            crate::player::PlayerMotion::default(),
             PlayerOwner(HOST_OWNER_ID.wrapping_add(100 + slot as u64)),
             Transform::from_translation(spawn.hub + offset),
             Visibility::default(),

@@ -1,5 +1,6 @@
 char_pudgy_pink_01
-Source: user Downloads/optimized-models/*-optimized.glb (Draco + WebP ~3MB).
-Re-exported for Bevy: Draco/WebP extensions removed (Bevy cannot load them),
-opaque materials, JPEG textures, floor pivot ~1.2m, accessory sockets.
-See scripts/import_dense_character_glb.py
+Skinned Pudgy character (shared armature contract).
+Clips: idle, walk, run, jump, emote_wave, emote_dance
+Bones: Root, Hips, Spine, Head, L_Arm, R_Arm, L_Forearm, R_Forearm, L_Leg, R_Leg, L_Shin, R_Shin
+Sockets parented to bones. Bevy-safe (no Draco/WebP).
+Rebuild: python scripts/rig_and_animate_pudgy.py --asset-id char_pudgy_pink_01

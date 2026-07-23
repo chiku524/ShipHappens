@@ -100,7 +100,7 @@ Walk to the marker and press **F** if it has an `interactable`.
 
 ## Character models
 
-Players use playable Pudgys (`char_pudgy_pink_01` / `char_pudgy_stylized_01`) with optional species skins and detachable accessories. Set `PlayerVisualSpec.model_id` to a registry `asset_id` and fill `accessories` slots (`hat`, `necklace`, `shoes`, `back`, `face`, `hands`) with `acc_*` ids — see [CHARACTERS.md](CHARACTERS.md) and [STUDIO_PROMPTS.md](STUDIO_PROMPTS.md).
+Players use playable Pudgys (`char_pudgy_pink_01` / `char_pudgy_stylized_01`) with a **shared skinned armature + clips**, optional species skins, and detachable accessories. After importing a static Tripo body, run `python scripts/rig_and_animate_pudgy.py --asset-id <id>`. Set `PlayerVisualSpec.model_id` to a registry `asset_id` and fill `accessories` slots with `acc_*` ids — see [CHARACTERS.md](CHARACTERS.md).
 
 Until accessory GLBs exist, leave those fields empty; `hat_slot` 0–7 remains a legacy roster index.
 

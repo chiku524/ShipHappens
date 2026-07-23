@@ -6,14 +6,15 @@ Chunky party creatures for **PudgyMon: Party Saga**. One shared base figure, spe
 
 ### `char_pudgy_pink_01` — Pink Creature
 - Soft stylized pink cartoon creature (user-optimized Tripo download)
-- Bevy-compatible re-export (source used Draco + WebP; those extensions are stripped on import)
-- Opaque materials + JPEG textures; playable height ~1.2 m; accessory sockets
+- **Skinned** shared Pudgy armature + clips (`idle`, `walk`, `run`, `jump`, `emote_wave`, `emote_dance`)
+- Game-res mesh (~100k faces), opaque JPEG, accessory sockets on bones
 - GLB: `assets/models/char_pudgy_pink_01/char_pudgy_pink_01.glb`
+- Rebuild: `python scripts/rig_and_animate_pudgy.py --asset-id char_pudgy_pink_01`
 
 ### `char_pudgy_stylized_01` — Cartoon Creature
-- Soft stylized cartoon creature (user-optimized Tripo download)
-- Same Bevy-compatible contract as pink
+- Soft stylized cartoon creature (same shared rig + clip set as pink)
 - GLB: `assets/models/char_pudgy_stylized_01/char_pudgy_stylized_01.glb`
+- Rebuild: `python scripts/rig_and_animate_pudgy.py --asset-id char_pudgy_stylized_01`
 
 Default crew id: [`data/player_defaults.json`](../data/player_defaults.json) (user pick saved under `%LOCALAPPDATA%/…/player_defaults.json`). Roster: [`data/characters/roster.json`](../data/characters/roster.json). If the GLB is missing, runtime uses a **procedural Pudgy stub**. Switch live in Esc Nest → **Characters**.
 
@@ -29,11 +30,13 @@ All playable Pudgys (base + species skins) must obey this contract so one animat
 | Pivot | Floor center, +Y up, character faces **−Z** (Bevy forward) |
 | Studio pose | Neutral **A-pose**, arms slightly out, feet planted — not a swim/run pose |
 | Registry scale | Prefer `uniform_scale` `1.0` after polish (baked ~1.2 m height). Do **not** put raw Studio `target_height_m` straight into spawn scale |
-| Required nodes (retarget target) | `Root`, `Hips`, `Spine`, `Head`, `L_Arm`, `R_Arm`, `L_Leg`, `R_Leg` |
+| Required nodes (retarget target) | `Root`, `Hips`, `Spine`, `Head`, `L_Arm`, `R_Arm`, `L_Leg`, `R_Leg` (+ `L_Forearm`, `R_Forearm`, `L_Shin`, `R_Shin`) |
 | Accessory sockets | See table below — leave wear volumes clear (do not bake accessories into the body) |
-| Shared clip names | `idle`, `walk`, `run`, `jump`, `emote_wave` |
+| Shared clip names | `idle`, `walk`, `run`, `jump`, `emote_wave`, `emote_dance` |
 
-**Tripo note:** exports often use a soft hierarchy. The node list above is the **retarget target** for future clips. Variants that do not match get root-transform motion only until retargeted.
+**Runtime playback:** Bevy loads named clips from the crew GLB and drives them from planar move / sprint (`PlayerMotion`). Local keys: **Space** jump, **G** wave, **T** dance (toggle; cancelled by movement).
+
+**Tripo note:** static Studio downloads are rigged via [`scripts/rig_and_animate_pudgy.py`](../scripts/rig_and_animate_pudgy.py) (UV-aware simplify → shared armature → automatic weights → NLA clips → Bevy-safe export).
 
 **Import rule:** register species with the same `uniform_scale` as the base unless you measure a different mesh height.
 
@@ -88,10 +91,10 @@ Mannequins around The Nest preview each catalog tint. Unlock by season points, t
 
 ## Art pipeline
 
-1. Playable defaults `char_pudgy_pink_01` / `char_pudgy_stylized_01` (clear accessory sockets)
-2. Species variants via Studio using the species-variant prompt ([STUDIO_PROMPTS.md](STUDIO_PROMPTS.md))
+1. Playable defaults `char_pudgy_pink_01` / `char_pudgy_stylized_01` (skinned + shared clips; clear accessory sockets)
+2. Species variants via Studio using the species-variant prompt ([STUDIO_PROMPTS.md](STUDIO_PROMPTS.md)), then `scripts/rig_and_animate_pudgy.py`
 3. Accessory batches per slot (`acc_hat_*`, `acc_necklace_*`, `acc_shoes_*`, …)
-4. Shared clips (`idle` / `walk` / `run` / …) authored on a signed-off base, retargeted to matching species
+4. Shared clips authored on the Pudgy contract armature (retarget / re-rig species to the same bone names)
 5. Nest + stage props from the Party Saga wishlist ([ASSET_WISHLIST.md](ASSET_WISHLIST.md))
 
 ## Runtime hook
