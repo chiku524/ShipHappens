@@ -5,7 +5,7 @@
     {
       "asset_id": "char_crew_base_01",
       "target_height": 1.8,
-      "notes": "Legacy crew id (retired). Prefer char_pudgy_base_01."
+      "notes": "Legacy crew id (retired). Prefer char_pudgy_pink_01."
     },
     {
       "asset_id": "env_nest_egg_01",

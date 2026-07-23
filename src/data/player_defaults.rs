@@ -15,7 +15,7 @@ pub struct PlayerDefaults {
 impl Default for PlayerDefaults {
     fn default() -> Self {
         Self {
-            crew_model_id: "char_pudgy_base_01".into(),
+            crew_model_id: "char_pudgy_pink_01".into(),
         }
     }
 }

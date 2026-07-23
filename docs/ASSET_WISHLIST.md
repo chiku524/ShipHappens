@@ -11,7 +11,8 @@ Stand-ins keep The Nest and stages playable. Replace these when dedicated Tripo 
 
 | Priority | Suggested `asset_id` | Plugs into | Current stand-in |
 |----------|----------------------|------------|------------------|
-| Done | `char_pudgy_base_01` | `PlayerVisualSpec.model_id` / `player_defaults.json` | Studio job 2ddc5433… imported (polished, scale 1.0) |
+| Done | `char_pudgy_pink_01` | `PlayerVisualSpec.model_id` / `player_defaults.json` | Pink stylized creature (decimated) |
+| Done | `char_pudgy_stylized_01` | Nest Characters roster | Cartoon stylized creature (decimated) |
 | High | `oceanic_pudgymon_01` | Species skin override | — |
 | High | `char_pudgy_forest_01` | Species skin | — |
 | High | `char_pudgy_lava_01` | Species skin | — |

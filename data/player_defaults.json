@@ -1,5 +1,5 @@
 {
   "schema_version": 1,
-  "crew_model_id": "char_pudgy_base_01",
-  "_comment": "Shared Pudgy base. Species skins (e.g. oceanic_pudgymon_01) share the same contract; override model_id via cosmetics later."
+  "crew_model_id": "char_pudgy_pink_01",
+  "_comment": "Default playable. Switch in Esc Nest → Characters. Preference also saves under %LOCALAPPDATA%/…/player_defaults.json."
 }

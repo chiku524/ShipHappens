@@ -2,24 +2,14 @@
   "schema_version": 1,
   "characters": [
     {
-      "id": "char_pudgy_base_01",
-      "label": "Soft Cartoon",
-      "blurb": "Studio 5a0db910 — soft matte Pokémon / Kirby pass"
+      "id": "char_pudgy_pink_01",
+      "label": "Pink Creature",
+      "blurb": "Stylized pink creature — soft cartoon party mascot"
     },
     {
-      "id": "char_pudgy_base_02",
-      "label": "Vivid Cartoon",
-      "blurb": "Studio c00ebe10 — vibrant color body variant"
-    },
-    {
-      "id": "char_pudgy_base_03",
-      "label": "Party Cartoon",
-      "blurb": "Studio d840af1b — party-saga Tripo base with wear slots"
-    },
-    {
-      "id": "char_pudgy_procedural_01",
-      "label": "Procedural Agent",
-      "blurb": "Blender-built dumpling mascot — no Tripo; compare shapes live"
+      "id": "char_pudgy_stylized_01",
+      "label": "Cartoon Creature",
+      "blurb": "Stylized cartoon creature — soft matte party mascot"
     }
   ]
 }

@@ -2,30 +2,19 @@
 
 Chunky party creatures for **PudgyMon: Party Saga**. One shared base figure, species skins that match the same proportions, and **detachable accessories** on fixed sockets so movement and cosmetics stay in sync.
 
-## Base rigs
+## Playable roster
 
-### `char_pudgy_base_01` — Soft Cartoon
-- Round body, oversized head, stubby limbs
-- Soft **stylized cartoon 3D** look (Pokémon / Kirby / Animal Crossing vibes) — painted matte candy colors, not clay or glossy vinyl; family-friendly
-- Playable height ~1.2 m (read as “cute chunky,” not adult humanoid)
-- GLB: `assets/models/char_pudgy_base_01/char_pudgy_base_01.glb`
-- Studio job `5a0db910-520c-406d-987f-b3914d7ab296` (pack id `pudgy_mon_shared_base_01`, remapped)
+### `char_pudgy_pink_01` — Pink Creature
+- Soft stylized pink cartoon creature (Tripo download, decimated for play)
+- Playable height ~1.2 m; accessory sockets attached
+- GLB: `assets/models/char_pudgy_pink_01/char_pudgy_pink_01.glb`
 
-### `char_pudgy_base_02` — Vivid Cartoon
-- Same contract as base_01 (compare in Esc Nest menu → **Characters**)
-- GLB: `assets/models/char_pudgy_base_02/char_pudgy_base_02.glb`
-- Studio job `c00ebe10-82b0-4f59-8f67-477d3852e0d4` (pack id `pudgy_mon_body_shared_base_01`, remapped)
+### `char_pudgy_stylized_01` — Cartoon Creature
+- Soft stylized cartoon creature (Tripo download, decimated for play)
+- Same playable contract as pink (~1.2 m, sockets)
+- GLB: `assets/models/char_pudgy_stylized_01/char_pudgy_stylized_01.glb`
 
-### `char_pudgy_base_03` — Party Cartoon
-- Studio job `d840af1b-dde0-4a5a-870e-2afc90f69dc0` (pack id `pudgy_cartoon_character_01`, remapped)
-- GLB: `assets/models/char_pudgy_base_03/char_pudgy_base_03.glb`
-
-### `char_pudgy_procedural_01` — Procedural Agent
-- Blender-built cartoon dumpling (no Tripo) via `scripts/build_procedural_pudgy.py`
-- Same playable contract (~1.2 m, sockets, soft matte) for live Nest comparison
-- GLB: `assets/models/char_pudgy_procedural_01/char_pudgy_procedural_01.glb`
-
-Default crew id: [`data/player_defaults.json`](../data/player_defaults.json) (user pick saved under `%LOCALAPPDATA%/…/player_defaults.json`). Roster: [`data/characters/roster.json`](../data/characters/roster.json). If the GLB is missing, runtime uses a **procedural Pudgy stub**.
+Default crew id: [`data/player_defaults.json`](../data/player_defaults.json) (user pick saved under `%LOCALAPPDATA%/…/player_defaults.json`). Roster: [`data/characters/roster.json`](../data/characters/roster.json). If the GLB is missing, runtime uses a **procedural Pudgy stub**. Switch live in Esc Nest → **Characters**.
 
 ## Pudgy Character Contract
 
@@ -33,7 +22,7 @@ All playable Pudgys (base + species skins) must obey this contract so one animat
 
 | Rule | Value |
 |------|--------|
-| Base asset id | `char_pudgy_base_01` |
+| Base asset id | `char_pudgy_pink_01` (default) / `char_pudgy_stylized_01` |
 | Species id pattern | `char_pudgy_<biome>_01` or descriptive `*_pudgymon_01` |
 | Playable height | ~1.2 m |
 | Pivot | Floor center, +Y up, character faces **−Z** (Bevy forward) |
@@ -98,17 +87,17 @@ Mannequins around The Nest preview each catalog tint. Unlock by season points, t
 
 ## Art pipeline
 
-1. Shared base `char_pudgy_base_01` ← **current crew default** (clear accessory sockets)
+1. Playable defaults `char_pudgy_pink_01` / `char_pudgy_stylized_01` (clear accessory sockets)
 2. Species variants via Studio using the species-variant prompt ([STUDIO_PROMPTS.md](STUDIO_PROMPTS.md))
 3. Accessory batches per slot (`acc_hat_*`, `acc_necklace_*`, `acc_shoes_*`, …)
-4. Shared clips (`idle` / `walk` / `run` / …) authored on the base, retargeted to matching species
+4. Shared clips (`idle` / `walk` / `run` / …) authored on a signed-off base, retargeted to matching species
 5. Nest + stage props from the Party Saga wishlist ([ASSET_WISHLIST.md](ASSET_WISHLIST.md))
 
 ## Runtime hook
 
 ```rust
 PlayerVisualSpec {
-    model_id: Some("char_pudgy_base_01".into()), // or a species asset_id
+    model_id: Some("char_pudgy_pink_01".into()), // or char_pudgy_stylized_01 / a species asset_id
     hat_slot: 0, // legacy roster index; prefer accessories.hat
     accessories: AccessorySlots {
         hat: Some("acc_hat_party_crown_01".into()),

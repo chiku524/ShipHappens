@@ -10,7 +10,8 @@ Related: [CHARACTERS.md](CHARACTERS.md) · [STUDIO_ASSETS.md](STUDIO_ASSETS.md) 
 
 | What | Drop path | Then |
 |------|-----------|------|
-| Base Pudgy | `assets/models/char_pudgy_base_01/char_pudgy_base_01.glb` | `python scripts/register_studio_asset.py char_pudgy_base_01 --height 1.2 --scale 0.27` |
+| Pink Pudgy | `assets/models/char_pudgy_pink_01/char_pudgy_pink_01.glb` | `python scripts/import_dense_character_glb.py … --asset-id char_pudgy_pink_01` |
+| Cartoon Pudgy | `assets/models/char_pudgy_stylized_01/char_pudgy_stylized_01.glb` | same import path |
 | Species skin | `assets/models/<species_id>/<species_id>.glb` | Same scale as base; see CHARACTERS.md |
 | Accessories | `assets/models/acc_hat_*/…`, `acc_necklace_*`, `acc_shoes_*`, … | Register; equip via `PlayerVisualSpec.accessories` |
 | Nest egg | `assets/models/env_nest_egg_01/env_nest_egg_01.glb` | Register; later wire into Nest spawn |
@@ -43,7 +44,7 @@ Restart after dropping clips.
 
 ## Quick checklist
 
-1. [x] `char_pudgy_base_01.glb` → shared base from Studio job ff7ef050… (see CHARACTERS.md)  
+1. [x] `char_pudgy_pink_01` / `char_pudgy_stylized_01` playable roster (see CHARACTERS.md)  
 2. [ ] Accessory starter pack (hats / necklaces / shoes)  
 3. [ ] Nest props (`env_nest_egg_01`, benches, mushrooms)  
 4. [ ] Music bed for The Nest / Party Saga  

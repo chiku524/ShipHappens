@@ -27,7 +27,7 @@ Related: [BOING_INTEGRATION.md](BOING_INTEGRATION.md) · [PACKAGING.md](PACKAGIN
 - [x] PudgyMon brand pass
 
 ### Next
-- [x] Procedural Pudgy stub + `char_pudgy_base_01` drop path
+- [x] Procedural Pudgy stub + playable roster (`char_pudgy_pink_01` / `char_pudgy_stylized_01`)
 - [x] Nest props greybox (egg, benches, vibe mushrooms)
 - [x] Companion claim page (`companion/claim`, Ctrl+O)
 - [x] Race map creator (Nest Create Map / My Maps) — see [MAP_CREATOR.md](MAP_CREATOR.md)

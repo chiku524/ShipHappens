@@ -22,9 +22,9 @@ impl Default for CharacterRoster {
     fn default() -> Self {
         Self {
             characters: vec![CharacterEntry {
-                id: "char_pudgy_base_01".into(),
-                label: "Soft Cartoon".into(),
-                blurb: "Shared Pudgy base".into(),
+                id: "char_pudgy_pink_01".into(),
+                label: "Pink Creature".into(),
+                blurb: "Stylized pink creature".into(),
             }],
         }
     }
