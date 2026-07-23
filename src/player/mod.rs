@@ -7,7 +7,8 @@ pub mod knockback;
 pub mod leaseholder;
 
 pub use accessories::{
-    accessory_glb_exists, apply_slot, AccessoriesPlugin, AccessoryCatalog, EquipAccessoryRequest,
+    accessory_glb_exists, apply_accessory_choice, apply_slot, AccessoriesPlugin, AccessoryCatalog,
+    EquipAccessoryRequest,
 };
 pub use animation::{CrewAnimationPlugin, PlayerMotion};
 pub use carry::CarryingFreight;

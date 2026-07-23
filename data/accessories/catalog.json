@@ -5,13 +5,13 @@
       "id": "hat",
       "label": "Hat",
       "items": [
-        { "id": "acc_hat_party_crown_01", "label": "Party Crown" },
-        { "id": "acc_hat_racer_cap_01", "label": "Racer Cap" },
-        { "id": "acc_hat_vibe_mushroom_01", "label": "Mushroom Cap" },
+        { "id": "acc_hat_party_crown_01", "label": "Party Crown Crew", "character_look": true },
+        { "id": "acc_hat_racer_cap_01", "label": "Party Cap Crew", "character_look": true },
+        { "id": "acc_hat_vibe_mushroom_01", "label": "Mushroom Cap Crew", "character_look": true },
         { "id": "acc_hat_blaster_beanie_01", "label": "Star Beanie" },
-        { "id": "acc_hat_propeller_01", "label": "Propeller Beanie" },
-        { "id": "acc_hat_flower_01", "label": "Daisy Hat" },
-        { "id": "acc_hat_chef_01", "label": "Chef Hat" },
+        { "id": "acc_hat_propeller_01", "label": "Propeller Crew", "character_look": true },
+        { "id": "acc_hat_flower_01", "label": "Daisy Hat Crew", "character_look": true },
+        { "id": "acc_hat_chef_01", "label": "Chef Hat Crew", "character_look": true },
         { "id": "acc_hat_sleep_01", "label": "Sleep Cap" }
       ]
     },
@@ -19,9 +19,9 @@
       "id": "necklace",
       "label": "Necklace",
       "items": [
-        { "id": "acc_necklace_shell_01", "label": "Shell Pendant" },
-        { "id": "acc_necklace_medal_01", "label": "Party Medal" },
-        { "id": "acc_necklace_beads_01", "label": "Candy Beads" },
+        { "id": "acc_necklace_shell_01", "label": "Pendant Crew", "character_look": true },
+        { "id": "acc_necklace_medal_01", "label": "Medal Crew", "character_look": true },
+        { "id": "acc_necklace_beads_01", "label": "Beads Crew", "character_look": true },
         { "id": "acc_necklace_bell_01", "label": "Jingle Bell" }
       ]
     },

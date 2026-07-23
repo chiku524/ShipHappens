@@ -1,3 +1,4 @@
 acc_hat_racer_cap_01
-Procedural Blender party asset.
-Rebuild: python scripts/build_procedural_party_assets.py --only acc_hat_racer_cap_01
+Tripo full-figure import (character-look accessory + Nest NPC).
+Floor-pivoted ~1.2 m, opaque JPEG, UV-aware simplify ~0.22.
+Equipping character-looks swaps the player mesh (not socket prop).

@@ -204,9 +204,16 @@ print("bytes", OUT_PATH.stat().st_size)
 
 
 def _gltf_transform(*args: str) -> None:
-    cmd = ["npx", "--yes", "@gltf-transform/cli@4.1.1", *args]
+    npx = shutil.which("npx.cmd") or shutil.which("npx")
+    if not npx:
+        # Hard fallback used on this Windows/Git-Bash setup.
+        candidate = Path(r"C:\Program Files\nodejs\npx.cmd")
+        npx = str(candidate) if candidate.is_file() else None
+    if not npx:
+        raise RuntimeError("npx not found on PATH")
+    cmd = [npx, "--yes", "@gltf-transform/cli@4.1.1", *args]
     print("+", " ".join(cmd))
-    proc = subprocess.run(cmd, capture_output=True, text=True)
+    proc = subprocess.run(cmd, capture_output=True, text=True, shell=False)
     if proc.stdout:
         print(proc.stdout[-2000:])
     if proc.returncode != 0:

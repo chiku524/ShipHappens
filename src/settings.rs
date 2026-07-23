@@ -18,7 +18,8 @@ use crate::{
     flow::AppScreen,
     hub::EditorMode,
     player::{
-        apply_slot, AccessoryCatalog, EquipAccessoryRequest, PlayerName, PlayerVisualSpec,
+        apply_accessory_choice, AccessoryCatalog, EquipAccessoryRequest, PlayerName,
+        PlayerVisualSpec,
         SelectCharacterRequest, ThirdPersonCamera,
     },
     season::SeasonLedger,
@@ -1577,6 +1578,7 @@ fn handle_character_select(
 fn handle_accessory_select(
     pause: Res<PauseState>,
     catalog: Res<AccessoryCatalog>,
+    defaults: Res<PlayerDefaults>,
     mut banner: ResMut<NetworkBanner>,
     mut commands: Commands,
     mut visuals: Query<&mut PlayerVisualSpec, With<crate::player::LocalPlayer>>,
@@ -1596,7 +1598,13 @@ fn handle_accessory_select(
                 asset_id: btn.id.clone(),
             });
         } else if let Ok(mut visual) = visuals.single_mut() {
-            apply_slot(&mut visual.accessories, &btn.slot, btn.id.clone());
+            apply_accessory_choice(
+                &mut visual,
+                &catalog,
+                &defaults,
+                &btn.slot,
+                btn.id.clone(),
+            );
         }
         let note = match &btn.id {
             Some(id) => format!("Wearing {}", catalog.label_for(id)),

@@ -194,6 +194,39 @@ fn spawn_social_hub(
         }
     }
 
+    // Ambient Nest NPCs — Tripo accessory jobs that arrived as full dressed figures.
+    let nest_npcs: [(&str, Vec3, f32); 14] = [
+        ("acc_hat_party_crown_01", Vec3::new(-6.0, 0.0, -1.0), 25.0),
+        ("acc_hat_chef_01", Vec3::new(6.0, 0.0, -1.0), -25.0),
+        ("acc_hat_flower_01", Vec3::new(-10.0, 0.0, 4.0), 40.0),
+        ("acc_hat_vibe_mushroom_01", Vec3::new(10.0, 0.0, 4.0), -40.0),
+        ("acc_hat_propeller_01", Vec3::new(-4.0, 0.0, 8.0), 160.0),
+        ("acc_hat_racer_cap_01", Vec3::new(4.0, 0.0, 8.0), -160.0),
+        ("acc_necklace_shell_01", Vec3::new(-12.0, 0.0, -6.0), 55.0),
+        ("acc_necklace_beads_01", Vec3::new(12.0, 0.0, -6.0), -55.0),
+        ("acc_necklace_medal_01", Vec3::new(0.0, 0.0, -9.0), 0.0),
+        ("npc_nest_pink_01", Vec3::new(-16.0, 0.0, 2.0), 70.0),
+        ("npc_nest_crew_a_01", Vec3::new(16.0, 0.0, 2.0), -70.0),
+        ("npc_nest_crew_b_01", Vec3::new(-14.0, 0.0, 10.0), 120.0),
+        ("npc_nest_stylized_a_01", Vec3::new(14.0, 0.0, 10.0), -120.0),
+        ("npc_nest_monster_01", Vec3::new(0.0, 0.0, 14.0), 180.0),
+    ];
+    for (i, (asset_id, offset, yaw_deg)) in nest_npcs.into_iter().enumerate() {
+        if !registry.is_some_and(|r| studio_asset_exists(r, asset_id)) {
+            continue;
+        }
+        let tf = Transform::from_translation(hub + offset)
+            .with_rotation(Quat::from_rotation_y(yaw_deg.to_radians()));
+        let _ = spawn_studio_prop(
+            &mut commands,
+            &asset_server,
+            registry.unwrap(),
+            asset_id,
+            tf,
+            (HubProp, Name::new(format!("NestNpc_{i}_{asset_id}"))),
+        );
+    }
+
     // Vibe mushrooms — outer ring
     for (i, pos) in [
         Vec3::new(-22.0, 0.0, -16.0),

@@ -15,6 +15,10 @@ use crate::{
 pub struct AccessoryItem {
     pub id: String,
     pub label: String,
+    /// Tripo delivered a full dressed figure instead of an isolated prop.
+    /// Equipping swaps the player's character model to this GLB.
+    #[serde(default)]
+    pub character_look: bool,
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -58,6 +62,17 @@ impl AccessoryCatalog {
         }
         id.to_string()
     }
+
+    pub fn item(&self, id: &str) -> Option<&AccessoryItem> {
+        self.slots
+            .iter()
+            .flat_map(|s| s.items.iter())
+            .find(|i| i.id == id)
+    }
+
+    pub fn is_character_look(&self, id: &str) -> bool {
+        self.item(id).is_some_and(|i| i.character_look)
+    }
 }
 
 pub fn accessory_glb_exists(asset_id: &str) -> bool {
@@ -97,6 +112,8 @@ impl Plugin for AccessoriesPlugin {
 
 fn handle_equip_accessory(
     request: On<FromClient<EquipAccessoryRequest>>,
+    catalog: Res<AccessoryCatalog>,
+    defaults: Res<crate::data::PlayerDefaults>,
     mut players: Query<&mut PlayerVisualSpec, With<NetworkPlayer>>,
     owners: Query<&OwnedPlayer>,
 ) {
@@ -109,8 +126,10 @@ fn handle_equip_accessory(
     let Ok(mut visual) = players.get_mut(owned.0) else {
         return;
     };
-    apply_slot(
-        &mut visual.accessories,
+    apply_accessory_choice(
+        &mut visual,
+        &catalog,
+        &defaults,
         &request.slot,
         request.asset_id.clone(),
     );
@@ -133,6 +152,67 @@ pub fn apply_slot(slots: &mut AccessorySlots, slot: &str, asset_id: Option<Strin
         "face" => slots.face = cleaned,
         "hands" => slots.hands = cleaned,
         _ => {}
+    }
+}
+
+/// Equip an accessory — isolated props attach to sockets; `character_look` items
+/// swap the whole player mesh (Tripo often ships a dressed figure, not a prop).
+pub fn apply_accessory_choice(
+    visual: &mut PlayerVisualSpec,
+    catalog: &AccessoryCatalog,
+    defaults: &crate::data::PlayerDefaults,
+    slot: &str,
+    asset_id: Option<String>,
+) {
+    let cleaned = asset_id.and_then(|id| {
+        let id = id.trim().to_string();
+        if id.is_empty() || !accessory_glb_exists(&id) {
+            None
+        } else {
+            Some(id)
+        }
+    });
+
+    // Clearing a character-look slot restores the default crew body unless
+    // another character-look remains equipped in a different slot.
+    let clearing_look = cleaned.is_none()
+        && slot_value(&visual.accessories, slot)
+            .is_some_and(|id| catalog.is_character_look(id));
+
+    apply_slot(&mut visual.accessories, slot, cleaned.clone());
+
+    if let Some(id) = cleaned {
+        if catalog.is_character_look(&id) {
+            visual.model_id = Some(id);
+            return;
+        }
+    } else if clearing_look {
+        let remaining = [
+            visual.accessories.hat.as_deref(),
+            visual.accessories.necklace.as_deref(),
+            visual.accessories.shoes.as_deref(),
+            visual.accessories.back.as_deref(),
+            visual.accessories.face.as_deref(),
+            visual.accessories.hands.as_deref(),
+        ]
+        .into_iter()
+        .flatten()
+        .find(|id| catalog.is_character_look(id));
+        visual.model_id = remaining
+            .map(|id| id.to_string())
+            .or_else(|| defaults.resolved_crew_model());
+    }
+}
+
+fn slot_value<'a>(slots: &'a AccessorySlots, slot: &str) -> Option<&'a str> {
+    match slot {
+        "hat" => slots.hat.as_deref(),
+        "necklace" => slots.necklace.as_deref(),
+        "shoes" => slots.shoes.as_deref(),
+        "back" => slots.back.as_deref(),
+        "face" => slots.face.as_deref(),
+        "hands" => slots.hands.as_deref(),
+        _ => None,
     }
 }
 
@@ -192,6 +272,7 @@ fn is_under(ancestor: Entity, node: Entity, children: &Query<&Children>) -> bool
 fn sync_accessory_meshes(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
+    catalog: Res<AccessoryCatalog>,
     players: Query<(Entity, &PlayerVisualSpec, Option<&Children>), With<NetworkPlayer>>,
     visual_roots: Query<(), With<PlayerVisualRoot>>,
     names: Query<&Name>,
@@ -222,7 +303,11 @@ fn sync_accessory_meshes(
                 .map(|(e, mark)| (e, mark.asset_id.clone()))
                 .collect();
 
-            let want = want_id.filter(|id| accessory_glb_exists(id));
+            // Full-figure Tripo looks already swapped the body mesh — don't also
+            // parent a second copy onto a socket.
+            let want = want_id
+                .filter(|id| accessory_glb_exists(id))
+                .filter(|id| !catalog.is_character_look(id));
             let up_to_date = match (&want, existing.as_slice()) {
                 (Some(id), [(e, have)]) if have == id && is_under(root, *e, &children_q) => true,
                 (None, []) => true,

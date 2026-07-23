@@ -57,33 +57,33 @@
     },
     {
       "asset_id": "acc_hat_chef_01",
-      "target_height": 0.38,
+      "target_height": 1.2,
       "uniform_scale": 1.0,
-      "notes": "Procedural party asset \u2014 Chef hat"
+      "notes": "Full-figure Tripo Nest NPC / character-look accessory."
     },
     {
       "asset_id": "acc_hat_flower_01",
-      "target_height": 0.36,
+      "target_height": 1.2,
       "uniform_scale": 1.0,
-      "notes": "Procedural party asset \u2014 Daisy flower hat"
+      "notes": "Full-figure Tripo Nest NPC / character-look accessory."
     },
     {
       "asset_id": "acc_hat_party_crown_01",
-      "target_height": 0.28,
+      "target_height": 1.2,
       "uniform_scale": 1.0,
-      "notes": "Procedural party asset \u2014 Party crown hat"
+      "notes": "Full-figure Tripo Nest NPC / character-look accessory."
     },
     {
       "asset_id": "acc_hat_propeller_01",
-      "target_height": 0.34,
+      "target_height": 1.2,
       "uniform_scale": 1.0,
-      "notes": "Procedural party asset \u2014 Propeller beanie"
+      "notes": "Full-figure Tripo Nest NPC / character-look accessory."
     },
     {
       "asset_id": "acc_hat_racer_cap_01",
-      "target_height": 0.22,
+      "target_height": 1.2,
       "uniform_scale": 1.0,
-      "notes": "Procedural party asset \u2014 Racer cap hat"
+      "notes": "Full-figure Tripo Nest NPC / character-look accessory."
     },
     {
       "asset_id": "acc_hat_sleep_01",
@@ -93,15 +93,15 @@
     },
     {
       "asset_id": "acc_hat_vibe_mushroom_01",
-      "target_height": 0.32,
+      "target_height": 1.2,
       "uniform_scale": 1.0,
-      "notes": "Procedural party asset \u2014 Mushroom hat"
+      "notes": "Full-figure Tripo Nest NPC / character-look accessory."
     },
     {
       "asset_id": "acc_necklace_beads_01",
-      "target_height": 0.16,
+      "target_height": 1.2,
       "uniform_scale": 1.0,
-      "notes": "Procedural party asset \u2014 Candy beads"
+      "notes": "Full-figure Tripo Nest NPC / character-look accessory."
     },
     {
       "asset_id": "acc_necklace_bell_01",
@@ -111,15 +111,15 @@
     },
     {
       "asset_id": "acc_necklace_medal_01",
-      "target_height": 0.18,
+      "target_height": 1.2,
       "uniform_scale": 1.0,
-      "notes": "Procedural party asset \u2014 Party medal"
+      "notes": "Full-figure Tripo Nest NPC / character-look accessory."
     },
     {
       "asset_id": "acc_necklace_shell_01",
-      "target_height": 0.18,
+      "target_height": 1.2,
       "uniform_scale": 1.0,
-      "notes": "Procedural party asset \u2014 Shell pendant"
+      "notes": "Full-figure Tripo Nest NPC / character-look accessory."
     },
     {
       "asset_id": "acc_shoes_boots_01",
@@ -244,6 +244,36 @@
     {
       "asset_id": "env_space_station_wall_04",
       "target_height": 2.0
+    },
+    {
+      "asset_id": "npc_nest_crew_a_01",
+      "target_height": 1.2,
+      "uniform_scale": 1.0,
+      "notes": "Nest ambient NPC figure."
+    },
+    {
+      "asset_id": "npc_nest_crew_b_01",
+      "target_height": 1.2,
+      "uniform_scale": 1.0,
+      "notes": "Nest ambient NPC figure."
+    },
+    {
+      "asset_id": "npc_nest_monster_01",
+      "target_height": 1.2,
+      "uniform_scale": 1.0,
+      "notes": "Nest ambient NPC figure."
+    },
+    {
+      "asset_id": "npc_nest_pink_01",
+      "target_height": 1.2,
+      "uniform_scale": 1.0,
+      "notes": "Nest ambient NPC figure."
+    },
+    {
+      "asset_id": "npc_nest_stylized_a_01",
+      "target_height": 1.2,
+      "uniform_scale": 1.0,
+      "notes": "Nest ambient NPC figure."
     },
     {
       "asset_id": "office_printer_cartoon_space_station_01",
