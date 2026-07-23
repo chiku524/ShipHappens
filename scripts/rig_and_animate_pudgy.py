@@ -158,15 +158,51 @@ body.select_set(True)
 arm_obj.select_set(True)
 bpy.context.view_layer.objects.active = arm_obj
 bpy.ops.object.parent_set(type="ARMATURE_AUTO")
-if len(body.vertex_groups) < 2:
-    print("AUTO weights failed; trying ENVELOPE")
+
+def count_unweighted():
+    bad = []
+    for vert in body.data.vertices:
+        total = sum(g.weight for g in vert.groups)
+        if total < 1e-4:
+            bad.append(vert.index)
+    return bad
+
+unweighted = count_unweighted()
+vert_count = max(len(body.data.vertices), 1)
+if len(body.vertex_groups) < 2 or (len(unweighted) / vert_count) > 0.05:
+    print(
+        "AUTO weights poor (",
+        len(unweighted),
+        "/",
+        vert_count,
+        "); retrying ENVELOPE",
+    )
     bpy.ops.object.parent_clear(type="CLEAR_KEEP_TRANSFORM")
+    # Clear old groups
+    body.vertex_groups.clear()
     bpy.ops.object.select_all(action="DESELECT")
     body.select_set(True)
     arm_obj.select_set(True)
     bpy.context.view_layer.objects.active = arm_obj
+    # Enlarge envelopes slightly for chunky mascots
+    bpy.ops.object.mode_set(mode="POSE")
+    for pb in arm_obj.pose.bones:
+        pb.bone.envelope_distance = max(pb.bone.envelope_distance, 0.35)
+        pb.bone.head_radius = max(pb.bone.head_radius, 0.12)
+        pb.bone.tail_radius = max(pb.bone.tail_radius, 0.10)
+    bpy.ops.object.mode_set(mode="OBJECT")
     bpy.ops.object.parent_set(type="ARMATURE_ENVELOPE")
-print("weight groups", len(body.vertex_groups))
+    unweighted = count_unweighted()
+
+print("weight groups", len(body.vertex_groups), "unweighted", len(unweighted))
+
+# Final repair: any remaining zero-weight verts → Hips (avoids skinned holes).
+hips_vg = body.vertex_groups.get("Hips")
+if hips_vg is None:
+    hips_vg = body.vertex_groups.new(name="Hips")
+if unweighted:
+    hips_vg.add(unweighted, 1.0, "REPLACE")
+    print("WEIGHT_REPAIR", len(unweighted), "verts -> Hips")
 
 # Parent sockets to bones (keep world transform)
 SOCKET_BONE = {
@@ -483,7 +519,9 @@ def main() -> int:
         default=None,
         help="Source GLB (default: assets/models/<id>/<id>.glb)",
     )
-    parser.add_argument("--simplify-ratio", type=float, default=0.12)
+    parser.add_argument("--simplify-ratio", type=float, default=0.35,
+                        help="Vertex keep ratio before skinning (0 skips). "
+                             "0.35 keeps more detail and avoids holey meshopt collapses.")
     parser.add_argument("--simplify-error", type=float, default=0.05)
     parser.add_argument(
         "--skip-simplify",

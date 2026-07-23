@@ -490,26 +490,26 @@ fn sync_player_visuals(
             let glb_path = format!("models/{model_id}/{model_id}.glb");
             let scene =
                 asset_server.load(bevy::gltf::GltfAssetLabel::Scene(0).from_asset(glb_path.clone()));
-            let visual_entity = commands
-                .spawn((
-                    PlayerVisualRoot,
-                    WorldAssetRoot(scene),
-                    Transform {
-                        translation: Vec3::ZERO,
-                        rotation: Quat::from_rotation_y(CHARACTER_MESH_YAW_OFFSET),
-                        scale,
-                    },
-                    Visibility::default(),
-                    Name::new(format!("CrewMesh:{model_id}")),
-                    ChildOf(entity),
-                ))
-                .id();
-            animation::attach_crew_animation(
-                visual_entity,
-                &mut commands,
-                &asset_server,
-                model_id,
-            );
+            let gltf_handle: Handle<bevy::gltf::Gltf> = asset_server.load(glb_path);
+            commands.entity(entity).with_children(|parent| {
+                parent
+                    .spawn((
+                        PlayerVisualRoot,
+                        WorldAssetRoot(scene),
+                        animation::CrewAnimationSetup {
+                            model_id: model_id.to_string(),
+                            gltf: gltf_handle,
+                        },
+                        Transform {
+                            translation: Vec3::ZERO,
+                            rotation: Quat::from_rotation_y(CHARACTER_MESH_YAW_OFFSET),
+                            scale,
+                        },
+                        Visibility::default(),
+                        Name::new(format!("CrewMesh:{model_id}")),
+                    ))
+                    .observe(animation::on_crew_scene_ready);
+            });
             continue;
         }
 

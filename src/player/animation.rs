@@ -55,7 +55,6 @@ pub struct CrewAnimPlayback {
     pub jump: AnimationNodeIndex,
     pub wave: AnimationNodeIndex,
     pub dance: AnimationNodeIndex,
-    /// Elapsed secs until one-shot / sticky emote yields to locomotion.
     pub lock_until: f32,
     pub player_entity: Entity,
 }
@@ -73,7 +72,6 @@ impl CrewAnimPlayback {
     }
 }
 
-/// Planar locomotion sample for clip selection (on the networked player entity).
 #[derive(Component, Debug, Clone, Copy, Default)]
 pub struct PlayerMotion {
     pub speed: f32,
@@ -90,6 +88,7 @@ impl Plugin for CrewAnimationPlugin {
         app.add_systems(
             Update,
             (
+                poll_crew_scene_ready,
                 finish_crew_animation_setup,
                 choose_crew_anim_kind.run_if(in_state(AppScreen::Playing)),
                 apply_crew_anim_kind.run_if(in_state(AppScreen::Playing)),
@@ -99,7 +98,7 @@ impl Plugin for CrewAnimationPlugin {
     }
 }
 
-/// Attach after spawning `WorldAssetRoot` for a skinned crew GLB.
+/// Attach after spawning `WorldAssetRoot` (prefer spawning setup+observe together).
 pub fn attach_crew_animation(
     entity: Entity,
     commands: &mut Commands,
@@ -117,13 +116,39 @@ pub fn attach_crew_animation(
         .observe(on_crew_scene_ready);
 }
 
-fn on_crew_scene_ready(
+pub fn on_crew_scene_ready(
     ready: On<WorldInstanceReady>,
     mut commands: Commands,
     setups: Query<&CrewAnimationSetup>,
 ) {
     if setups.contains(ready.entity) {
         commands.entity(ready.entity).insert(CrewSceneReady);
+    }
+}
+
+/// Fallback when `WorldInstanceReady` was missed (observe registered too late).
+fn poll_crew_scene_ready(
+    mut commands: Commands,
+    pending: Query<
+        Entity,
+        (
+            With<CrewAnimationSetup>,
+            With<WorldAssetRoot>,
+            Without<CrewSceneReady>,
+            Without<CrewAnimPlayback>,
+        ),
+    >,
+    children: Query<&Children>,
+    players: Query<(), With<AnimationPlayer>>,
+) {
+    for entity in &pending {
+        let has_player = players.contains(entity)
+            || children
+                .iter_descendants(entity)
+                .any(|desc| players.contains(desc));
+        if has_player {
+            commands.entity(entity).insert(CrewSceneReady);
+        }
     }
 }
 
@@ -149,8 +174,9 @@ fn finish_crew_animation_setup(
 
         let Some(idle) = gltf.named_animations.get(CREW_CLIP_IDLE).cloned() else {
             warn!(
-                "crew GLB `{}` missing clip `{CREW_CLIP_IDLE}` — animation disabled",
-                setup.model_id
+                "crew GLB `{}` missing clip `{CREW_CLIP_IDLE}` — keys: {:?}",
+                setup.model_id,
+                gltf.named_animations.keys().collect::<Vec<_>>()
             );
             commands
                 .entity(entity)
@@ -167,10 +193,14 @@ fn finish_crew_animation_setup(
         let graph_handle = graphs.add(graph);
 
         let mut player_entity = None;
-        for desc in children.iter_descendants(entity) {
-            if players.contains(desc) {
-                player_entity = Some(desc);
-                break;
+        if players.contains(entity) {
+            player_entity = Some(entity);
+        } else {
+            for desc in children.iter_descendants(entity) {
+                if players.contains(desc) {
+                    player_entity = Some(desc);
+                    break;
+                }
             }
         }
         let Some(player_entity) = player_entity else {
@@ -195,7 +225,10 @@ fn finish_crew_animation_setup(
             player_entity,
         });
         commands.entity(entity).remove::<CrewSceneReady>();
-        info!("crew animation ready for `{}`", setup.model_id);
+        info!(
+            "crew animation ready for `{}` (player={player_entity:?})",
+            setup.model_id
+        );
     }
 }
 
@@ -228,16 +261,17 @@ fn choose_crew_anim_kind(
         let moving = motion.speed > WALK_SPEED_EPS;
         let locked = now < anim.lock_until;
 
-        // Local emote / jump requests.
         if local.is_some() && !paused {
             if keyboard.just_pressed(KeyCode::Space) {
                 anim.kind = CrewAnimKind::Jump;
                 anim.lock_until = now + 0.65;
+                anim.applied = None;
                 continue;
             }
             if keyboard.just_pressed(KeyCode::KeyG) {
                 anim.kind = CrewAnimKind::EmoteWave;
                 anim.lock_until = now + 1.25;
+                anim.applied = None;
                 continue;
             }
             if keyboard.just_pressed(KeyCode::KeyT) {
@@ -246,8 +280,9 @@ fn choose_crew_anim_kind(
                     anim.lock_until = 0.0;
                 } else {
                     anim.kind = CrewAnimKind::EmoteDance;
-                    anim.lock_until = f32::MAX; // sticky until T or move
+                    anim.lock_until = f32::MAX;
                 }
+                anim.applied = None;
                 continue;
             }
         }
@@ -264,13 +299,17 @@ fn choose_crew_anim_kind(
             }
         }
 
-        anim.kind = if !moving {
+        let desired = if !moving {
             CrewAnimKind::Idle
         } else if motion.sprint {
             CrewAnimKind::Run
         } else {
             CrewAnimKind::Walk
         };
+        if anim.kind != desired {
+            anim.kind = desired;
+            anim.applied = None;
+        }
     }
 }
 

@@ -34,7 +34,7 @@ All playable Pudgys (base + species skins) must obey this contract so one animat
 | Accessory sockets | See table below — leave wear volumes clear (do not bake accessories into the body) |
 | Shared clip names | `idle`, `walk`, `run`, `jump`, `emote_wave`, `emote_dance` |
 
-**Runtime playback:** Bevy loads named clips from the crew GLB and drives them from planar move / sprint (`PlayerMotion`). Local keys: **Space** jump, **G** wave, **T** dance (toggle; cancelled by movement).
+**Texture format for Studio / optimizer exports (Bevy 0.19):** use **JPEG** for color / ORM / normals on opaque characters. Enable the `jpeg` feature (already on). Prefer plain `image/jpeg` embeds — do **not** wrap as `EXT_texture_webp` or `KHR_texture_basisu` (Bevy cannot load those extension wrappers). PNG is fine when you need alpha. Avoid AVIF; WebP/KTX2 only if embedded without the unsupported glTF extensions (JPEG is the safe default).
 
 **Tripo note:** static Studio downloads are rigged via [`scripts/rig_and_animate_pudgy.py`](../scripts/rig_and_animate_pudgy.py) (UV-aware simplify → shared armature → automatic weights → NLA clips → Bevy-safe export).
 
