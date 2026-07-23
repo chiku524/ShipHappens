@@ -12,6 +12,11 @@
       "blurb": "Studio c00ebe10 — vibrant color body variant"
     },
     {
+      "id": "char_pudgy_base_03",
+      "label": "Party Cartoon",
+      "blurb": "Studio d840af1b — party-saga Tripo base with wear slots"
+    },
+    {
       "id": "char_pudgy_procedural_01",
       "label": "Procedural Agent",
       "blurb": "Blender-built dumpling mascot — no Tripo; compare shapes live"

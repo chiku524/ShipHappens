@@ -166,6 +166,12 @@
       "notes": "Shared Pudgy base variant from Studio job c00ebe10-82b0-4f59-8f67-477d3852e0d4 (pack id pudgy_mon_body_shared_base_01). Polished + soft toon material pass."
     },
     {
+      "asset_id": "char_pudgy_base_03",
+      "target_height": 1.2,
+      "uniform_scale": 1.0,
+      "notes": "Shared Pudgy base variant from Studio job d840af1b-dde0-4a5a-870e-2afc90f69dc0 (pack id pudgy_cartoon_character_01). Polished + soft toon material pass."
+    },
+    {
       "asset_id": "char_pudgy_procedural_01",
       "target_height": 1.2,
       "uniform_scale": 1.0,
