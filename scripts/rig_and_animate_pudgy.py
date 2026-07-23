@@ -50,6 +50,13 @@ bpy.ops.wm.read_factory_settings(use_empty=True)
 bpy.context.scene.render.fps = FPS
 bpy.ops.import_scene.gltf(filepath=str(IN_PATH))
 
+# Drop prior armature / clips so re-rigging an already-skinned GLB is clean.
+for obj in list(bpy.context.scene.objects):
+    if obj.type == "ARMATURE":
+        bpy.data.objects.remove(obj, do_unlink=True)
+for action in list(bpy.data.actions):
+    bpy.data.actions.remove(action)
+
 # Collect mesh + existing sockets
 meshes = [o for o in bpy.context.scene.objects if o.type == "MESH"]
 if not meshes:
@@ -65,6 +72,11 @@ body = bpy.context.view_layer.objects.active
 body.name = ASSET_ID
 if body.data:
     body.data.name = ASSET_ID
+# Strip old skin modifiers / vertex groups before a fresh bind.
+for mod in list(body.modifiers):
+    if mod.type == "ARMATURE":
+        body.modifiers.remove(mod)
+body.vertex_groups.clear()
 bpy.ops.object.transform_apply(location=True, rotation=True, scale=True)
 
 # Clean topology so automatic weights succeed on Tripo meshes.
@@ -152,26 +164,26 @@ r_shin = add_bone("R_Shin", (cx - w * 0.14, cy, h * 0.10), (cx - w * 0.14, cy, 0
 
 bpy.ops.object.mode_set(mode="OBJECT")
 
-# Prefer envelope weights tuned for blobs (AUTO heat fails on Tripo density).
+# Envelope bind as a base, then region-paint limbs so flaps actually deform.
 bpy.ops.object.select_all(action="DESELECT")
 body.select_set(True)
 arm_obj.select_set(True)
 bpy.context.view_layer.objects.active = arm_obj
 
-# Tight limb envelopes so torso stays on Hips/Spine.
+# Wider limb envelopes than the soft-retune (those left arms/feet ~0% influence).
 ENVELOPE = {
-    "Root": (0.45, 0.18, 0.14),
-    "Hips": (0.55, 0.22, 0.18),
-    "Spine": (0.42, 0.18, 0.16),
-    "Head": (0.32, 0.16, 0.14),
-    "L_Arm": (0.10, 0.07, 0.06),
-    "R_Arm": (0.10, 0.07, 0.06),
-    "L_Forearm": (0.08, 0.06, 0.05),
-    "R_Forearm": (0.08, 0.06, 0.05),
-    "L_Leg": (0.10, 0.07, 0.06),
-    "R_Leg": (0.10, 0.07, 0.06),
-    "L_Shin": (0.08, 0.06, 0.05),
-    "R_Shin": (0.08, 0.06, 0.05),
+    "Root": (0.40, 0.16, 0.12),
+    "Hips": (0.48, 0.20, 0.16),
+    "Spine": (0.38, 0.16, 0.14),
+    "Head": (0.30, 0.15, 0.13),
+    "L_Arm": (0.22, 0.12, 0.10),
+    "R_Arm": (0.22, 0.12, 0.10),
+    "L_Forearm": (0.16, 0.10, 0.08),
+    "R_Forearm": (0.16, 0.10, 0.08),
+    "L_Leg": (0.18, 0.11, 0.09),
+    "R_Leg": (0.18, 0.11, 0.09),
+    "L_Shin": (0.14, 0.09, 0.07),
+    "R_Shin": (0.14, 0.09, 0.07),
 }
 bpy.ops.object.mode_set(mode="POSE")
 for pb in arm_obj.pose.bones:
@@ -193,38 +205,77 @@ def count_unweighted():
 unweighted = count_unweighted()
 print("weight groups", len(body.vertex_groups), "unweighted", len(unweighted))
 
-# Pull limb influence off the dumpling core so walk flaps don't melt the belly.
-LIMB_GROUPS = ("L_Arm", "R_Arm", "L_Forearm", "R_Forearm", "L_Leg", "R_Leg", "L_Shin", "R_Shin")
-core_r2 = (w * 0.28) ** 2
-core_z0, core_z1 = h * 0.28, h * 0.72
-hips_vg = body.vertex_groups.get("Hips") or body.vertex_groups.new(name="Hips")
-spine_vg = body.vertex_groups.get("Spine") or body.vertex_groups.new(name="Spine")
-limb_vgs = [body.vertex_groups.get(n) for n in LIMB_GROUPS if body.vertex_groups.get(n)]
-stripped = 0
-mw = body.matrix_world
-for vert in body.data.vertices:
-    wp = mw @ vert.co
-    dx, dy = wp.x - cx, wp.y - cy
-    in_core = (dx * dx + dy * dy) <= core_r2 and core_z0 <= wp.z <= core_z1
-    if not in_core:
-        continue
-    limb_w = 0.0
-    for g in vert.groups:
-        vg = body.vertex_groups[g.group]
-        if vg.name in LIMB_GROUPS:
-            limb_w += g.weight
-    if limb_w < 0.08:
-        continue
-    for vg in limb_vgs:
+BONE_NAMES = (
+    "Root", "Hips", "Spine", "Head",
+    "L_Arm", "L_Forearm", "R_Arm", "R_Forearm",
+    "L_Leg", "L_Shin", "R_Leg", "R_Shin",
+)
+vgs = {n: body.vertex_groups.get(n) or body.vertex_groups.new(name=n) for n in BONE_NAMES}
+
+def clear_vert(idx):
+    for vg in vgs.values():
         try:
-            vg.add([vert.index], 0.0, "REPLACE")
+            vg.remove([idx])
         except RuntimeError:
             pass
-    # Re-home to torso.
-    spine_vg.add([vert.index], 0.55, "ADD")
-    hips_vg.add([vert.index], 0.45, "ADD")
-    stripped += 1
-print("CORE_STRIP_LIMBS", stripped)
+
+def set_vert(idx, weights):
+    clear_vert(idx)
+    for name, w in weights.items():
+        if w > 1e-4:
+            vgs[name].add([idx], float(w), "REPLACE")
+
+# Region paint: keep dumpling core on torso, give flippers/feet real influence.
+mw = body.matrix_world
+hw = max(w * 0.5, 1e-4)
+hd = max(d * 0.5, 1e-4)
+regioned = 0
+for vert in body.data.vertices:
+    wp = mw @ vert.co
+    nx = (wp.x - cx) / hw
+    ny = (wp.y - cy) / hd
+    nz = (wp.z - minv.z) / h
+    radial = (nx * nx + ny * ny) ** 0.5
+
+    if nz >= 0.70:
+        set_vert(vert.index, {"Head": 0.85, "Spine": 0.15})
+    elif nx > 0.42 and nz > 0.38:
+        # Left flipper — stronger toward the tip.
+        tip = min(1.0, max(0.0, (nx - 0.42) / 0.55))
+        set_vert(vert.index, {
+            "L_Forearm": 0.15 + 0.55 * tip,
+            "L_Arm": 0.55 - 0.25 * tip,
+            "Spine": 0.30 - 0.30 * tip,
+        })
+    elif nx < -0.42 and nz > 0.38:
+        tip = min(1.0, max(0.0, (-nx - 0.42) / 0.55))
+        set_vert(vert.index, {
+            "R_Forearm": 0.15 + 0.55 * tip,
+            "R_Arm": 0.55 - 0.25 * tip,
+            "Spine": 0.30 - 0.30 * tip,
+        })
+    elif nz <= 0.20 and nx > 0.04:
+        foot = min(1.0, max(0.0, (0.20 - nz) / 0.20))
+        set_vert(vert.index, {
+            "L_Shin": 0.25 + 0.45 * foot,
+            "L_Leg": 0.45 - 0.10 * foot,
+            "Hips": 0.30 - 0.35 * foot,
+        })
+    elif nz <= 0.20 and nx < -0.04:
+        foot = min(1.0, max(0.0, (0.20 - nz) / 0.20))
+        set_vert(vert.index, {
+            "R_Shin": 0.25 + 0.45 * foot,
+            "R_Leg": 0.45 - 0.10 * foot,
+            "Hips": 0.30 - 0.35 * foot,
+        })
+    elif radial < 0.55 and 0.22 <= nz <= 0.68:
+        # Soft belly core — no limb melt.
+        set_vert(vert.index, {"Hips": 0.50, "Spine": 0.40, "Root": 0.10})
+    else:
+        # Keep envelope blend on transitional verts.
+        continue
+    regioned += 1
+print("REGION_PAINT", regioned)
 
 # Normalize weights per vertex (mesh must be active).
 bpy.ops.object.select_all(action="DESELECT")
@@ -234,7 +285,7 @@ bpy.ops.object.vertex_group_normalize_all(lock_active=False)
 
 unweighted = count_unweighted()
 if unweighted:
-    hips_vg.add(unweighted, 1.0, "REPLACE")
+    vgs["Hips"].add(unweighted, 1.0, "REPLACE")
     print("WEIGHT_REPAIR", len(unweighted), "verts -> Hips")
 
 # Parent sockets to bones (keep world transform)
@@ -258,14 +309,18 @@ for sname, bone in SOCKET_BONE.items():
     if sname in sockets:
         parent_to_bone(sockets[sname], arm_obj, bone)
 
-# --- Soft mascot clip authoring (hip bounce + tiny flaps) ---
+# --- Readable mascot clips (vertical bounce on bone local Y + clear flaps) ---
 def ensure_action(name):
     action = bpy.data.actions.get(name) or bpy.data.actions.new(name)
     action.use_fake_user = True
     return action
 
 def set_bone_keys(action, bone_name, frames_euler):
-    """frames_euler: list of (frame, (rx, ry, rz degrees)) plus optional location delta."""
+    """frames_euler: list of (frame, (rx, ry, rz degrees)) plus optional location delta.
+
+    Pose-bone location uses Blender bone space (Y along the bone). For vertical
+    Hips/Root bones, bounce must be (0, dy, 0) — not Z, which only slides sideways.
+    """
     arm_obj.animation_data_create()
     arm_obj.animation_data.action = action
     bpy.context.view_layer.objects.active = arm_obj
@@ -300,105 +355,107 @@ def clear_pose():
     bpy.ops.pose.transforms_clear()
     bpy.ops.object.mode_set(mode="OBJECT")
 
-# idle — soft breathe
+# idle — soft breathe (visible chest / flipper settle)
 clear_pose()
 idle = ensure_action("idle")
 set_bone_keys(idle, "Hips", [
-    (1, (0, 0, 0), (0, 0, 0)),
-    (24, (1.5, 0, 0), (0, 0, 0.01)),
-    (48, (0, 0, 0), (0, 0, 0)),
+    (1, (0, 0, 0), (0, 0.0, 0)),
+    (24, (3, 0, 0), (0, 0.025, 0)),
+    (48, (0, 0, 0), (0, 0.0, 0)),
 ])
-set_bone_keys(idle, "Spine", [(1, (0, 0, 0)), (24, (-2, 0, 0)), (48, (0, 0, 0))])
-set_bone_keys(idle, "Head", [(1, (0, 0, 0)), (24, (2, 0, 2)), (48, (0, 0, 0))])
-set_bone_keys(idle, "L_Arm", [(1, (4, 0, 6)), (24, (6, 0, 8)), (48, (4, 0, 6))])
-set_bone_keys(idle, "R_Arm", [(1, (4, 0, -6)), (24, (6, 0, -8)), (48, (4, 0, -6))])
+set_bone_keys(idle, "Spine", [(1, (0, 0, 0)), (24, (-4, 0, 0)), (48, (0, 0, 0))])
+set_bone_keys(idle, "Head", [(1, (0, 0, 0)), (24, (4, 0, 4)), (48, (0, 0, 0))])
+set_bone_keys(idle, "L_Arm", [(1, (8, 0, 12)), (24, (12, 0, 16)), (48, (8, 0, 12))])
+set_bone_keys(idle, "R_Arm", [(1, (8, 0, -12)), (24, (12, 0, -16)), (48, (8, 0, -12))])
 
-# walk — dumpling bounce + tiny flaps (~0.9s)
+# walk — dumpling bounce + readable flaps (~0.9s)
 clear_pose()
 walk = ensure_action("walk")
 set_bone_keys(walk, "Hips", [
-    (1, (0, 0, 0), (0, 0, 0.0)),
-    (6, (0, 3, 0), (0, 0, 0.018)),
-    (11, (0, 0, 0), (0, 0, 0.0)),
-    (16, (0, -3, 0), (0, 0, 0.018)),
-    (22, (0, 0, 0), (0, 0, 0.0)),
+    (1, (0, 0, 0), (0, 0.0, 0)),
+    (6, (0, 10, 0), (0, 0.05, 0)),
+    (11, (0, 0, 0), (0, 0.0, 0)),
+    (16, (0, -10, 0), (0, 0.05, 0)),
+    (22, (0, 0, 0), (0, 0.0, 0)),
 ])
-set_bone_keys(walk, "Spine", [(1, (2, 0, 0)), (11, (3, 0, 0)), (22, (2, 0, 0))])
-set_bone_keys(walk, "Head", [(1, (0, 0, -2)), (11, (0, 0, 2)), (22, (0, 0, -2))])
-set_bone_keys(walk, "L_Leg", [(1, (-8, 0, 0)), (11, (8, 0, 0)), (22, (-8, 0, 0))])
-set_bone_keys(walk, "R_Leg", [(1, (8, 0, 0)), (11, (-8, 0, 0)), (22, (8, 0, 0))])
-set_bone_keys(walk, "L_Shin", [(1, (4, 0, 0)), (11, (2, 0, 0)), (22, (4, 0, 0))])
-set_bone_keys(walk, "R_Shin", [(1, (2, 0, 0)), (11, (4, 0, 0)), (22, (2, 0, 0))])
-set_bone_keys(walk, "L_Arm", [(1, (6, 0, 10)), (11, (-4, 0, 8)), (22, (6, 0, 10))])
-set_bone_keys(walk, "R_Arm", [(1, (-4, 0, -8)), (11, (6, 0, -10)), (22, (-4, 0, -8))])
+set_bone_keys(walk, "Spine", [(1, (4, 0, 0)), (11, (6, 0, 0)), (22, (4, 0, 0))])
+set_bone_keys(walk, "Head", [(1, (0, 0, -5)), (11, (0, 0, 5)), (22, (0, 0, -5))])
+set_bone_keys(walk, "L_Leg", [(1, (-18, 0, 0)), (11, (18, 0, 0)), (22, (-18, 0, 0))])
+set_bone_keys(walk, "R_Leg", [(1, (18, 0, 0)), (11, (-18, 0, 0)), (22, (18, 0, 0))])
+set_bone_keys(walk, "L_Shin", [(1, (10, 0, 0)), (11, (4, 0, 0)), (22, (10, 0, 0))])
+set_bone_keys(walk, "R_Shin", [(1, (4, 0, 0)), (11, (10, 0, 0)), (22, (4, 0, 0))])
+set_bone_keys(walk, "L_Arm", [(1, (12, 0, 22)), (11, (-10, 0, 16)), (22, (12, 0, 22))])
+set_bone_keys(walk, "R_Arm", [(1, (-10, 0, -16)), (11, (12, 0, -22)), (22, (-10, 0, -16))])
+set_bone_keys(walk, "L_Forearm", [(1, (0, 0, 8)), (11, (0, 0, -4)), (22, (0, 0, 8))])
+set_bone_keys(walk, "R_Forearm", [(1, (0, 0, -4)), (11, (0, 0, 8)), (22, (0, 0, -4))])
 
-# run — faster bounce, still soft flaps
+# run — faster bounce, bigger flaps
 clear_pose()
 run = ensure_action("run")
 set_bone_keys(run, "Hips", [
-    (1, (4, 0, 0), (0, 0, 0.02)),
-    (4, (4, 5, 0), (0, 0, 0.035)),
-    (7, (4, 0, 0), (0, 0, 0.02)),
-    (10, (4, -5, 0), (0, 0, 0.035)),
-    (13, (4, 0, 0), (0, 0, 0.02)),
+    (1, (6, 0, 0), (0, 0.03, 0)),
+    (4, (6, 12, 0), (0, 0.07, 0)),
+    (7, (6, 0, 0), (0, 0.03, 0)),
+    (10, (6, -12, 0), (0, 0.07, 0)),
+    (13, (6, 0, 0), (0, 0.03, 0)),
 ])
-set_bone_keys(run, "Spine", [(1, (5, 0, 0)), (7, (6, 0, 0)), (13, (5, 0, 0))])
-set_bone_keys(run, "L_Leg", [(1, (-12, 0, 0)), (7, (12, 0, 0)), (13, (-12, 0, 0))])
-set_bone_keys(run, "R_Leg", [(1, (12, 0, 0)), (7, (-12, 0, 0)), (13, (12, 0, 0))])
-set_bone_keys(run, "L_Arm", [(1, (10, 0, 14)), (7, (-8, 0, 10)), (13, (10, 0, 14))])
-set_bone_keys(run, "R_Arm", [(1, (-8, 0, -10)), (7, (10, 0, -14)), (13, (-8, 0, -10))])
-set_bone_keys(run, "Head", [(1, (0, 0, -3)), (7, (0, 0, 3)), (13, (0, 0, -3))])
+set_bone_keys(run, "Spine", [(1, (8, 0, 0)), (7, (10, 0, 0)), (13, (8, 0, 0))])
+set_bone_keys(run, "L_Leg", [(1, (-26, 0, 0)), (7, (26, 0, 0)), (13, (-26, 0, 0))])
+set_bone_keys(run, "R_Leg", [(1, (26, 0, 0)), (7, (-26, 0, 0)), (13, (26, 0, 0))])
+set_bone_keys(run, "L_Arm", [(1, (18, 0, 28)), (7, (-16, 0, 18)), (13, (18, 0, 28))])
+set_bone_keys(run, "R_Arm", [(1, (-16, 0, -18)), (7, (18, 0, -28)), (13, (-16, 0, -18))])
+set_bone_keys(run, "Head", [(1, (0, 0, -6)), (7, (0, 0, 6)), (13, (0, 0, -6))])
 
 # jump — squash / stretch on torso
 clear_pose()
 jump = ensure_action("jump")
 set_bone_keys(jump, "Hips", [
-    (1, (8, 0, 0), (0, 0, -0.03)),
-    (4, (-6, 0, 0), (0, 0, 0.06)),
-    (8, (-3, 0, 0), (0, 0, 0.09)),
-    (12, (4, 0, 0), (0, 0, 0.015)),
-    (15, (0, 0, 0), (0, 0, 0.0)),
+    (1, (10, 0, 0), (0, -0.04, 0)),
+    (4, (-8, 0, 0), (0, 0.08, 0)),
+    (8, (-4, 0, 0), (0, 0.11, 0)),
+    (12, (5, 0, 0), (0, 0.02, 0)),
+    (15, (0, 0, 0), (0, 0.0, 0)),
 ])
-set_bone_keys(jump, "Spine", [(1, (6, 0, 0)), (4, (-4, 0, 0)), (15, (0, 0, 0))])
-set_bone_keys(jump, "L_Arm", [(1, (8, 0, 10)), (4, (-15, 0, 18)), (15, (4, 0, 6))])
-set_bone_keys(jump, "R_Arm", [(1, (8, 0, -10)), (4, (-15, 0, -18)), (15, (4, 0, -6))])
-set_bone_keys(jump, "L_Leg", [(1, (10, 0, 0)), (4, (-8, 0, 0)), (15, (0, 0, 0))])
-set_bone_keys(jump, "R_Leg", [(1, (10, 0, 0)), (4, (-8, 0, 0)), (15, (0, 0, 0))])
-set_bone_keys(jump, "Head", [(1, (6, 0, 0)), (4, (-8, 0, 0)), (15, (0, 0, 0))])
+set_bone_keys(jump, "Spine", [(1, (8, 0, 0)), (4, (-6, 0, 0)), (15, (0, 0, 0))])
+set_bone_keys(jump, "L_Arm", [(1, (12, 0, 16)), (4, (-28, 0, 28)), (15, (8, 0, 12))])
+set_bone_keys(jump, "R_Arm", [(1, (12, 0, -16)), (4, (-28, 0, -28)), (15, (8, 0, -12))])
+set_bone_keys(jump, "L_Leg", [(1, (14, 0, 0)), (4, (-12, 0, 0)), (15, (0, 0, 0))])
+set_bone_keys(jump, "R_Leg", [(1, (14, 0, 0)), (4, (-12, 0, 0)), (15, (0, 0, 0))])
+set_bone_keys(jump, "Head", [(1, (8, 0, 0)), (4, (-10, 0, 0)), (15, (0, 0, 0))])
 
-# emote_wave — small flap, body mostly still
+# emote_wave — clear flipper wave
 clear_pose()
 wave = ensure_action("emote_wave")
-set_bone_keys(wave, "Spine", [(1, (0, 0, 0)), (8, (0, 0, -6)), (30, (0, 0, 0))])
+set_bone_keys(wave, "Spine", [(1, (0, 0, 0)), (8, (0, 0, -8)), (30, (0, 0, 0))])
 set_bone_keys(wave, "R_Arm", [
-    (1, (4, 0, -6)),
-    (6, (-55, 0, -10)),
-    (12, (-55, 0, 12)),
-    (18, (-55, 0, -12)),
-    (24, (-55, 0, 10)),
-    (30, (4, 0, -6)),
+    (1, (8, 0, -12)),
+    (6, (-55, 0, -20)),
+    (12, (-55, 0, 16)),
+    (18, (-55, 0, -16)),
+    (24, (-55, 0, 14)),
+    (30, (8, 0, -12)),
 ])
 set_bone_keys(wave, "R_Forearm", [
-    (1, (0, 0, 0)), (6, (-8, 0, 0)), (12, (6, 0, 0)), (18, (-8, 0, 0)), (24, (6, 0, 0)), (30, (0, 0, 0)),
+    (1, (0, 0, 0)), (6, (-10, 0, 0)), (12, (8, 0, 0)), (18, (-10, 0, 0)), (24, (8, 0, 0)), (30, (0, 0, 0)),
 ])
-set_bone_keys(wave, "Head", [(1, (0, 0, 0)), (8, (0, 0, 8)), (30, (0, 0, 0))])
+set_bone_keys(wave, "Head", [(1, (0, 0, 0)), (8, (0, 0, 10)), (30, (0, 0, 0))])
 
-# emote_dance — happy hip wiggle
+# emote_dance — playful bounce
 clear_pose()
 dance = ensure_action("emote_dance")
 set_bone_keys(dance, "Hips", [
-    (1, (0, 0, 0), (0, 0, 0.0)),
-    (6, (0, 6, 0), (0, 0, 0.025)),
-    (12, (0, 0, 0), (0, 0, 0.0)),
-    (18, (0, -6, 0), (0, 0, 0.025)),
-    (24, (0, 0, 0), (0, 0, 0.0)),
+    (1, (0, 0, 0), (0, 0.0, 0)),
+    (6, (0, 8, 0), (0, 0.05, 0)),
+    (12, (0, 0, 0), (0, 0.0, 0)),
+    (18, (0, -8, 0), (0, 0.05, 0)),
+    (24, (0, 0, 0), (0, 0.0, 0)),
 ])
-set_bone_keys(dance, "Spine", [(1, (0, 0, -5)), (12, (0, 0, 5)), (24, (0, 0, -5))])
-set_bone_keys(dance, "Head", [(1, (0, 0, 4)), (12, (0, 0, -4)), (24, (0, 0, 4))])
-set_bone_keys(dance, "L_Arm", [(1, (-25, 0, 18)), (12, (-18, 0, 28)), (24, (-25, 0, 18))])
-set_bone_keys(dance, "R_Arm", [(1, (-18, 0, -28)), (12, (-25, 0, -18)), (24, (-18, 0, -28))])
-set_bone_keys(dance, "L_Leg", [(1, (6, 0, 4)), (12, (6, 0, -4)), (24, (6, 0, 4))])
-set_bone_keys(dance, "R_Leg", [(1, (6, 0, -4)), (12, (6, 0, 4)), (24, (6, 0, -4))])
+set_bone_keys(dance, "Spine", [(1, (0, 0, -8)), (12, (0, 0, 8)), (24, (0, 0, -8))])
+set_bone_keys(dance, "Head", [(1, (0, 0, 6)), (12, (0, 0, -6)), (24, (0, 0, 6))])
+set_bone_keys(dance, "L_Arm", [(1, (-35, 0, 24)), (12, (-24, 0, 36)), (24, (-35, 0, 24))])
+set_bone_keys(dance, "R_Arm", [(1, (-24, 0, -36)), (12, (-35, 0, -24)), (24, (-24, 0, -36))])
+set_bone_keys(dance, "L_Leg", [(1, (10, 0, 6)), (12, (10, 0, -6)), (24, (10, 0, 6))])
+set_bone_keys(dance, "R_Leg", [(1, (10, 0, -6)), (12, (10, 0, 6)), (24, (10, 0, -6))])
 
 # Push actions into NLA strips so glTF exports all clips (Blender 4+/5)
 clear_pose()
