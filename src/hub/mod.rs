@@ -4,16 +4,19 @@ use bevy::prelude::*;
 use bevy_replicon::prelude::*;
 
 use crate::{
-    assets::{spawn_studio_prop, studio_asset_exists},
+    assets::{queue_studio_prop, spawn_studio_prop, studio_asset_exists, StudioPropQueue},
     cosmetics::{CosmeticsCatalog, EquippedCosmetic},
     data::StudioRegistry,
     flow::AppScreen,
     maps::{ActiveStageMaps, PartyPack},
     party::{PartyDirector, PartyPhase, PartyPlan, PartySpawn, StageKind},
-    player::{LocalPlayer, PlayerColor, PudgyTintPart},
+    player::{CrewAnimPlayback, LocalPlayer, PlayerColor, PudgyTintPart},
     season::SeasonLedger,
     world::GameplayEntity,
 };
+
+/// Only one Nest décor GLB decode at a time after the crew mesh is ready.
+const NEST_DECOR_MAX_IN_FLIGHT: usize = 1;
 
 /// Queued by standing on a mode pad and pressing E / Enter.
 #[derive(Resource, Debug, Clone, Copy, Default, PartialEq, Eq)]
@@ -96,6 +99,7 @@ impl Plugin for HubPlugin {
             .init_resource::<HubPrompt>()
             .init_resource::<EditorMode>()
             .add_systems(Startup, spawn_social_hub.after(crate::assets::load_studio_registry))
+            .add_systems(Update, drain_nest_decor_queue)
             .add_systems(
                 Update,
                 (
@@ -110,9 +114,49 @@ impl Plugin for HubPlugin {
     }
 }
 
-fn spawn_mode_pad_showcase(
-    commands: &mut Commands,
-    asset_server: &AssetServer,
+fn drain_nest_decor_queue(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    registry: Option<Res<StudioRegistry>>,
+    mut queue: ResMut<StudioPropQueue>,
+    crew_ready: Query<(), With<CrewAnimPlayback>>,
+) {
+    let Some(registry) = registry.as_deref() else {
+        return;
+    };
+    if queue.is_empty() {
+        return;
+    }
+    // Crew mesh first — Nest décor was starving the player GLB (~700MB of Tripo files).
+    if crew_ready.is_empty() {
+        return;
+    }
+
+    queue
+        .in_flight
+        .retain(|handle| !asset_server.is_loaded_with_dependencies(handle));
+    if queue.in_flight.len() >= NEST_DECOR_MAX_IN_FLIGHT {
+        return;
+    }
+
+    let Some(item) = queue.pop() else {
+        return;
+    };
+    let glb_path = registry.glb_asset_path(&item.asset_id);
+    let gltf_handle: Handle<bevy::gltf::Gltf> = asset_server.load(glb_path);
+    queue.in_flight.push(gltf_handle);
+    let _ = spawn_studio_prop(
+        &mut commands,
+        &asset_server,
+        registry,
+        &item.asset_id,
+        item.transform,
+        (HubProp, Name::new(item.name)),
+    );
+}
+
+fn queue_mode_pad_showcase(
+    queue: &mut StudioPropQueue,
     registry: &StudioRegistry,
     pad_name: &str,
     pad_pos: Vec3,
@@ -143,21 +187,14 @@ fn spawn_mode_pad_showcase(
         _ => &[],
     };
     for (i, (asset_id, offset, yaw_deg)) in props.iter().enumerate() {
-        if !studio_asset_exists(registry, asset_id) {
-            continue;
-        }
         let tf = Transform::from_translation(pad_pos + *offset)
             .with_rotation(Quat::from_rotation_y(yaw_deg.to_radians()));
-        let _ = spawn_studio_prop(
-            commands,
-            asset_server,
+        queue_studio_prop(
+            queue,
             registry,
             asset_id,
             tf,
-            (
-                HubProp,
-                Name::new(format!("PadShowcase_{pad_name}_{i}_{asset_id}")),
-            ),
+            format!("PadShowcase_{pad_name}_{i}_{asset_id}"),
         );
     }
 }
@@ -168,22 +205,21 @@ fn spawn_social_hub(
     mut materials: ResMut<Assets<StandardMaterial>>,
     catalog: Res<CosmeticsCatalog>,
     spawn: Res<PartySpawn>,
-    asset_server: Res<AssetServer>,
     registry: Option<Res<StudioRegistry>>,
+    mut prop_queue: ResMut<StudioPropQueue>,
 ) {
     let hub = spawn.hub;
     let registry = registry.as_deref();
 
-    // Nest egg centerpiece
+    // Nest egg centerpiece — queued so mode pads + crew load first.
     let egg_tf = Transform::from_translation(hub + Vec3::new(0.0, 0.0, -4.0));
     if registry.is_some_and(|r| studio_asset_exists(r, "env_nest_egg_01")) {
-        let _ = spawn_studio_prop(
-            &mut commands,
-            &asset_server,
+        queue_studio_prop(
+            &mut prop_queue,
             registry.unwrap(),
             "env_nest_egg_01",
             egg_tf,
-            (HubProp, Name::new("NestEgg")),
+            "NestEgg",
         );
     } else {
         commands.spawn((
@@ -223,13 +259,12 @@ fn spawn_social_hub(
     {
         let tf = Transform::from_translation(hub + offset);
         if registry.is_some_and(|r| studio_asset_exists(r, "env_nest_bench_01")) {
-            let _ = spawn_studio_prop(
-                &mut commands,
-                &asset_server,
+            queue_studio_prop(
+                &mut prop_queue,
                 registry.unwrap(),
                 "env_nest_bench_01",
                 tf,
-                (HubProp, Name::new(format!("NestBench_{i}"))),
+                format!("NestBench_{i}"),
             );
         } else {
             commands.spawn((
@@ -260,13 +295,12 @@ fn spawn_social_hub(
         }
         let tf = Transform::from_translation(hub + offset)
             .with_rotation(Quat::from_rotation_y(yaw_deg.to_radians()));
-        let _ = spawn_studio_prop(
-            &mut commands,
-            &asset_server,
+        queue_studio_prop(
+            &mut prop_queue,
             registry.unwrap(),
             asset_id,
             tf,
-            (HubProp, Name::new(format!("NestNpc_{i}_{asset_id}"))),
+            format!("NestNpc_{i}_{asset_id}"),
         );
     }
 
@@ -284,13 +318,12 @@ fn spawn_social_hub(
     {
         let tf = Transform::from_translation(hub + pos);
         if registry.is_some_and(|r| studio_asset_exists(r, "prop_vibe_mushroom_01")) {
-            let _ = spawn_studio_prop(
-                &mut commands,
-                &asset_server,
+            queue_studio_prop(
+                &mut prop_queue,
                 registry.unwrap(),
                 "prop_vibe_mushroom_01",
                 tf,
-                (HubProp, Name::new(format!("VibeMushroom_{i}"))),
+                format!("VibeMushroom_{i}"),
             );
         } else {
             let stem = materials.add(StandardMaterial {
@@ -360,45 +393,42 @@ fn spawn_social_hub(
     for (plan, offset, [r, g, b], name, asset_id) in pads {
         let pos = hub + offset;
         let tf = Transform::from_translation(pos);
-        if registry.is_some_and(|reg| studio_asset_exists(reg, asset_id)) {
-            if let Some(entity) = spawn_studio_prop(
-                &mut commands,
-                &asset_server,
-                registry.unwrap(),
+        // Interactive pad marker is always immediate (greybox). Studio pad GLBs are
+        // queued so they cannot block the crew character load.
+        commands.spawn((
+            HubProp,
+            ModePad { plan },
+            GameplayEntity,
+            Mesh3d(meshes.add(Cylinder::new(2.8, 0.25))),
+            MeshMaterial3d(materials.add(StandardMaterial {
+                base_color: Color::srgb(r, g, b),
+                emissive: LinearRgba::rgb(r * 1.4, g * 1.4, b * 1.4),
+                unlit: true,
+                ..Default::default()
+            })),
+            Transform::from_translation(pos + Vec3::Y * 0.12),
+            Name::new(format!("ModePad_{name}")),
+        ));
+        if let Some(reg) = registry {
+            queue_studio_prop(
+                &mut prop_queue,
+                reg,
                 asset_id,
                 tf,
-                (HubProp, ModePad { plan }, Name::new(format!("ModePad_{name}"))),
-            ) {
-                let _ = entity;
-            }
-        } else {
-            commands.spawn((
-                HubProp,
-                ModePad { plan },
-                GameplayEntity,
-                Mesh3d(meshes.add(Cylinder::new(2.8, 0.25))),
-                MeshMaterial3d(materials.add(StandardMaterial {
-                    base_color: Color::srgb(r, g, b),
-                    emissive: LinearRgba::rgb(r * 1.4, g * 1.4, b * 1.4),
-                    unlit: true,
-                    ..Default::default()
-                })),
-                Transform::from_translation(pos + Vec3::Y * 0.12),
-                Name::new(format!("ModePad_{name}")),
-            ));
+                format!("ModePadVisual_{name}_{asset_id}"),
+            );
         }
         // Soft arch / checkpoint marker behind pad when available
         let sign_pos = pos + Vec3::new(0.0, 0.0, -3.2);
         if name == "Race"
             && registry.is_some_and(|reg| studio_asset_exists(reg, "prop_race_checkpoint_01"))
         {
-            let _ = spawn_studio_prop(
-                &mut commands,
-                &asset_server,
+            queue_studio_prop(
+                &mut prop_queue,
                 registry.unwrap(),
                 "prop_race_checkpoint_01",
                 Transform::from_translation(sign_pos),
-                (HubProp, Name::new(format!("ModeSign_{name}"))),
+                format!("ModeSign_{name}"),
             );
         } else {
             commands.spawn((
@@ -418,13 +448,7 @@ fn spawn_social_hub(
 
         // Stage-prop showcases around each mode pad (Party Saga preview).
         if let Some(reg) = registry {
-            spawn_mode_pad_showcase(
-                &mut commands,
-                &asset_server,
-                reg,
-                name,
-                pos,
-            );
+            queue_mode_pad_showcase(&mut prop_queue, reg, name, pos);
         }
     }
 
@@ -441,18 +465,20 @@ fn spawn_social_hub(
             ("prop_blaster_toy_01", Vec3::new(14.0, 0.0, -16.0), -90.0),
         ];
         for (i, (asset_id, offset, yaw_deg)) in deco.into_iter().enumerate() {
-            if !studio_asset_exists(reg, asset_id) {
-                continue;
-            }
             let tf = Transform::from_translation(hub + offset)
                 .with_rotation(Quat::from_rotation_y(yaw_deg.to_radians()));
-            let _ = spawn_studio_prop(
-                &mut commands,
-                &asset_server,
+            queue_studio_prop(
+                &mut prop_queue,
                 reg,
                 asset_id,
                 tf,
-                (HubProp, Name::new(format!("NestDeco_{i}_{asset_id}"))),
+                format!("NestDeco_{i}_{asset_id}"),
+            );
+        }
+        if !prop_queue.is_empty() {
+            info!(
+                "queued {} Nest Studio props (load after crew mesh)",
+                prop_queue.len()
             );
         }
     }

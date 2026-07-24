@@ -10,7 +10,7 @@ pub use accessories::{
     accessory_glb_exists, apply_accessory_choice, apply_slot, AccessoriesPlugin, AccessoryCatalog,
     EquipAccessoryRequest,
 };
-pub use animation::{CrewAnimationPlugin, PlayerMotion};
+pub use animation::{CrewAnimPlayback, CrewAnimationPlugin, PlayerMotion};
 pub use carry::CarryingFreight;
 pub use freight::WorldFreight;
 pub use knockback::Knockback;
@@ -464,11 +464,7 @@ fn sync_player_visuals(
             Option<&Children>,
             Option<&MountedCrewModel>,
         ),
-        Or<(
-            Added<NetworkPlayer>,
-            Changed<PlayerVisualSpec>,
-            Without<MountedCrewModel>,
-        )>,
+        With<NetworkPlayer>,
     >,
     visual_roots: Query<(), With<PlayerVisualRoot>>,
 ) {
@@ -481,12 +477,14 @@ fn sync_player_visuals(
             std::path::Path::new(&disk).is_file()
         });
         let want_key = want_model.map(|s| s.to_string());
-        // Accessory-only edits change PlayerVisualSpec — keep the body mounted so
-        // socket attachments are not wiped every Wear click.
-        if mounted.is_some_and(|m| m.0 == want_key)
-            && children.is_some_and(|kids| kids.iter().any(|c| visual_roots.contains(c)))
-        {
-            continue;
+        // Remount only when the crew model id changes (or the visual root is missing).
+        // Accessory-only PlayerVisualSpec edits must not wipe sockets / restart GLB loads.
+        if mounted.is_some_and(|m| m.0 == want_key) {
+            let has_visual =
+                children.is_some_and(|kids| kids.iter().any(|c| visual_roots.contains(c)));
+            if has_visual {
+                continue;
+            }
         }
 
         if let Some(children) = children {

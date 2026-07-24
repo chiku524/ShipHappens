@@ -1,3 +1,5 @@
+use std::collections::VecDeque;
+
 use bevy::gltf::GltfAssetLabel;
 use bevy::prelude::*;
 
@@ -10,7 +12,46 @@ use crate::{
 pub struct AssetsPlugin;
 
 impl Plugin for AssetsPlugin {
-    fn build(&self, _app: &mut App) {}
+    fn build(&self, app: &mut App) {
+        app.init_resource::<StudioPropQueue>();
+    }
+}
+
+/// Deferred Studio GLB spawns so Nest décor does not starve the crew mesh at boot.
+#[derive(Resource, Debug, Default)]
+pub struct StudioPropQueue {
+    pending: VecDeque<QueuedStudioProp>,
+    /// Handles for décor GLBs that have been kicked off but may still be decoding.
+    pub in_flight: Vec<Handle<bevy::gltf::Gltf>>,
+}
+
+#[derive(Debug, Clone)]
+pub struct QueuedStudioProp {
+    pub asset_id: String,
+    pub transform: Transform,
+    pub name: String,
+}
+
+impl StudioPropQueue {
+    pub fn push(&mut self, asset_id: impl Into<String>, transform: Transform, name: impl Into<String>) {
+        self.pending.push_back(QueuedStudioProp {
+            asset_id: asset_id.into(),
+            transform,
+            name: name.into(),
+        });
+    }
+
+    pub fn pop(&mut self) -> Option<QueuedStudioProp> {
+        self.pending.pop_front()
+    }
+
+    pub fn len(&self) -> usize {
+        self.pending.len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.pending.is_empty()
+    }
 }
 
 pub fn load_studio_registry(mut commands: Commands) {
@@ -63,10 +104,25 @@ pub fn spawn_studio_prop(
                 GameplayEntity,
                 WorldAssetRoot(scene),
                 transform.with_scale(scale),
+                Visibility::default(),
                 bundle,
             ))
             .id(),
     )
+}
+
+/// Queue a décor prop for staggered spawn. Prefer this for Nest fluff.
+pub fn queue_studio_prop(
+    queue: &mut StudioPropQueue,
+    registry: &StudioRegistry,
+    asset_id: &str,
+    transform: Transform,
+    name: impl Into<String>,
+) {
+    if !studio_asset_exists(registry, asset_id) {
+        return;
+    }
+    queue.push(asset_id, transform, name);
 }
 
 /// Greybox fallback when GLB is unavailable (headless CI without assets).
