@@ -10,7 +10,9 @@ pub use accessories::{
     accessory_glb_exists, apply_accessory_choice, apply_slot, AccessoriesPlugin, AccessoryCatalog,
     EquipAccessoryRequest,
 };
-pub use animation::{CrewAnimPlayback, CrewAnimationPlugin, PlayerMotion};
+pub use animation::{
+    CrewAnimPlayback, CrewAnimationPlugin, PlayerMotion, PlayCrewEmote, EMOTE_SLOT_COUNT,
+};
 pub use carry::CarryingFreight;
 pub use freight::WorldFreight;
 pub use knockback::Knockback;

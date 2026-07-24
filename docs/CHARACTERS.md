@@ -18,7 +18,8 @@ Chunky party creatures for **PudgyMon: Party Saga**. One shared base figure, spe
 
 ### `char_pudgy_water_01` — Water Creature
 - Ocean / water Pudgy with Studio-authored armature (same family as pink)
-- Clips: `idle`, `walk`, `run` (+ hold jump/emotes when missing from pack)
+- Clips: `walk`, `run`, `emote_scared` (+ hold `idle` / jump / wave / dance when missing)
+- Press **2** (or Esc → Animations) for Scared; idle is a calm hold, not the scared clip
 - GLB: `assets/models/char_pudgy_water_01/char_pudgy_water_01.glb`
 - Rebuild: `python scripts/import_rigged_character_glb.py --src "<download>.glb" --asset-id char_pudgy_water_01`
 

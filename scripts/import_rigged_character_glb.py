@@ -178,7 +178,8 @@ strips_meta.sort(key=lambda x: -x[0])
 _CONTRACT_BY_COUNT = {
     1: ("walk",),
     2: ("walk", "run"),
-    3: ("idle", "walk", "run"),
+    # Packs without a long ambient idle: longest performance clip + locomotion.
+    3: ("emote_scared", "walk", "run"),
     4: ("idle", "jump", "walk", "run"),
     5: ("idle", "emote_wave", "jump", "walk", "run"),
     6: ("idle", "emote_dance", "emote_wave", "jump", "walk", "run"),
@@ -418,9 +419,10 @@ def _gltf_transform(*args: str) -> None:
         raise RuntimeError(f"gltf-transform failed: {' '.join(args[:2])}")
 
 
-def _optimize_mesh(glb: Path, *, ratio: float, error: float) -> None:
+def _optimize_mesh(glb: Path, *, ratio: float, error: float, max_tex: int) -> None:
     weld = glb.with_name(glb.stem + "_weld.glb")
     simp = glb.with_name(glb.stem + "_simp.glb")
+    resized = glb.with_name(glb.stem + "_tex.glb")
     try:
         _gltf_transform("weld", str(glb), str(weld))
         _gltf_transform(
@@ -434,10 +436,24 @@ def _optimize_mesh(glb: Path, *, ratio: float, error: float) -> None:
             "--lock-border",
             "true",
         )
-        shutil.move(str(simp), str(glb))
+        # Cap texture resolution for faster GPU upload / smaller GLBs.
+        try:
+            _gltf_transform(
+                "resize",
+                str(simp),
+                str(resized),
+                "--width",
+                str(max_tex),
+                "--height",
+                str(max_tex),
+            )
+            shutil.move(str(resized), str(glb))
+        except RuntimeError:
+            shutil.move(str(simp), str(glb))
     finally:
         weld.unlink(missing_ok=True)
         simp.unlink(missing_ok=True)
+        resized.unlink(missing_ok=True)
 
 
 def _register(asset_id: str, notes: str, *, height: float, uniform_scale: float = 1.0) -> None:
@@ -464,15 +480,15 @@ def main() -> int:
     parser.add_argument("--src", type=Path, required=True)
     parser.add_argument("--asset-id", required=True)
     parser.add_argument("--height", type=float, default=1.2)
-    parser.add_argument("--max-tex", type=int, default=1024)
-    parser.add_argument("--jpeg-quality", type=int, default=85)
+    parser.add_argument("--max-tex", type=int, default=512)
+    parser.add_argument("--jpeg-quality", type=int, default=72)
     parser.add_argument(
         "--simplify-ratio",
         type=float,
-        default=0.35,
-        help="Vertex keep ratio after import (default 0.35 ≈ pink crew density).",
+        default=0.18,
+        help="Vertex keep ratio after import (default 0.18 for faster Bevy loads).",
     )
-    parser.add_argument("--simplify-error", type=float, default=0.05)
+    parser.add_argument("--simplify-error", type=float, default=0.08)
     parser.add_argument("--notes", default="Imported rigged creature GLB (walk/run preserved).")
     args = parser.parse_args()
 
@@ -506,8 +522,13 @@ def main() -> int:
         return proc.returncode
 
     if args.simplify_ratio > 0:
-        print(f"simplify ratio={args.simplify_ratio}")
-        _optimize_mesh(out_glb, ratio=args.simplify_ratio, error=args.simplify_error)
+        print(f"simplify ratio={args.simplify_ratio} max_tex={args.max_tex}")
+        _optimize_mesh(
+            out_glb,
+            ratio=args.simplify_ratio,
+            error=args.simplify_error,
+            max_tex=args.max_tex,
+        )
 
     readme = out_dir / "README.txt"
     readme.write_text(

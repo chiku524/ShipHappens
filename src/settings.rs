@@ -83,6 +83,7 @@ pub enum MenuPage {
     Account,
     Characters,
     Accessories,
+    Animations,
     Inventory,
     Wallet,
     Market,
@@ -184,6 +185,7 @@ enum MenuAction {
     Open(MenuPage),
     ReturnToNest,
     ConfirmQuitYes,
+    PlayEmote(u8),
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -426,6 +428,7 @@ fn spawn_nest_menu(
             spawn_page_account(panel);
             spawn_page_characters(panel, &roster);
             spawn_page_accessories(panel, &accessories);
+            spawn_page_animations(panel);
             spawn_page_inventory(panel, &catalog);
             spawn_page_wallet(panel);
             spawn_page_market(panel, &catalog);
@@ -459,6 +462,7 @@ fn spawn_top_nav(parent: &mut ChildSpawnerCommands) {
             top_nav_btn(bar, "◆", "Profile", MenuAction::Open(MenuPage::Profile), Some(MenuPage::Profile), false);
             top_nav_btn(bar, "☺", "Characters", MenuAction::Open(MenuPage::Characters), Some(MenuPage::Characters), false);
             top_nav_btn(bar, "👒", "Accessories", MenuAction::Open(MenuPage::Accessories), Some(MenuPage::Accessories), false);
+            top_nav_btn(bar, "▶", "Animations", MenuAction::Open(MenuPage::Animations), Some(MenuPage::Animations), false);
             top_nav_btn(bar, "@", "Account", MenuAction::Open(MenuPage::Account), Some(MenuPage::Account), false);
             top_nav_btn(bar, "▣", "Inventory", MenuAction::Open(MenuPage::Inventory), Some(MenuPage::Inventory), false);
             top_nav_btn(bar, "¤", "Wallet", MenuAction::Open(MenuPage::Wallet), Some(MenuPage::Wallet), false);
@@ -763,6 +767,73 @@ fn spawn_page_characters(parent: &mut ChildSpawnerCommands, roster: &CharacterRo
                             )],
                         ),
                     ],
+                ));
+            }
+        });
+}
+
+fn spawn_page_animations(parent: &mut ChildSpawnerCommands) {
+    let labels = [
+        ("1", "Slot 1 — Jump"),
+        ("2", "Slot 2 — Scared"),
+        ("3", "Slot 3 — Wave"),
+        ("4", "Slot 4 — Dance"),
+        ("5", "Slot 5 — Cheer"),
+    ];
+    parent
+        .spawn((
+            MenuPageRoot(MenuPage::Animations),
+            Node {
+                width: Val::Percent(100.0),
+                flex_direction: FlexDirection::Column,
+                row_gap: Val::Px(8.0),
+                ..Default::default()
+            },
+            Visibility::Hidden,
+        ))
+        .with_children(|page| {
+            page.spawn((
+                Text::new("Animations"),
+                TextFont {
+                    font_size: FontSize::Px(20.0),
+                    ..Default::default()
+                },
+                TextColor(TEAL),
+            ));
+            page.spawn((
+                Text::new(
+                    "Performance clips only (not walk / run / idle).\n\
+                     Slots fill from your crew GLB in order: Jump → Scared → Wave → Dance → Cheer.\n\
+                     Missing clips fall back to a short hold. Keys 1–5 work unpaused in The Nest.",
+                ),
+                TextFont {
+                    font_size: FontSize::Px(13.0),
+                    ..Default::default()
+                },
+                TextColor(MUTED),
+            ));
+            for (i, (key, label)) in labels.iter().enumerate() {
+                let slot = i as u8;
+                page.spawn((
+                    Button,
+                    MenuNavButton(MenuAction::PlayEmote(slot)),
+                    Node {
+                        width: Val::Percent(100.0),
+                        padding: UiRect::axes(Val::Px(14.0), Val::Px(10.0)),
+                        justify_content: JustifyContent::FlexStart,
+                        column_gap: Val::Px(12.0),
+                        border_radius: BorderRadius::all(Val::Px(10.0)),
+                        ..Default::default()
+                    },
+                    BackgroundColor(BTN_BG),
+                    children![(
+                        Text::new(format!("[{key}]  {label}")),
+                        TextFont {
+                            font_size: FontSize::Px(15.0),
+                            ..Default::default()
+                        },
+                        TextColor(Color::srgb(0.96, 0.95, 0.9)),
+                    )],
                 ));
             }
         });
@@ -1279,7 +1350,8 @@ fn spawn_page_controls(parent: &mut ChildSpawnerCommands) {
                     "WASD move · mouse look · scroll zoom\n\
                      Pads · E / Enter start mode\n\
                      Create Map / My Maps · C skins · M claim\n\
-                     Esc Nest menu → Characters to swap bases\n\
+                     Esc Nest menu → Characters / Animations\n\
+                     1–5 performance emotes · Space jump\n\
                      Ctrl+V link wallet · Ctrl+O claim desk\n\
                      Esc Nest menu · Q return Nest · R rematch\n\
                      ` free cursor · F11 fullscreen",
@@ -1579,6 +1651,7 @@ fn handle_menu_nav(
     mut leave: ResMut<LeaveToNestRequest>,
     mut exit: MessageWriter<AppExit>,
     mut banner: ResMut<NetworkBanner>,
+    mut emotes: MessageWriter<crate::player::PlayCrewEmote>,
     interactions: Query<(&Interaction, &MenuNavButton), Changed<Interaction>>,
 ) {
     if !pause.paused {
@@ -1609,6 +1682,11 @@ fn handle_menu_nav(
                 pause.paused = false;
                 camera.captured = false;
                 exit.write(AppExit::Success);
+            }
+            MenuAction::PlayEmote(slot) => {
+                emotes.write(crate::player::PlayCrewEmote(slot));
+                pause.paused = false;
+                camera.captured = true;
             }
         }
     }
