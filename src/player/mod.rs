@@ -11,7 +11,8 @@ pub use accessories::{
     EquipAccessoryRequest,
 };
 pub use animation::{
-    CrewAnimPlayback, CrewAnimationPlugin, PlayerMotion, PlayCrewEmote, EMOTE_SLOT_COUNT,
+    CrewAnimPlayback, CrewAnimationPlugin, PlayerMotion, PlayCrewEmote, EMOTE_LIBRARY,
+    EMOTE_SLOT_COUNT,
 };
 pub use carry::CarryingFreight;
 pub use freight::WorldFreight;
@@ -30,7 +31,8 @@ use serde::{Deserialize, Serialize};
 use crate::{
     core::{
         ARENA_BOUNDS, CAMERA_DEFAULT_DISTANCE, CAMERA_MAX_DISTANCE, CAMERA_MIN_DISTANCE,
-        MAX_CAMERA_PITCH, MIN_CAMERA_PITCH, PLAYER_SPEED,
+        MAX_CAMERA_PITCH, MIN_CAMERA_PITCH, PLAYER_DOUBLE_JUMP_VELOCITY, PLAYER_FLOOR_Y,
+        PLAYER_GRAVITY, PLAYER_JUMP_VELOCITY, PLAYER_MAX_AIR_JUMPS, PLAYER_SPEED,
         PLAYER_SPRINT_MULTIPLIER,
     },
     flow::AppScreen,
@@ -184,6 +186,9 @@ pub struct PlayerRegistry {
 pub struct MoveInput {
     pub direction: Vec2,
     pub sprint: bool,
+    /// Space just-pressed this frame (jump / double-jump).
+    #[serde(default)]
+    pub jump: bool,
 }
 
 pub fn apply_move_input(
@@ -204,46 +209,71 @@ pub fn apply_move_input(
         return;
     };
 
-    apply_planar_move(
+    apply_player_move(
         &mut transform,
         &mut motion,
         input.direction,
         input.sprint,
+        input.jump,
         time.delta_secs(),
     );
 }
 
-fn apply_planar_move(
+fn apply_player_move(
     transform: &mut Transform,
     motion: &mut PlayerMotion,
     direction: Vec2,
     sprint: bool,
+    jump_pressed: bool,
     dt: f32,
 ) {
     let direction = Vec3::new(direction.x, 0.0, direction.y);
     if direction.length_squared() <= f32::EPSILON {
         motion.speed = 0.0;
         motion.sprint = false;
-        return;
+    } else {
+        let speed = if sprint {
+            PLAYER_SPEED * PLAYER_SPRINT_MULTIPLIER
+        } else {
+            PLAYER_SPEED
+        };
+
+        let flat = direction.normalize();
+        transform.translation += flat * speed * dt;
+        transform.look_to(flat, Vec3::Y);
+        motion.speed = speed;
+        motion.sprint = sprint;
     }
 
-    let speed = if sprint {
-        PLAYER_SPEED * PLAYER_SPRINT_MULTIPLIER
-    } else {
-        PLAYER_SPEED
-    };
+    if jump_pressed {
+        if motion.grounded {
+            motion.vertical_velocity = PLAYER_JUMP_VELOCITY;
+            motion.grounded = false;
+            motion.air_jumps_left = PLAYER_MAX_AIR_JUMPS;
+        } else if motion.air_jumps_left > 0 {
+            motion.vertical_velocity = PLAYER_DOUBLE_JUMP_VELOCITY;
+            motion.air_jumps_left = motion.air_jumps_left.saturating_sub(1);
+        }
+    }
 
-    let flat = direction.normalize();
-    transform.translation += flat * speed * dt;
-    // Keep feet on the playable floor plane (no physics yet).
-    transform.translation.y = 1.0;
-    // Soft arena walls — greybox shell has no colliders yet.
+    if !motion.grounded {
+        motion.vertical_velocity -= PLAYER_GRAVITY * dt;
+        transform.translation.y += motion.vertical_velocity * dt;
+    }
+
+    if transform.translation.y <= PLAYER_FLOOR_Y {
+        transform.translation.y = PLAYER_FLOOR_Y;
+        if motion.vertical_velocity < 0.0 {
+            motion.vertical_velocity = 0.0;
+        }
+        motion.grounded = true;
+        motion.air_jumps_left = PLAYER_MAX_AIR_JUMPS;
+    } else {
+        motion.grounded = false;
+    }
+
     transform.translation.x = transform.translation.x.clamp(-ARENA_BOUNDS, ARENA_BOUNDS);
     transform.translation.z = transform.translation.z.clamp(-ARENA_BOUNDS, ARENA_BOUNDS);
-    // Face movement direction (Y-up).
-    transform.look_to(flat, Vec3::Y);
-    motion.speed = speed;
-    motion.sprint = sprint;
 }
 
 fn capture_cursor_when_playing(
@@ -360,6 +390,7 @@ fn local_movement_input(
 
     let direction = camera_relative_direction(&keyboard, camera.yaw);
     let sprint = keyboard.pressed(KeyCode::ShiftLeft) || keyboard.pressed(KeyCode::ShiftRight);
+    let jump = keyboard.just_pressed(KeyCode::Space);
     let dir = if direction.length_squared() <= f32::EPSILON {
         Vec2::ZERO
     } else {
@@ -369,6 +400,7 @@ fn local_movement_input(
     commands.client_trigger(MoveInput {
         direction: dir,
         sprint: sprint && dir != Vec2::ZERO,
+        jump,
     });
 }
 
@@ -393,17 +425,19 @@ pub fn offline_movement(
 
     let direction = camera_relative_direction(&keyboard, camera.yaw);
     let sprint = keyboard.pressed(KeyCode::ShiftLeft) || keyboard.pressed(KeyCode::ShiftRight);
+    let jump = keyboard.just_pressed(KeyCode::Space);
     let dir = if direction.length_squared() <= f32::EPSILON {
         Vec2::ZERO
     } else {
         let flat = direction.normalize();
         Vec2::new(flat.x, flat.z)
     };
-    apply_planar_move(
+    apply_player_move(
         &mut transform,
         &mut motion,
         dir,
         sprint && dir != Vec2::ZERO,
+        jump,
         time.delta_secs(),
     );
 }

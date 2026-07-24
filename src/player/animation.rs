@@ -1,4 +1,4 @@
-//! Shared Pudgy clip playback — idle / walk / run + numbered emote slots.
+//! Shared Pudgy clip playback — idle / walk / run + bindable emote wheel.
 
 use std::time::Duration;
 
@@ -14,11 +14,11 @@ use crate::{flow::AppScreen, player::PlayerVisualRoot};
 pub const CREW_CLIP_IDLE: &str = "idle";
 pub const CREW_CLIP_WALK: &str = "walk";
 pub const CREW_CLIP_RUN: &str = "run";
+pub const CREW_CLIP_JUMP: &str = "jump";
 
-/// Performance clips eligible for keys 1–5 / Animations menu (not locomotion/idle).
-const EMOTE_CANDIDATES: &[(&str, &str, f32, bool)] = &[
-    // name in GLB, UI label, lock seconds (ignored when loops), loops
-    ("jump", "Jump", 0.7, false),
+/// Performance clips that can be bound to wheel slots 1–5 (not locomotion / idle / jump).
+pub const EMOTE_LIBRARY: &[(&str, &str, f32, bool)] = &[
+    // clip name, UI label, lock seconds, loops
     ("emote_scared", "Scared", 1.4, false),
     ("emote_wave", "Wave", 1.3, false),
     ("emote_dance", "Dance", 0.0, true),
@@ -26,7 +26,7 @@ const EMOTE_CANDIDATES: &[(&str, &str, f32, bool)] = &[
 ];
 
 pub const EMOTE_SLOT_COUNT: usize = 5;
-
+const IDLE_AFTER_STILL_SECS: f32 = 3.0;
 const CROSSFADE: Duration = Duration::from_millis(150);
 const WALK_SPEED_EPS: f32 = 0.05;
 
@@ -42,25 +42,13 @@ pub enum CrewAnimKind {
     Idle,
     Walk,
     Run,
-    /// Index into [`CrewAnimPlayback::emotes`] (keys 1–5).
+    Jump,
+    /// Bound wheel slot index (0–4). Only valid when that slot has a binding.
     Emote(u8),
 }
 
-impl CrewAnimKind {
-    fn loops(self, playback: &CrewAnimPlayback) -> bool {
-        match self {
-            Self::Idle | Self::Walk | Self::Run => true,
-            Self::Emote(i) => playback
-                .emotes
-                .get(i as usize)
-                .map(|e| e.loops)
-                .unwrap_or(false),
-        }
-    }
-}
-
 #[derive(Debug, Clone)]
-pub struct CrewEmoteSlot {
+pub struct CrewEmoteDef {
     pub node: AnimationNodeIndex,
     pub label: String,
     pub clip_name: String,
@@ -76,46 +64,98 @@ pub struct CrewAnimPlayback {
     pub idle: AnimationNodeIndex,
     pub walk: AnimationNodeIndex,
     pub run: AnimationNodeIndex,
-    pub emotes: Vec<CrewEmoteSlot>,
+    pub jump: AnimationNodeIndex,
+    /// All performance clips present on this crew GLB (for binding UI / playback).
+    pub library: Vec<CrewEmoteDef>,
     pub lock_until: f32,
     pub player_entity: Entity,
+    /// Elapsed time when the avatar last became still (for delayed idle).
+    pub still_since: Option<f32>,
 }
 
 impl CrewAnimPlayback {
-    fn node(&self, kind: CrewAnimKind) -> AnimationNodeIndex {
+    fn node(&self, kind: CrewAnimKind, bindings: &crate::settings::EmoteBindings) -> AnimationNodeIndex {
         match kind {
             CrewAnimKind::Idle => self.idle,
             CrewAnimKind::Walk => self.walk,
             CrewAnimKind::Run => self.run,
+            CrewAnimKind::Jump => self.jump,
             CrewAnimKind::Emote(i) => self
-                .emotes
-                .get(i as usize)
+                .resolve_bound(i, bindings)
                 .map(|e| e.node)
                 .unwrap_or(self.idle),
         }
     }
 
-    pub fn trigger_emote(&mut self, slot: u8, now: f32) {
-        let Some(emote) = self.emotes.get(slot as usize) else {
-            return;
+    fn loops(&self, kind: CrewAnimKind, bindings: &crate::settings::EmoteBindings) -> bool {
+        match kind {
+            CrewAnimKind::Idle | CrewAnimKind::Walk | CrewAnimKind::Run => true,
+            CrewAnimKind::Jump => false,
+            CrewAnimKind::Emote(i) => self
+                .resolve_bound(i, bindings)
+                .map(|e| e.loops)
+                .unwrap_or(false),
+        }
+    }
+
+    pub fn resolve_bound<'a>(
+        &'a self,
+        slot: u8,
+        bindings: &'a crate::settings::EmoteBindings,
+    ) -> Option<&'a CrewEmoteDef> {
+        let clip = bindings.slots.get(slot as usize)?.as_ref()?;
+        self.library.iter().find(|e| e.clip_name == *clip)
+    }
+
+    pub fn trigger_bound_emote(
+        &mut self,
+        slot: u8,
+        now: f32,
+        bindings: &crate::settings::EmoteBindings,
+    ) -> bool {
+        let Some(emote) = self.resolve_bound(slot, bindings) else {
+            return false;
         };
+        let loops = emote.loops;
+        let lock = emote.lock_secs;
         self.kind = CrewAnimKind::Emote(slot);
-        self.lock_until = if emote.loops {
-            f32::MAX
-        } else {
-            now + emote.lock_secs
-        };
+        self.lock_until = if loops { f32::MAX } else { now + lock };
         self.applied = None;
+        self.still_since = None;
+        true
+    }
+
+    pub fn trigger_jump_anim(&mut self, now: f32) {
+        self.kind = CrewAnimKind::Jump;
+        self.lock_until = now + 0.55;
+        self.applied = None;
+        self.still_since = None;
     }
 }
 
-#[derive(Component, Debug, Clone, Copy, Default)]
+#[derive(Component, Debug, Clone, Copy)]
 pub struct PlayerMotion {
     pub speed: f32,
     pub sprint: bool,
+    pub vertical_velocity: f32,
+    pub grounded: bool,
+    /// Air jumps remaining after leaving the ground (double-jump).
+    pub air_jumps_left: u8,
 }
 
-/// Queued from the Nest Animations menu (plays on the local crew mesh).
+impl Default for PlayerMotion {
+    fn default() -> Self {
+        Self {
+            speed: 0.0,
+            sprint: false,
+            vertical_velocity: 0.0,
+            grounded: true,
+            air_jumps_left: crate::core::PLAYER_MAX_AIR_JUMPS,
+        }
+    }
+}
+
+/// Queued from the Nest Animations menu (plays bound wheel slot on local crew).
 #[derive(Message, Debug, Clone, Copy)]
 pub struct PlayCrewEmote(pub u8);
 
@@ -140,7 +180,6 @@ impl Plugin for CrewAnimationPlugin {
     }
 }
 
-/// Attach after spawning `WorldAssetRoot` (prefer spawning setup+observe together).
 pub fn attach_crew_animation(
     entity: Entity,
     commands: &mut Commands,
@@ -166,15 +205,12 @@ pub fn on_crew_scene_ready(
     if !setups.contains(ready.entity) {
         return;
     }
-    // WorldAsset may respawn when dependencies finish loading (AssetEvent::Modified).
-    // Drop any prior binding so we re-attach to the new AnimationPlayer.
     commands
         .entity(ready.entity)
         .remove::<CrewAnimPlayback>()
         .insert(CrewSceneReady);
 }
 
-/// If the skinned instance was respawned, `player_entity` goes stale — force a rebind.
 fn recover_stale_crew_playback(
     mut commands: Commands,
     playback: Query<(Entity, &CrewAnimPlayback), With<CrewAnimationSetup>>,
@@ -190,7 +226,6 @@ fn recover_stale_crew_playback(
     }
 }
 
-/// Fallback when `WorldInstanceReady` was missed (observe registered too late).
 fn poll_crew_scene_ready(
     mut commands: Commands,
     pending: Query<
@@ -249,26 +284,21 @@ fn finish_crew_animation_setup(
         };
         let walk = named_or(gltf, CREW_CLIP_WALK, &idle);
         let run = named_or(gltf, CREW_CLIP_RUN, &walk);
+        let jump = named_or(gltf, CREW_CLIP_JUMP, &idle);
 
-        let mut clip_handles = vec![idle.clone(), walk, run];
-        let mut emote_defs: Vec<(String, String, f32, bool)> = Vec::new();
-        for &(clip_name, label, lock_secs, loops) in EMOTE_CANDIDATES {
+        let mut clip_handles = vec![idle.clone(), walk, run, jump];
+        let mut library_meta: Vec<(String, String, f32, bool)> = Vec::new();
+        for &(clip_name, label, lock_secs, loops) in EMOTE_LIBRARY {
             if let Some(handle) = gltf.named_animations.get(clip_name).cloned() {
                 clip_handles.push(handle);
-                emote_defs.push((clip_name.to_string(), label.to_string(), lock_secs, loops));
+                library_meta.push((
+                    clip_name.to_string(),
+                    label.to_string(),
+                    lock_secs,
+                    loops,
+                ));
             }
         }
-        // Fill remaining 1–5 slots with idle so keybinds always resolve.
-        while emote_defs.len() < EMOTE_SLOT_COUNT {
-            emote_defs.push((
-                CREW_CLIP_IDLE.to_string(),
-                format!("Emote {}", emote_defs.len() + 1),
-                1.0,
-                false,
-            ));
-            clip_handles.push(idle.clone());
-        }
-        emote_defs.truncate(EMOTE_SLOT_COUNT);
 
         let (graph, nodes) = AnimationGraph::from_clips(clip_handles);
         let graph_handle = graphs.add(graph);
@@ -301,22 +331,21 @@ fn finish_crew_animation_setup(
             transitions,
         ));
 
-        let emotes: Vec<CrewEmoteSlot> = emote_defs
-            .into_iter()
-            .enumerate()
-            .map(|(i, (clip_name, label, lock_secs, loops))| CrewEmoteSlot {
-                node: nodes[3 + i],
+        let mut library = Vec::new();
+        for (i, (clip_name, label, lock_secs, loops)) in library_meta.into_iter().enumerate() {
+            library.push(CrewEmoteDef {
+                node: nodes[4 + i],
                 label,
                 clip_name,
                 lock_secs,
                 loops,
-            })
-            .collect();
+            });
+        }
 
         info!(
-            "crew animation ready for `{}` (player={player_entity:?}, emotes={:?})",
+            "crew animation ready for `{}` (player={player_entity:?}, library={:?})",
             setup.model_id,
-            emotes.iter().map(|e| e.clip_name.as_str()).collect::<Vec<_>>()
+            library.iter().map(|e| e.clip_name.as_str()).collect::<Vec<_>>()
         );
 
         commands.entity(entity).insert(CrewAnimPlayback {
@@ -326,9 +355,11 @@ fn finish_crew_animation_setup(
             idle: nodes[0],
             walk: nodes[1],
             run: nodes[2],
-            emotes,
+            jump: nodes[3],
+            library,
             lock_until: 0.0,
             player_entity,
+            still_since: Some(0.0),
         });
         commands.entity(entity).remove::<CrewSceneReady>();
     }
@@ -345,6 +376,7 @@ fn choose_crew_anim_kind(
     time: Res<Time>,
     keyboard: Res<ButtonInput<KeyCode>>,
     pause: Option<Res<crate::settings::PauseState>>,
+    bindings: Res<crate::settings::EmoteBindings>,
     mut emote_events: MessageReader<PlayCrewEmote>,
     players: Query<(&PlayerMotion, &Children, Option<&crate::player::LocalPlayer>)>,
     visual_roots: Query<(), With<PlayerVisualRoot>>,
@@ -352,8 +384,6 @@ fn choose_crew_anim_kind(
 ) {
     let paused = pause.map(|p| p.paused).unwrap_or(false);
     let now = time.elapsed_secs();
-
-    // Menu-triggered emotes apply to the local player even while the pause UI is open.
     let menu_emotes: Vec<u8> = emote_events.read().map(|e| e.0).collect();
 
     for (motion, children, local) in &players {
@@ -366,20 +396,15 @@ fn choose_crew_anim_kind(
 
         if local.is_some() {
             for slot in &menu_emotes {
-                anim.trigger_emote(*slot, now);
+                let _ = anim.trigger_bound_emote(*slot, now, &bindings);
             }
         }
 
         let moving = motion.speed > WALK_SPEED_EPS;
+        let airborne = !motion.grounded;
         let locked = now < anim.lock_until;
 
         if local.is_some() && !paused {
-            if keyboard.just_pressed(KeyCode::Space) {
-                if let Some(slot) = emote_slot_by_clip(&anim, "jump") {
-                    anim.trigger_emote(slot, now);
-                    continue;
-                }
-            }
             let digit_slot = [
                 (KeyCode::Digit1, 0u8),
                 (KeyCode::Digit2, 1),
@@ -395,67 +420,122 @@ fn choose_crew_anim_kind(
             .into_iter()
             .find_map(|(key, slot)| keyboard.just_pressed(key).then_some(slot));
             if let Some(slot) = digit_slot {
-                anim.trigger_emote(slot, now);
-                continue;
-            }
-        }
-
-        if locked {
-            if let CrewAnimKind::Emote(i) = anim.kind {
-                let loops = anim.emotes.get(i as usize).map(|e| e.loops).unwrap_or(false);
-                if loops {
-                    if moving {
-                        anim.lock_until = 0.0;
-                    } else {
-                        continue;
-                    }
-                } else {
+                if anim.trigger_bound_emote(slot, now, &bindings) {
                     continue;
                 }
             }
         }
 
-        let desired = if !moving {
-            CrewAnimKind::Idle
-        } else if motion.sprint {
-            CrewAnimKind::Run
-        } else {
-            CrewAnimKind::Walk
-        };
-        if anim.kind != desired {
-            anim.kind = desired;
+        // Jump anim follows physics jump (rising).
+        if airborne && motion.vertical_velocity > 0.5 {
+            if anim.kind != CrewAnimKind::Jump {
+                anim.trigger_jump_anim(now);
+            }
+        }
+
+        if locked {
+            match anim.kind {
+                CrewAnimKind::Jump => continue,
+                CrewAnimKind::Emote(i) => {
+                    let loops = anim
+                        .resolve_bound(i, &bindings)
+                        .map(|e| e.loops)
+                        .unwrap_or(false);
+                    if loops {
+                        if moving || airborne {
+                            anim.lock_until = 0.0;
+                        } else {
+                            continue;
+                        }
+                    } else {
+                        continue;
+                    }
+                }
+                _ => {}
+            }
+        }
+
+        if moving || airborne {
+            anim.still_since = None;
+            let desired = if airborne {
+                if motion.vertical_velocity > 0.15 {
+                    CrewAnimKind::Jump
+                } else if motion.speed > WALK_SPEED_EPS {
+                    if motion.sprint {
+                        CrewAnimKind::Run
+                    } else {
+                        CrewAnimKind::Walk
+                    }
+                } else {
+                    // Falling while mostly still — keep jump until land.
+                    CrewAnimKind::Jump
+                }
+            } else if motion.sprint {
+                CrewAnimKind::Run
+            } else {
+                CrewAnimKind::Walk
+            };
+            if anim.kind != desired {
+                anim.kind = desired;
+                anim.applied = None;
+            }
+            continue;
+        }
+
+        // Standing still — wait before playing the idle loop (Fortnite-style).
+        let still_since = *anim.still_since.get_or_insert(now);
+        if now - still_since < IDLE_AFTER_STILL_SECS {
+            // Keep last locomotion pose frozen until the idle timer elapses.
+            continue;
+        }
+
+        if anim.kind != CrewAnimKind::Idle {
+            anim.kind = CrewAnimKind::Idle;
             anim.applied = None;
         }
     }
 }
 
-fn emote_slot_by_clip(anim: &CrewAnimPlayback, clip: &str) -> Option<u8> {
-    anim.emotes
-        .iter()
-        .position(|e| e.clip_name == clip)
-        .map(|i| i as u8)
-}
-
 fn apply_crew_anim_kind(
+    time: Res<Time>,
     mut commands: Commands,
+    bindings: Res<crate::settings::EmoteBindings>,
     mut visuals: Query<(Entity, &mut CrewAnimPlayback)>,
     mut players: Query<(&mut AnimationPlayer, &mut AnimationTransitions)>,
 ) {
+    let now = time.elapsed_secs();
     for (entity, mut anim) in &mut visuals {
+        let waiting_idle = anim
+            .still_since
+            .is_some_and(|since| now - since < IDLE_AFTER_STILL_SECS)
+            && matches!(
+                anim.kind,
+                CrewAnimKind::Walk | CrewAnimKind::Run | CrewAnimKind::Jump
+            );
+
+        if waiting_idle {
+            if let Ok((mut player, _)) = players.get_mut(anim.player_entity) {
+                for (_, playing) in player.playing_animations_mut() {
+                    playing.set_speed(0.0);
+                }
+            }
+            continue;
+        }
+
         if anim.applied == Some(anim.kind) {
             continue;
         }
         let Ok((mut player, mut transitions)) = players.get_mut(anim.player_entity) else {
-            // Instance was respawned — recover next frame.
             commands
                 .entity(entity)
                 .remove::<CrewAnimPlayback>()
                 .insert(CrewSceneReady);
             continue;
         };
-        let node = anim.node(anim.kind);
+        let node = anim.node(anim.kind, &bindings);
         let active = transitions.play(&mut player, node, CROSSFADE);
-        if anim.kind.loops(&anim) {
+        active.set_speed(1.0);
+        if anim.loops(anim.kind, &bindings) {
             active.repeat();
         }
         anim.applied = Some(anim.kind);

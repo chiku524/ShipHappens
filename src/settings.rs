@@ -19,8 +19,8 @@ use crate::{
     hub::EditorMode,
     player::{
         apply_accessory_choice, AccessoryCatalog, EquipAccessoryRequest, PlayerName,
-        PlayerVisualSpec,
-        SelectCharacterRequest, ThirdPersonCamera,
+        PlayerVisualSpec, SelectCharacterRequest, ThirdPersonCamera, EMOTE_LIBRARY,
+        EMOTE_SLOT_COUNT,
     },
     season::SeasonLedger,
     session_flow::{LeaveToNestRequest, NetworkBanner},
@@ -31,6 +31,9 @@ pub struct GameSettings {
     pub mouse_sensitivity: f32,
     pub master_volume: f32,
     pub fullscreen: bool,
+    /// Fortnite-style emote wheel: keys 1–5 map to clip names (empty = unbound).
+    #[serde(default)]
+    pub emote_bindings: EmoteBindings,
 }
 
 impl Default for GameSettings {
@@ -39,6 +42,34 @@ impl Default for GameSettings {
             mouse_sensitivity: crate::core::MOUSE_SENSITIVITY,
             master_volume: 1.0,
             fullscreen: true,
+            emote_bindings: EmoteBindings::default(),
+        }
+    }
+}
+
+/// Wheel slots 1–5 → optional clip names from the crew emote library.
+#[derive(Resource, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub struct EmoteBindings {
+    pub slots: [Option<String>; EMOTE_SLOT_COUNT],
+}
+
+impl Default for EmoteBindings {
+    fn default() -> Self {
+        Self {
+            slots: std::array::from_fn(|_| None),
+        }
+    }
+}
+
+impl EmoteBindings {
+    pub fn label_for_slot(&self, slot: usize) -> String {
+        match self.slots.get(slot).and_then(|s| s.as_ref()) {
+            Some(clip) => EMOTE_LIBRARY
+                .iter()
+                .find(|(name, _, _, _)| *name == clip.as_str())
+                .map(|(_, label, _, _)| (*label).to_string())
+                .unwrap_or_else(|| clip.clone()),
+            None => "Empty".into(),
         }
     }
 }
@@ -186,6 +217,21 @@ enum MenuAction {
     ReturnToNest,
     ConfirmQuitYes,
     PlayEmote(u8),
+    SelectEmoteSlot(u8),
+    ClearEmoteSlot(u8),
+}
+
+#[derive(Component)]
+struct BindEmoteButton {
+    clip: &'static str,
+}
+
+#[derive(Component)]
+struct EmoteSlotLabel(u8);
+
+#[derive(Resource, Debug, Clone, Copy, Default)]
+struct EmoteMenuFocus {
+    slot: Option<u8>,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -296,12 +342,16 @@ impl Plugin for SettingsPlugin {
             "{}/data/characters/roster.json",
             env!("CARGO_MANIFEST_DIR")
         );
-        app.insert_resource(GameSettings::load())
+        let settings = GameSettings::load();
+        let emote_bindings = settings.emote_bindings.clone();
+        app.insert_resource(settings)
+            .insert_resource(emote_bindings)
             .insert_resource(CharacterRoster::load(roster_path))
             .init_resource::<PauseState>()
             .init_resource::<MenuPage>()
             .init_resource::<NestAuthForm>()
             .init_resource::<AccessoryMenuSlot>()
+            .init_resource::<EmoteMenuFocus>()
             .add_systems(Startup, (apply_fullscreen_on_boot, spawn_nest_menu).chain())
             .add_systems(
                 Update,
@@ -331,10 +381,22 @@ impl Plugin for SettingsPlugin {
                     sync_player_name_from_account,
                     refresh_menu_labels.run_if(in_state(AppScreen::Playing)),
                     refresh_accessory_labels.run_if(in_state(AppScreen::Playing)),
+                    refresh_emote_slot_labels.run_if(in_state(AppScreen::Playing)),
+                    handle_bind_emote_buttons,
                     apply_settings_hotkeys,
                     persist_settings,
+                    persist_emote_bindings,
                 ),
             );
+    }
+}
+
+fn persist_emote_bindings(
+    bindings: Res<EmoteBindings>,
+    mut settings: ResMut<GameSettings>,
+) {
+    if bindings.is_changed() && settings.emote_bindings != *bindings {
+        settings.emote_bindings = bindings.clone();
     }
 }
 
@@ -773,20 +835,13 @@ fn spawn_page_characters(parent: &mut ChildSpawnerCommands, roster: &CharacterRo
 }
 
 fn spawn_page_animations(parent: &mut ChildSpawnerCommands) {
-    let labels = [
-        ("1", "Slot 1 — Jump"),
-        ("2", "Slot 2 — Scared"),
-        ("3", "Slot 3 — Wave"),
-        ("4", "Slot 4 — Dance"),
-        ("5", "Slot 5 — Cheer"),
-    ];
     parent
         .spawn((
             MenuPageRoot(MenuPage::Animations),
             Node {
                 width: Val::Percent(100.0),
                 flex_direction: FlexDirection::Column,
-                row_gap: Val::Px(8.0),
+                row_gap: Val::Px(10.0),
                 ..Default::default()
             },
             Visibility::Hidden,
@@ -802,9 +857,10 @@ fn spawn_page_animations(parent: &mut ChildSpawnerCommands) {
             ));
             page.spawn((
                 Text::new(
-                    "Performance clips only (not walk / run / idle).\n\
-                     Slots fill from your crew GLB in order: Jump → Scared → Wave → Dance → Cheer.\n\
-                     Missing clips fall back to a short hold. Keys 1–5 work unpaused in The Nest.",
+                    "Emote wheel — slots start empty.\n\
+                     Select a slot, then bind a clip from the library (like Fortnite).\n\
+                     Keys 1–5 play the bound clip in The Nest. Idle plays after 3s standing still.\n\
+                     Space = jump · Space again in air = double jump.",
                 ),
                 TextFont {
                     font_size: FontSize::Px(13.0),
@@ -812,22 +868,111 @@ fn spawn_page_animations(parent: &mut ChildSpawnerCommands) {
                 },
                 TextColor(MUTED),
             ));
-            for (i, (key, label)) in labels.iter().enumerate() {
-                let slot = i as u8;
+
+            page.spawn((
+                Text::new("Wheel slots"),
+                TextFont {
+                    font_size: FontSize::Px(15.0),
+                    ..Default::default()
+                },
+                TextColor(Color::srgb(0.96, 0.95, 0.9)),
+            ));
+
+            for slot in 0..EMOTE_SLOT_COUNT as u8 {
+                let key = slot + 1;
+                page.spawn((
+                    Node {
+                        width: Val::Percent(100.0),
+                        flex_direction: FlexDirection::Row,
+                        column_gap: Val::Px(8.0),
+                        align_items: AlignItems::Center,
+                        ..Default::default()
+                    },
+                    children![
+                        (
+                            Button,
+                            MenuNavButton(MenuAction::SelectEmoteSlot(slot)),
+                            Node {
+                                flex_grow: 1.0,
+                                padding: UiRect::axes(Val::Px(14.0), Val::Px(10.0)),
+                                justify_content: JustifyContent::FlexStart,
+                                border_radius: BorderRadius::all(Val::Px(10.0)),
+                                ..Default::default()
+                            },
+                            BackgroundColor(BTN_BG),
+                            children![(
+                                EmoteSlotLabel(slot),
+                                Text::new(format!("[{key}]  Empty")),
+                                TextFont {
+                                    font_size: FontSize::Px(15.0),
+                                    ..Default::default()
+                                },
+                                TextColor(Color::srgb(0.96, 0.95, 0.9)),
+                            )],
+                        ),
+                        (
+                            Button,
+                            MenuNavButton(MenuAction::PlayEmote(slot)),
+                            Node {
+                                padding: UiRect::axes(Val::Px(12.0), Val::Px(10.0)),
+                                border_radius: BorderRadius::all(Val::Px(10.0)),
+                                ..Default::default()
+                            },
+                            BackgroundColor(BTN_BG),
+                            children![(
+                                Text::new("Play"),
+                                TextFont {
+                                    font_size: FontSize::Px(13.0),
+                                    ..Default::default()
+                                },
+                                TextColor(Color::srgb(0.96, 0.95, 0.9)),
+                            )],
+                        ),
+                        (
+                            Button,
+                            MenuNavButton(MenuAction::ClearEmoteSlot(slot)),
+                            Node {
+                                padding: UiRect::axes(Val::Px(12.0), Val::Px(10.0)),
+                                border_radius: BorderRadius::all(Val::Px(10.0)),
+                                ..Default::default()
+                            },
+                            BackgroundColor(BTN_BG),
+                            children![(
+                                Text::new("Clear"),
+                                TextFont {
+                                    font_size: FontSize::Px(13.0),
+                                    ..Default::default()
+                                },
+                                TextColor(Color::srgb(0.96, 0.95, 0.9)),
+                            )],
+                        ),
+                    ],
+                ));
+            }
+
+            page.spawn((
+                Text::new("Library — select a slot above, then click to bind"),
+                TextFont {
+                    font_size: FontSize::Px(15.0),
+                    ..Default::default()
+                },
+                TextColor(Color::srgb(0.96, 0.95, 0.9)),
+            ));
+
+            for &(clip, label, _, _) in EMOTE_LIBRARY {
                 page.spawn((
                     Button,
-                    MenuNavButton(MenuAction::PlayEmote(slot)),
+                    BindEmoteButton { clip },
                     Node {
                         width: Val::Percent(100.0),
                         padding: UiRect::axes(Val::Px(14.0), Val::Px(10.0)),
                         justify_content: JustifyContent::FlexStart,
-                        column_gap: Val::Px(12.0),
                         border_radius: BorderRadius::all(Val::Px(10.0)),
                         ..Default::default()
                     },
                     BackgroundColor(BTN_BG),
                     children![(
-                        Text::new(format!("[{key}]  {label}")),
+                        Text::new(label),
                         TextFont {
                             font_size: FontSize::Px(15.0),
                             ..Default::default()
@@ -1351,7 +1496,7 @@ fn spawn_page_controls(parent: &mut ChildSpawnerCommands) {
                      Pads · E / Enter start mode\n\
                      Create Map / My Maps · C skins · M claim\n\
                      Esc Nest menu → Characters / Animations\n\
-                     1–5 performance emotes · Space jump\n\
+                     1–5 bound emotes · Space jump · Space×2 double jump\n\
                      Ctrl+V link wallet · Ctrl+O claim desk\n\
                      Esc Nest menu · Q return Nest · R rematch\n\
                      ` free cursor · F11 fullscreen",
@@ -1652,6 +1797,8 @@ fn handle_menu_nav(
     mut exit: MessageWriter<AppExit>,
     mut banner: ResMut<NetworkBanner>,
     mut emotes: MessageWriter<crate::player::PlayCrewEmote>,
+    mut focus: ResMut<EmoteMenuFocus>,
+    mut bindings: ResMut<EmoteBindings>,
     interactions: Query<(&Interaction, &MenuNavButton), Changed<Interaction>>,
 ) {
     if !pause.paused {
@@ -1684,11 +1831,80 @@ fn handle_menu_nav(
                 exit.write(AppExit::Success);
             }
             MenuAction::PlayEmote(slot) => {
-                emotes.write(crate::player::PlayCrewEmote(slot));
-                pause.paused = false;
-                camera.captured = true;
+                if bindings.slots.get(slot as usize).and_then(|s| s.as_ref()).is_some() {
+                    emotes.write(crate::player::PlayCrewEmote(slot));
+                    pause.paused = false;
+                    camera.captured = true;
+                } else {
+                    banner.show("That emote slot is empty — bind a clip first.", 2.5);
+                }
+            }
+            MenuAction::SelectEmoteSlot(slot) => {
+                focus.slot = Some(slot);
+                banner.show(
+                    &format!("Slot {} selected — pick a clip from the library.", slot + 1),
+                    2.0,
+                );
+            }
+            MenuAction::ClearEmoteSlot(slot) => {
+                if let Some(entry) = bindings.slots.get_mut(slot as usize) {
+                    *entry = None;
+                }
+                if focus.slot == Some(slot) {
+                    focus.slot = None;
+                }
+                banner.show(&format!("Cleared slot {}.", slot + 1), 1.5);
             }
         }
+    }
+}
+
+fn handle_bind_emote_buttons(
+    pause: Res<PauseState>,
+    page: Res<MenuPage>,
+    focus: Res<EmoteMenuFocus>,
+    mut bindings: ResMut<EmoteBindings>,
+    mut banner: ResMut<NetworkBanner>,
+    interactions: Query<(&Interaction, &BindEmoteButton), Changed<Interaction>>,
+) {
+    if !pause.paused || *page != MenuPage::Animations {
+        return;
+    }
+    for (interaction, btn) in &interactions {
+        if *interaction != Interaction::Pressed {
+            continue;
+        }
+        let Some(slot) = focus.slot else {
+            banner.show("Select a wheel slot first, then bind a clip.", 2.5);
+            continue;
+        };
+        if let Some(entry) = bindings.slots.get_mut(slot as usize) {
+            *entry = Some(btn.clip.to_string());
+            let label = bindings.label_for_slot(slot as usize);
+            banner.show(&format!("Bound [{}] → {label}", slot + 1), 2.0);
+        }
+    }
+}
+
+fn refresh_emote_slot_labels(
+    pause: Res<PauseState>,
+    page: Res<MenuPage>,
+    bindings: Res<EmoteBindings>,
+    focus: Res<EmoteMenuFocus>,
+    mut labels: Query<(&EmoteSlotLabel, &mut Text)>,
+) {
+    if !pause.paused || *page != MenuPage::Animations {
+        return;
+    }
+    for (slot, mut text) in &mut labels {
+        let key = slot.0 + 1;
+        let name = bindings.label_for_slot(slot.0 as usize);
+        let selected = focus.slot == Some(slot.0);
+        **text = if selected {
+            format!("[{key}]  {name}  ◀")
+        } else {
+            format!("[{key}]  {name}")
+        };
     }
 }
 

@@ -9,6 +9,11 @@ pub const INTERACT_RADIUS: f32 = 3.5;
 
 pub const PLAYER_SPEED: f32 = 7.0;
 pub const PLAYER_SPRINT_MULTIPLIER: f32 = 1.6;
+pub const PLAYER_FLOOR_Y: f32 = 1.0;
+pub const PLAYER_JUMP_VELOCITY: f32 = 9.0;
+pub const PLAYER_DOUBLE_JUMP_VELOCITY: f32 = 8.0;
+pub const PLAYER_GRAVITY: f32 = 28.0;
+pub const PLAYER_MAX_AIR_JUMPS: u8 = 1;
 
 /// Soft playable bounds for the arena shell (XZ half-extent).
 /// Nest floor / walls should stay slightly outside this.

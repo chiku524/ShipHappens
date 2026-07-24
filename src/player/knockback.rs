@@ -32,7 +32,7 @@ pub fn apply_knockback_motion(
             continue;
         }
         transform.translation += knock.velocity * dt;
-        transform.translation.y = 1.0;
+        // Keep vertical motion owned by jump/gravity — only shove on XZ.
         transform.translation.x = transform.translation.x.clamp(
             -crate::core::ARENA_BOUNDS,
             crate::core::ARENA_BOUNDS,
