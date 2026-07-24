@@ -26,8 +26,11 @@ pub const EMOTE_LIBRARY: &[(&str, &str, f32, bool)] = &[
 ];
 
 pub const EMOTE_SLOT_COUNT: usize = 5;
-const IDLE_AFTER_STILL_SECS: f32 = 3.0;
-const CROSSFADE: Duration = Duration::from_millis(150);
+/// Ignore micro-pauses so WASD taps don't flicker into idle.
+const IDLE_SETTLE_SECS: f32 = 0.2;
+/// Soft walk/run → idle blend (avoids mid-stride freeze snap).
+const IDLE_CROSSFADE: Duration = Duration::from_millis(2800);
+const CROSSFADE: Duration = Duration::from_millis(180);
 const WALK_SPEED_EPS: f32 = 0.05;
 
 #[derive(Component, Debug, Clone)]
@@ -69,7 +72,7 @@ pub struct CrewAnimPlayback {
     pub library: Vec<CrewEmoteDef>,
     pub lock_until: f32,
     pub player_entity: Entity,
-    /// Elapsed time when the avatar last became still (for delayed idle).
+    /// Elapsed time when the avatar last became still (settle debounce before idle).
     pub still_since: Option<f32>,
 }
 
@@ -482,10 +485,9 @@ fn choose_crew_anim_kind(
             continue;
         }
 
-        // Standing still — wait before playing the idle loop (Fortnite-style).
+        // Standing still — ease into idle (long blend, no mid-stride freeze).
         let still_since = *anim.still_since.get_or_insert(now);
-        if now - still_since < IDLE_AFTER_STILL_SECS {
-            // Keep last locomotion pose frozen until the idle timer elapses.
+        if now - still_since < IDLE_SETTLE_SECS {
             continue;
         }
 
@@ -497,31 +499,12 @@ fn choose_crew_anim_kind(
 }
 
 fn apply_crew_anim_kind(
-    time: Res<Time>,
     mut commands: Commands,
     bindings: Res<crate::settings::EmoteBindings>,
     mut visuals: Query<(Entity, &mut CrewAnimPlayback)>,
     mut players: Query<(&mut AnimationPlayer, &mut AnimationTransitions)>,
 ) {
-    let now = time.elapsed_secs();
     for (entity, mut anim) in &mut visuals {
-        let waiting_idle = anim
-            .still_since
-            .is_some_and(|since| now - since < IDLE_AFTER_STILL_SECS)
-            && matches!(
-                anim.kind,
-                CrewAnimKind::Walk | CrewAnimKind::Run | CrewAnimKind::Jump
-            );
-
-        if waiting_idle {
-            if let Ok((mut player, _)) = players.get_mut(anim.player_entity) {
-                for (_, playing) in player.playing_animations_mut() {
-                    playing.set_speed(0.0);
-                }
-            }
-            continue;
-        }
-
         if anim.applied == Some(anim.kind) {
             continue;
         }
@@ -532,8 +515,16 @@ fn apply_crew_anim_kind(
                 .insert(CrewSceneReady);
             continue;
         };
+        // Restore speed in case a prior path left clips paused.
+        for (_, playing) in player.playing_animations_mut() {
+            playing.set_speed(1.0);
+        }
+        let fade = match anim.kind {
+            CrewAnimKind::Idle => IDLE_CROSSFADE,
+            _ => CROSSFADE,
+        };
         let node = anim.node(anim.kind, &bindings);
-        let active = transitions.play(&mut player, node, CROSSFADE);
+        let active = transitions.play(&mut player, node, fade);
         active.set_speed(1.0);
         if anim.loops(anim.kind, &bindings) {
             active.repeat();
