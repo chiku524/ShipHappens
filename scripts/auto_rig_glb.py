@@ -10,10 +10,13 @@ Detects the incoming file and picks a path:
   • stubby 12-bone  → keep / refresh via `rig_and_animate_pudgy.py`
   • unknown rig     → refuse unless `--force stubby|keep`
 
-Short vs tall pudgies:
-  Pass `--height` (default 1.2). Import bakes that playable height; the stubby
-  rig places bones as fractions of the mesh AABB and scales bounce envelopes /
-  location clips by (mesh_height / 1.2). Example:
+Short vs tall / wide vs narrow pudgies:
+  Pass `--height` (default 1.2) to bake playable height on import. The stubby
+  rig places bones as fractions of the mesh AABB (X width, Y depth, Z height)
+  and scales envelopes + clip location/rotation by those dimensions vs a
+  canonical ~0.85×1.20×1.15 stubby. Clip transfer (`--clip-source`) also
+  rescales donor motion by target/donor AABB ratios.
+  Example:
     python scripts/auto_rig_glb.py --src short.glb --asset-id char_pudgy_lava_01 --height 0.95
     python scripts/auto_rig_glb.py --src tall.glb  --asset-id char_pudgy_sky_01  --height 1.35
 

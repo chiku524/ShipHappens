@@ -16,7 +16,7 @@ Selectable crew matches [STUDIO_PROMPTS.md](STUDIO_PROMPTS.md) Priority 0 (**5 c
 
 Default crew id: [`data/player_defaults.json`](../data/player_defaults.json). Roster: [`data/characters/roster.json`](../data/characters/roster.json). Switch live in Esc Nest → **Characters**.
 
-Short vs tall: `auto_rig_glb.py --height 0.95` / `--height 1.35` bakes playable size; stubby bones stay fractional to the mesh AABB and bounce/envelopes scale by `mesh_height / 1.2`.
+Short vs tall: `auto_rig_glb.py --height 0.95` / `--height 1.35` bakes playable size. Stubby bones, envelopes, and clips scale from the mesh AABB (width × height × depth) vs a canonical stubby; `transfer_crew_clips.py` rescales donor motion the same way.
 
 ## Sync + tooling
 

@@ -127,10 +127,30 @@ d = max(maxv.y - minv.y, 1e-4)
 cx = 0.5 * (minv.x + maxv.x)
 cy = 0.5 * (minv.y + maxv.y)
 
-# Location / envelope magnitudes are authored for a ~1.2 m reference pudgy.
-REF_HEIGHT = 1.2
-LOC_SCALE = max(h / REF_HEIGHT, 0.35)
-ENV_SCALE = LOC_SCALE
+# Canonical stubby AABB (Blender Z-up: X=width, Y=depth, Z=height).
+# All bone placement is already fractional to this mesh; envelopes + clip
+# amplitudes additionally scale by these ratios so short/tall/wide/narrow
+# pudgies keep readable motion without clipping the floor.
+REF_W, REF_H, REF_D = 0.85, 1.20, 1.15
+
+def _clamp(v, lo=0.35, hi=2.5):
+    return max(lo, min(hi, v))
+
+SCALE_X = _clamp(w / REF_W)  # lateral
+SCALE_Z = _clamp(h / REF_H)  # vertical
+SCALE_Y = _clamp(d / REF_D)  # depth
+ENV_LAT = _clamp(0.5 * (SCALE_X + SCALE_Y), 0.35, 2.5)
+ENV_VERT = SCALE_Z
+ROT_SWING = _clamp(0.5 * (SCALE_Y + SCALE_Z), 0.45, 1.8)  # euler X
+ROT_TWIST = _clamp(SCALE_X, 0.45, 1.8)                     # euler Y
+ROT_FLARE = _clamp(SCALE_X, 0.45, 1.8)                     # euler Z
+FOOT_TIP_Z = max(0.008, 0.012 * SCALE_Z)
+
+print(
+    "MESH_DIMS",
+    f"w={w:.3f} h={h:.3f} d={d:.3f}",
+    f"scale=({SCALE_X:.3f},{SCALE_Y:.3f},{SCALE_Z:.3f})",
+)
 
 # --- Shared Pudgy armature (stubby mascot proportions) ---
 arm_data = bpy.data.armatures.new(f"{ASSET_ID}_Armature")
@@ -214,7 +234,7 @@ l_leg = add_bone(
 l_shin = add_bone(
     "L_Shin",
     (cx + w * 0.5 * foot_xmax * 0.55, cy, h * 0.07),
-    (cx + w * 0.5 * foot_xmax * 0.55, cy, 0.015),
+    (cx + w * 0.5 * foot_xmax * 0.55, cy, FOOT_TIP_Z),
     l_leg,
 )
 r_leg = add_bone(
@@ -226,7 +246,7 @@ r_leg = add_bone(
 r_shin = add_bone(
     "R_Shin",
     (cx + w * 0.5 * foot_xmin * 0.55, cy, h * 0.07),
-    (cx + w * 0.5 * foot_xmin * 0.55, cy, 0.015),
+    (cx + w * 0.5 * foot_xmin * 0.55, cy, FOOT_TIP_Z),
     r_leg,
 )
 
@@ -239,20 +259,20 @@ arm_obj.select_set(True)
 bpy.context.view_layer.objects.active = arm_obj
 
 # Narrower limb envelopes — keep auto-weights off the dumpling core.
-# Distances scale with mesh height so short/tall binds stay proportional.
+# Distances follow mesh width/depth (lateral) and height (vertical).
 ENVELOPE = {
-    "Root": (0.48 * ENV_SCALE, 0.18 * ENV_SCALE, 0.14 * ENV_SCALE),
-    "Hips": (0.38 * ENV_SCALE, 0.16 * ENV_SCALE, 0.13 * ENV_SCALE),
-    "Spine": (0.40 * ENV_SCALE, 0.16 * ENV_SCALE, 0.13 * ENV_SCALE),
-    "Head": (0.28 * ENV_SCALE, 0.14 * ENV_SCALE, 0.12 * ENV_SCALE),
-    "L_Arm": (0.10 * ENV_SCALE, 0.07 * ENV_SCALE, 0.05 * ENV_SCALE),
-    "R_Arm": (0.10 * ENV_SCALE, 0.07 * ENV_SCALE, 0.05 * ENV_SCALE),
-    "L_Forearm": (0.08 * ENV_SCALE, 0.05 * ENV_SCALE, 0.04 * ENV_SCALE),
-    "R_Forearm": (0.08 * ENV_SCALE, 0.05 * ENV_SCALE, 0.04 * ENV_SCALE),
-    "L_Leg": (0.08 * ENV_SCALE, 0.05 * ENV_SCALE, 0.04 * ENV_SCALE),
-    "R_Leg": (0.08 * ENV_SCALE, 0.05 * ENV_SCALE, 0.04 * ENV_SCALE),
-    "L_Shin": (0.07 * ENV_SCALE, 0.045 * ENV_SCALE, 0.035 * ENV_SCALE),
-    "R_Shin": (0.07 * ENV_SCALE, 0.045 * ENV_SCALE, 0.035 * ENV_SCALE),
+    "Root": (0.48 * ENV_LAT, 0.18 * ENV_VERT, 0.14 * ENV_LAT),
+    "Hips": (0.38 * ENV_LAT, 0.16 * ENV_VERT, 0.13 * ENV_LAT),
+    "Spine": (0.40 * ENV_LAT, 0.16 * ENV_VERT, 0.13 * ENV_LAT),
+    "Head": (0.28 * ENV_LAT, 0.14 * ENV_VERT, 0.12 * ENV_LAT),
+    "L_Arm": (0.10 * SCALE_X, 0.07 * SCALE_X, 0.05 * SCALE_X),
+    "R_Arm": (0.10 * SCALE_X, 0.07 * SCALE_X, 0.05 * SCALE_X),
+    "L_Forearm": (0.08 * SCALE_X, 0.05 * SCALE_X, 0.04 * SCALE_X),
+    "R_Forearm": (0.08 * SCALE_X, 0.05 * SCALE_X, 0.04 * SCALE_X),
+    "L_Leg": (0.08 * SCALE_X, 0.05 * SCALE_Z, 0.04 * SCALE_X),
+    "R_Leg": (0.08 * SCALE_X, 0.05 * SCALE_Z, 0.04 * SCALE_X),
+    "L_Shin": (0.07 * SCALE_X, 0.045 * SCALE_Z, 0.035 * SCALE_X),
+    "R_Shin": (0.07 * SCALE_X, 0.045 * SCALE_Z, 0.035 * SCALE_X),
 }
 bpy.ops.object.mode_set(mode="POSE")
 for pb in arm_obj.pose.bones:
@@ -569,7 +589,10 @@ def set_bone_keys(action, bone_name, frames_euler):
 
     Pose-bone location uses Blender bone space (Y along the bone). For vertical
     Hips/Root bones, bounce must be (0, dy, 0) — not Z, which only slides sideways.
-    Location tuples are multiplied by LOC_SCALE (mesh height / 1.2).
+
+    Magnitudes follow mesh AABB ratios vs the canonical stubby:
+      location (bone local) → (SCALE_X, SCALE_Z, SCALE_Y)
+      euler degrees → (ROT_SWING, ROT_TWIST, ROT_FLARE)
     """
     arm_obj.animation_data_create()
     arm_obj.animation_data.action = action
@@ -588,13 +611,14 @@ def set_bone_keys(action, bone_name, frames_euler):
             frame, eul, loc = item
         bpy.context.scene.frame_set(int(frame))
         pb.rotation_euler = (
-            math.radians(eul[0]),
-            math.radians(eul[1]),
-            math.radians(eul[2]),
+            math.radians(eul[0] * ROT_SWING),
+            math.radians(eul[1] * ROT_TWIST),
+            math.radians(eul[2] * ROT_FLARE),
         )
         pb.keyframe_insert(data_path="rotation_euler", frame=frame)
         if loc is not None:
-            scaled = (loc[0] * LOC_SCALE, loc[1] * LOC_SCALE, loc[2] * LOC_SCALE)
+            # Bone-local: X lateral, Y along bone (~height for Root), Z depth.
+            scaled = (loc[0] * SCALE_X, loc[1] * SCALE_Z, loc[2] * SCALE_Y)
             pb.location = mathutils.Vector(scaled)
             pb.keyframe_insert(data_path="location", frame=frame)
     bpy.ops.object.mode_set(mode="OBJECT")
@@ -606,7 +630,11 @@ def clear_pose():
     bpy.ops.pose.transforms_clear()
     bpy.ops.object.mode_set(mode="OBJECT")
 
-print("CLIP_SCALE", round(LOC_SCALE, 4), "mesh_h", round(h, 4))
+print(
+    "CLIP_SCALE",
+    f"loc=({SCALE_X:.3f},{SCALE_Z:.3f},{SCALE_Y:.3f})",
+    f"rot=({ROT_SWING:.3f},{ROT_TWIST:.3f},{ROT_FLARE:.3f})",
+)
 
 # idle — tiny whole-body bob + soft flipper settle (tucked, not T-pose)
 clear_pose()

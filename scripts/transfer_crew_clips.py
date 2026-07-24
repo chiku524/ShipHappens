@@ -5,6 +5,10 @@ Works when source and target share the same bone names (e.g. pink ↔ water Stud
 41-bone rig). Does **not** retarget across different hierarchies (Studio 41 ↔
 stubby 12) — use `auto_rig_glb.py` / `rig_and_animate_pudgy.py` for that.
 
+Motion sync: after copy, location / euler keyframes are scaled by the target vs
+donor mesh AABB ratios (width X, height Z, depth Y) so short/tall/wide bodies
+keep proportional bounce and flap amplitude.
+
 Usage:
   # Copy every shared clip from water onto pink (in place)
   python scripts/transfer_crew_clips.py \\
@@ -106,13 +110,14 @@ def remove_track_named(arm, name):
         if track.name == name:
             ad.nla_tracks.remove(track)
 
-def push_clip(arm, name, action):
+def push_clip(arm, name, action, loc_scale=(1.0, 1.0, 1.0), rot_scale=(1.0, 1.0, 1.0)):
     ad = ensure_anim(arm)
     remove_track_named(arm, name)
     # Isolate so NLA export picks one strip per track.
     copied = action.copy()
     copied.name = name
     copied.use_fake_user = True
+    scale_action_motion(copied, loc_scale, rot_scale)
     track = ad.nla_tracks.new()
     track.name = name
     # Frame range from action
@@ -128,8 +133,87 @@ def push_clip(arm, name, action):
         pass
     print("PUSH_CLIP", name, f"frames={frame_start}-{frame_end}")
 
+def mesh_aabb_dims(objs):
+    """Return (width_x, height_z, depth_y) from mesh world bounds (Blender Z-up)."""
+    import mathutils
+    minv = mathutils.Vector((1e9, 1e9, 1e9))
+    maxv = mathutils.Vector((-1e9, -1e9, -1e9))
+    found = False
+    for obj in objs:
+        if obj.type != "MESH":
+            continue
+        found = True
+        for corner in obj.bound_box:
+            wco = obj.matrix_world @ mathutils.Vector(corner)
+            minv = mathutils.Vector((min(minv.x, wco.x), min(minv.y, wco.y), min(minv.z, wco.z)))
+            maxv = mathutils.Vector((max(maxv.x, wco.x), max(maxv.y, wco.y), max(maxv.z, wco.z)))
+    if not found:
+        return 1.0, 1.0, 1.0
+    return (
+        max(maxv.x - minv.x, 1e-4),
+        max(maxv.z - minv.z, 1e-4),
+        max(maxv.y - minv.y, 1e-4),
+    )
+
+def scale_action_motion(action, loc_scale, rot_scale):
+    """Scale pose location / euler keyframes to match target mesh XYZ vs donor.
+
+    loc_scale / rot_scale are (x, y, z) multipliers applied by fcurve array_index.
+    Pose-bone location: index 0=X lateral, 1=Y along bone (~height), 2=Z depth.
+    """
+    def _scale_fcurve(fc, scales):
+        if fc.array_index < 0 or fc.array_index > 2:
+            return
+        s = scales[fc.array_index]
+        if abs(s - 1.0) < 1e-6:
+            return
+        for kp in fc.keyframe_points:
+            kp.co[1] *= s
+            kp.handle_left[1] *= s
+            kp.handle_right[1] *= s
+
+    # Blender 4+/5 layered actions expose fcurves via channelsbag / legacy .fcurves.
+    fcurves = getattr(action, "fcurves", None)
+    if fcurves is None and hasattr(action, "layers"):
+        try:
+            fcurves = action.layers[0].strips[0].channelbag(action.slots[0]).fcurves
+        except Exception:
+            fcurves = None
+    if not fcurves:
+        return
+    for fc in fcurves:
+        path = fc.data_path or ""
+        if path.endswith("location") or ".location" in path:
+            _scale_fcurve(fc, loc_scale)
+        elif path.endswith("rotation_euler") or ".rotation_euler" in path:
+            _scale_fcurve(fc, rot_scale)
+
 src_arm, src_objs = import_gltf(FROM_PATH, "SRC_")
 dst_arm, dst_objs = import_gltf(TO_PATH, "DST_")
+
+src_w, src_h, src_d = mesh_aabb_dims(src_objs)
+dst_w, dst_h, dst_d = mesh_aabb_dims(dst_objs)
+
+def _ratio(a, b):
+    r = a / max(b, 1e-4)
+    return max(0.35, min(2.5, r))
+
+# Target / donor — resize donor motion onto the destination body.
+SX = _ratio(dst_w, src_w)
+SZ = _ratio(dst_h, src_h)
+SY = _ratio(dst_d, src_d)
+LOC_SCALE = (SX, SZ, SY)  # bone-local X,Y,Z
+ROT_SCALE = (
+    max(0.45, min(1.8, 0.5 * (SY + SZ))),  # swing
+    max(0.45, min(1.8, SX)),                 # twist
+    max(0.45, min(1.8, SX)),                 # flare
+)
+print(
+    "DIM_SYNC",
+    f"src=({src_w:.3f},{src_h:.3f},{src_d:.3f})",
+    f"dst=({dst_w:.3f},{dst_h:.3f},{dst_d:.3f})",
+    f"loc_scale=({SX:.3f},{SZ:.3f},{SY:.3f})",
+)
 
 src_joints = joint_names(src_arm)
 dst_joints = joint_names(dst_arm)
@@ -168,7 +252,7 @@ for name in wanted:
         print("KEEP_EXISTING", name)
         skipped.append(name)
         continue
-    push_clip(dst_arm, name, action)
+    push_clip(dst_arm, name, action, LOC_SCALE, ROT_SCALE)
     transferred.append(name)
 
 # Clear active action so export uses NLA only.
