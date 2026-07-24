@@ -175,88 +175,164 @@ hips = add_bone("Hips", (cx, cy, h * 0.32), (cx, cy, h * 0.42), root)
 spine = add_bone("Spine", (cx, cy, h * 0.42), (cx, cy, h * 0.58), hips)
 head = add_bone("Head", (cx, cy, h * 0.58), (cx, cy, h * 0.88), spine)
 
-# Measure real L/R extents — Tripo pudgies are often asymmetric.
-# Weight paint keeps per-side extents; bone *placement* uses mirrored spans so
-# walk/run euler clips don't stretch a short stub harder than a long one.
-arm_xmax = arm_xmin = foot_xmax = foot_xmin = 0.0
+# Measure L/R extents with robust percentiles (max alone is poisoned by thin spikes).
+arm_nx = []
+foot_nx = []
+handish = 0  # lower lateral mass → hanging biped arms
+flipperish = 0  # mid-height lateral mass → dumpling flaps
 for vert in body.data.vertices:
     wp = body.matrix_world @ vert.co
     nx = (wp.x - cx) / max(w * 0.5, 1e-4)
     nz = (wp.z - minv.z) / h
     if 0.38 < nz < 0.72:
-        arm_xmax = max(arm_xmax, nx)
-        arm_xmin = min(arm_xmin, nx)
+        arm_nx.append(nx)
+        if abs(nx) > 0.50:
+            flipperish += 1
+    if 0.18 < nz < 0.42 and abs(nx) > 0.32:
+        handish += 1
     if nz <= 0.20:
-        foot_xmax = max(foot_xmax, nx)
-        foot_xmin = min(foot_xmin, nx)
-arm_xmax = max(arm_xmax, 0.45)
-arm_xmin = min(arm_xmin, -0.45)
-foot_xmax = max(foot_xmax, 0.35)
-foot_xmin = min(foot_xmin, -0.35)
+        foot_nx.append(nx)
+
+def _pct(vals, p):
+    if not vals:
+        return 0.0
+    s = sorted(vals)
+    i = int(max(0, min(len(s) - 1, round((len(s) - 1) * p))))
+    return s[i]
+
+pos_arm = [v for v in arm_nx if v > 0.05]
+neg_arm = [v for v in arm_nx if v < -0.05]
+# 90th / 10th percentiles ignore the outer 10% spike outliers.
+arm_xmax = max(_pct(pos_arm, 0.90) if pos_arm else 0.55, 0.45)
+arm_xmin = min(_pct(neg_arm, 0.10) if neg_arm else -0.55, -0.45)
+pos_foot = [v for v in foot_nx if v > 0.05]
+neg_foot = [v for v in foot_nx if v < -0.05]
+foot_xmax = max(_pct(pos_foot, 0.90) if pos_foot else 0.40, 0.35)
+foot_xmin = min(_pct(neg_foot, 0.10) if neg_foot else -0.40, -0.35)
 arm_span = max(arm_xmax, -arm_xmin, 0.55)
 foot_span = max(foot_xmax, -foot_xmin, 0.40)
-# Motion amplitude vs a typical stubby flap / foot reach.
+# True bipeds (lava) have hand mass lower than flipper height; dumplings reverse that.
+LIMB_STYLE = "hanging" if handish >= flipperish * 0.55 else "flipper"
 ARM_MOT = _clamp(arm_span / 0.95, 0.40, 1.0)
 LEG_MOT = _clamp(foot_span / 0.75, 0.40, 1.0)
+if LIMB_STYLE == "hanging":
+    # Hanging arms need smaller euler swings or shoulders melt.
+    ARM_MOT = min(ARM_MOT, 0.70)
 print(
     "SIDE_EXTENTS",
     f"arm=({arm_xmin:.3f},{arm_xmax:.3f})",
     f"foot=({foot_xmin:.3f},{foot_xmax:.3f})",
     f"span_arm={arm_span:.3f} span_foot={foot_span:.3f}",
+    f"style={LIMB_STYLE} handish={handish} flipperish={flipperish}",
     f"mot_arm={ARM_MOT:.3f} mot_leg={LEG_MOT:.3f}",
 )
 
-# Flipper stubs — mirrored spans (stable under shared locomotion clips).
-l_arm = add_bone(
-    "L_Arm",
-    (cx + w * 0.5 * arm_span * 0.58, cy, h * 0.46),
-    (cx + w * 0.5 * arm_span * 0.82, cy, h * 0.44),
-    spine,
-)
-l_fore = add_bone(
-    "L_Forearm",
-    (cx + w * 0.5 * arm_span * 0.82, cy, h * 0.44),
-    (cx + w * 0.5 * arm_span * 0.96, cy, h * 0.42),
-    l_arm,
-)
-r_arm = add_bone(
-    "R_Arm",
-    (cx - w * 0.5 * arm_span * 0.58, cy, h * 0.46),
-    (cx - w * 0.5 * arm_span * 0.82, cy, h * 0.44),
-    spine,
-)
-r_fore = add_bone(
-    "R_Forearm",
-    (cx - w * 0.5 * arm_span * 0.82, cy, h * 0.44),
-    (cx - w * 0.5 * arm_span * 0.96, cy, h * 0.42),
-    r_arm,
-)
-
-# Tiny feet — mirrored spans under the dumpling.
-l_leg = add_bone(
-    "L_Leg",
-    (cx + w * 0.5 * foot_span * 0.45, cy, h * 0.16),
-    (cx + w * 0.5 * foot_span * 0.55, cy, h * 0.07),
-    hips,
-)
-l_shin = add_bone(
-    "L_Shin",
-    (cx + w * 0.5 * foot_span * 0.55, cy, h * 0.07),
-    (cx + w * 0.5 * foot_span * 0.55, cy, FOOT_TIP_Z),
-    l_leg,
-)
-r_leg = add_bone(
-    "R_Leg",
-    (cx - w * 0.5 * foot_span * 0.45, cy, h * 0.16),
-    (cx - w * 0.5 * foot_span * 0.55, cy, h * 0.07),
-    hips,
-)
-r_shin = add_bone(
-    "R_Shin",
-    (cx - w * 0.5 * foot_span * 0.55, cy, h * 0.07),
-    (cx - w * 0.5 * foot_span * 0.55, cy, FOOT_TIP_Z),
-    r_leg,
-)
+if LIMB_STYLE == "hanging":
+    # Shoulder → elbow → wrist hanging down (biped / clawed mascot like lava).
+    sh_z = h * 0.60
+    el_z = h * 0.42
+    wr_z = h * 0.26
+    ax = w * 0.5 * arm_span
+    l_arm = add_bone(
+        "L_Arm",
+        (cx + ax * 0.38, cy, sh_z),
+        (cx + ax * 0.52, cy, el_z),
+        spine,
+    )
+    l_fore = add_bone(
+        "L_Forearm",
+        (cx + ax * 0.52, cy, el_z),
+        (cx + ax * 0.58, cy, wr_z),
+        l_arm,
+    )
+    r_arm = add_bone(
+        "R_Arm",
+        (cx - ax * 0.38, cy, sh_z),
+        (cx - ax * 0.52, cy, el_z),
+        spine,
+    )
+    r_fore = add_bone(
+        "R_Forearm",
+        (cx - ax * 0.52, cy, el_z),
+        (cx - ax * 0.58, cy, wr_z),
+        r_arm,
+    )
+    # More vertical legs under hips.
+    fx = w * 0.5 * foot_span
+    l_leg = add_bone(
+        "L_Leg",
+        (cx + fx * 0.32, cy, h * 0.34),
+        (cx + fx * 0.36, cy, h * 0.16),
+        hips,
+    )
+    l_shin = add_bone(
+        "L_Shin",
+        (cx + fx * 0.36, cy, h * 0.16),
+        (cx + fx * 0.36, cy, FOOT_TIP_Z),
+        l_leg,
+    )
+    r_leg = add_bone(
+        "R_Leg",
+        (cx - fx * 0.32, cy, h * 0.34),
+        (cx - fx * 0.36, cy, h * 0.16),
+        hips,
+    )
+    r_shin = add_bone(
+        "R_Shin",
+        (cx - fx * 0.36, cy, h * 0.16),
+        (cx - fx * 0.36, cy, FOOT_TIP_Z),
+        r_leg,
+    )
+else:
+    # Flipper stubs — mirrored lateral spans (dumpling / forest / sky).
+    l_arm = add_bone(
+        "L_Arm",
+        (cx + w * 0.5 * arm_span * 0.58, cy, h * 0.46),
+        (cx + w * 0.5 * arm_span * 0.82, cy, h * 0.44),
+        spine,
+    )
+    l_fore = add_bone(
+        "L_Forearm",
+        (cx + w * 0.5 * arm_span * 0.82, cy, h * 0.44),
+        (cx + w * 0.5 * arm_span * 0.96, cy, h * 0.42),
+        l_arm,
+    )
+    r_arm = add_bone(
+        "R_Arm",
+        (cx - w * 0.5 * arm_span * 0.58, cy, h * 0.46),
+        (cx - w * 0.5 * arm_span * 0.82, cy, h * 0.44),
+        spine,
+    )
+    r_fore = add_bone(
+        "R_Forearm",
+        (cx - w * 0.5 * arm_span * 0.82, cy, h * 0.44),
+        (cx - w * 0.5 * arm_span * 0.96, cy, h * 0.42),
+        r_arm,
+    )
+    l_leg = add_bone(
+        "L_Leg",
+        (cx + w * 0.5 * foot_span * 0.45, cy, h * 0.16),
+        (cx + w * 0.5 * foot_span * 0.55, cy, h * 0.07),
+        hips,
+    )
+    l_shin = add_bone(
+        "L_Shin",
+        (cx + w * 0.5 * foot_span * 0.55, cy, h * 0.07),
+        (cx + w * 0.5 * foot_span * 0.55, cy, FOOT_TIP_Z),
+        l_leg,
+    )
+    r_leg = add_bone(
+        "R_Leg",
+        (cx - w * 0.5 * foot_span * 0.45, cy, h * 0.16),
+        (cx - w * 0.5 * foot_span * 0.55, cy, h * 0.07),
+        hips,
+    )
+    r_shin = add_bone(
+        "R_Shin",
+        (cx - w * 0.5 * foot_span * 0.55, cy, h * 0.07),
+        (cx - w * 0.5 * foot_span * 0.55, cy, FOOT_TIP_Z),
+        r_leg,
+    )
 
 bpy.ops.object.mode_set(mode="OBJECT")
 
@@ -329,12 +405,15 @@ mw = body.matrix_world
 hw = max(w * 0.5, 1e-4)
 hd = max(d * 0.5, 1e-4)
 HEAD_CUT = 0.52  # hard seam; Head inherits Root motion via hierarchy
-# Start limb paint farther out so walk/run swings don't LBS-crush the dumpling.
-arm_L0 = arm_xmax * 0.58
-arm_R0 = arm_xmin * 0.58  # negative
-foot_L0 = foot_xmax * 0.32
-foot_R0 = foot_xmin * 0.32
-CORE_RADIAL = 0.52  # normalized XZ — never assign arm weights inside the core
+# Mirrored lateral starts — thin opposite-side spikes must not set the threshold.
+arm_start = max(0.42, arm_span * (0.48 if LIMB_STYLE == "hanging" else 0.55))
+arm_L0 = arm_start
+arm_R0 = -arm_start
+foot_start = max(0.22, foot_span * 0.30)
+foot_L0 = foot_start
+foot_R0 = -foot_start
+CORE_RADIAL = 0.40 if LIMB_STYLE == "hanging" else 0.52
+ARM_Z0, ARM_Z1 = (0.20, HEAD_CUT - 0.02) if LIMB_STYLE == "hanging" else (0.34, HEAD_CUT - 0.01)
 LIMB_GROUPS = ("L_Arm", "R_Arm", "L_Forearm", "R_Forearm", "L_Leg", "R_Leg", "L_Shin", "R_Shin")
 ARM_GROUPS = ("L_Arm", "R_Arm", "L_Forearm", "R_Forearm")
 
@@ -347,21 +426,18 @@ for vert in body.data.vertices:
     radial = (nx * nx + ny * ny) ** 0.5
 
     if nz >= HEAD_CUT:
-        # Entire hood/face/chin — pure Head (follows Root bounce via parents).
         set_vert(vert.index, {"Head": 1.0})
-    elif radial < CORE_RADIAL and 0.16 < nz < HEAD_CUT - 0.01:
-        # Soft dumpling core — Root only (arms must not bleed inward).
+    elif radial < CORE_RADIAL and ARM_Z0 < nz < ARM_Z1 and abs(nx) < arm_start * 0.85:
         set_vert(vert.index, {"Root": 1.0})
-    elif nx > arm_L0 and 0.34 < nz < HEAD_CUT - 0.01 and radial >= CORE_RADIAL:
-        tip = min(1.0, max(0.0, (nx - arm_L0) / max(arm_xmax - arm_L0, 1e-4)))
+    elif nx > arm_L0 and ARM_Z0 < nz < ARM_Z1 and radial >= CORE_RADIAL * 0.85:
+        tip = min(1.0, max(0.0, (nx - arm_L0) / max(arm_span - arm_L0, 1e-4)))
         tip = tip ** 0.85
-        # Pure arm chain only — no Root mix on flippers.
         set_vert(vert.index, {
             "L_Forearm": 0.20 + 0.65 * tip,
             "L_Arm": 0.80 - 0.65 * tip,
         })
-    elif nx < arm_R0 and 0.34 < nz < HEAD_CUT - 0.01 and radial >= CORE_RADIAL:
-        tip = min(1.0, max(0.0, (arm_R0 - nx) / max(arm_R0 - arm_xmin, 1e-4)))
+    elif nx < arm_R0 and ARM_Z0 < nz < ARM_Z1 and radial >= CORE_RADIAL * 0.85:
+        tip = min(1.0, max(0.0, (arm_R0 - nx) / max(arm_span + arm_R0, 1e-4)))
         tip = tip ** 0.85
         set_vert(vert.index, {
             "R_Forearm": 0.20 + 0.65 * tip,
@@ -369,7 +445,7 @@ for vert in body.data.vertices:
         })
     elif nz <= 0.14 and nx > foot_L0:
         foot = min(1.0, max(0.0, (0.14 - nz) / 0.14))
-        lateral = min(1.0, max(0.0, (nx - foot_L0) / max(foot_xmax - foot_L0, 1e-4)))
+        lateral = min(1.0, max(0.0, (nx - foot_L0) / max(foot_span - foot_L0, 1e-4)))
         limb = min(1.0, foot * (0.25 + 0.75 * lateral))
         if limb < 0.12:
             set_vert(vert.index, {"Root": 1.0})
@@ -380,7 +456,7 @@ for vert in body.data.vertices:
             })
     elif nz <= 0.14 and nx < foot_R0:
         foot = min(1.0, max(0.0, (0.14 - nz) / 0.14))
-        lateral = min(1.0, max(0.0, (foot_R0 - nx) / max(foot_R0 - foot_xmin, 1e-4)))
+        lateral = min(1.0, max(0.0, (foot_R0 - nx) / max(foot_span + foot_R0, 1e-4)))
         limb = min(1.0, foot * (0.25 + 0.75 * lateral))
         if limb < 0.12:
             set_vert(vert.index, {"Root": 1.0})
@@ -394,7 +470,7 @@ for vert in body.data.vertices:
     else:
         continue
     regioned += 1
-print("REGION_PAINT", regioned, "HEAD_CUT", HEAD_CUT)
+print("REGION_PAINT", regioned, "HEAD_CUT", HEAD_CUT, "style", LIMB_STYLE)
 
 gap = count_unweighted()
 if gap:
@@ -437,13 +513,13 @@ for vert in body.data.vertices:
         continue
     in_arm_tip = (
         (nx > arm_L0 or nx < arm_R0)
-        and 0.34 < nz < HEAD_CUT - 0.01
-        and radial >= CORE_RADIAL
+        and ARM_Z0 < nz < ARM_Z1
+        and radial >= CORE_RADIAL * 0.85
     )
     in_foot_tip = nz <= 0.14 and (nx > foot_L0 or nx < foot_R0)
     if in_arm_tip or in_foot_tip:
         continue
-    armpit = 0.34 <= nz < HEAD_CUT and abs(nx) < abs(arm_L0 if nx >= 0 else arm_R0) * 0.98
+    armpit = ARM_Z0 <= nz < HEAD_CUT and abs(nx) < arm_start * 0.98
     belly = radial <= 0.68 and 0.08 <= nz < HEAD_CUT
     crotch_mid = abs(nx) < 0.22 and 0.06 <= nz <= 0.36
     if not (armpit or belly or crotch_mid):
@@ -475,7 +551,7 @@ for vert in body.data.vertices:
         continue
     if nx > foot_L0:
         foot = min(1.0, max(0.0, (0.15 - nz) / 0.15))
-        lateral = min(1.0, max(0.0, (nx - foot_L0) / max(foot_xmax - foot_L0, 1e-4)))
+        lateral = min(1.0, max(0.0, (nx - foot_L0) / max(foot_span - foot_L0, 1e-4)))
         limb = min(1.0, foot * (0.25 + 0.75 * lateral))
         if limb < 0.12:
             continue
@@ -483,7 +559,7 @@ for vert in body.data.vertices:
         foot_boost += 1
     elif nx < foot_R0:
         foot = min(1.0, max(0.0, (0.15 - nz) / 0.15))
-        lateral = min(1.0, max(0.0, (foot_R0 - nx) / max(foot_R0 - foot_xmin, 1e-4)))
+        lateral = min(1.0, max(0.0, (foot_R0 - nx) / max(foot_span + foot_R0, 1e-4)))
         limb = min(1.0, foot * (0.25 + 0.75 * lateral))
         if limb < 0.12:
             continue
@@ -491,7 +567,7 @@ for vert in body.data.vertices:
         foot_boost += 1
 print("FOOT_TIP_BOOST", foot_boost)
 
-# Re-assert pure flipper tips (readable swing volume, never into head band / core).
+# Re-assert pure flipper/arm tips (never into head band / core).
 arm_boost = 0
 for vert in body.data.vertices:
     wp = mw @ vert.co
@@ -499,10 +575,10 @@ for vert in body.data.vertices:
     ny = (wp.y - cy) / hd
     nz = (wp.z - minv.z) / h
     radial = (nx * nx + ny * ny) ** 0.5
-    if not (0.34 < nz < HEAD_CUT - 0.01) or radial < CORE_RADIAL:
+    if not (ARM_Z0 < nz < ARM_Z1) or radial < CORE_RADIAL * 0.85:
         continue
     if nx > arm_L0:
-        tip = min(1.0, max(0.0, (nx - arm_L0) / max(arm_xmax - arm_L0, 1e-4)))
+        tip = min(1.0, max(0.0, (nx - arm_L0) / max(arm_span - arm_L0, 1e-4)))
         tip = tip ** 0.85
         if tip < 0.08:
             continue
@@ -512,7 +588,7 @@ for vert in body.data.vertices:
         })
         arm_boost += 1
     elif nx < arm_R0:
-        tip = min(1.0, max(0.0, (arm_R0 - nx) / max(arm_R0 - arm_xmin, 1e-4)))
+        tip = min(1.0, max(0.0, (arm_R0 - nx) / max(arm_span + arm_R0, 1e-4)))
         tip = tip ** 0.85
         if tip < 0.08:
             continue
@@ -550,7 +626,7 @@ for vert in body.data.vertices:
     except RuntimeError:
         pass
     # Medial mid-band: never keep arm weights (armpit melt).
-    if 0.34 <= nz < HEAD_CUT and not (nx > arm_L0 or nx < arm_R0):
+    if ARM_Z0 <= nz < HEAD_CUT and not (nx > arm_L0 or nx < arm_R0):
         had = False
         for vg_name in ARM_GROUPS:
             vg = vgs[vg_name]
@@ -564,6 +640,145 @@ for vert in body.data.vertices:
             set_vert(vert.index, {"Root": 1.0})
             armpit_clear += 1
 print("SAFE_HEAD_COLLAR", safe_head, "ARMPIT_CLEAR", armpit_clear)
+
+# Mirror-balance limb weights so a one-sided Tripo mesh (lava) still gets
+# usable R_Arm / R_Leg influence under shared walk/run clips.
+PAIR = {
+    "L_Arm": "R_Arm", "R_Arm": "L_Arm",
+    "L_Forearm": "R_Forearm", "R_Forearm": "L_Forearm",
+    "L_Leg": "R_Leg", "R_Leg": "L_Leg",
+    "L_Shin": "R_Shin", "R_Shin": "L_Shin",
+}
+# Hash by actual local position; lookup uses the mirrored X cell.
+cells = {}
+for vert in body.data.vertices:
+    wp = mw @ vert.co
+    key = (
+        int(round((wp.x - cx) / 0.025)),
+        int(round((wp.y - cy) / 0.025)),
+        int(round((wp.z - minv.z) / 0.025)),
+    )
+    cells.setdefault(key, []).append(vert.index)
+
+def limb_weights(idx):
+    out = {}
+    for g in body.data.vertices[idx].groups:
+        name = body.vertex_groups[g.group].name
+        if name in PAIR and g.weight > 0.05:
+            out[name] = g.weight
+    return out
+
+mirrored = 0
+for vert in list(body.data.vertices):
+    src = limb_weights(vert.index)
+    if not src or not any(n.startswith("L_") for n in src):
+        continue
+    wp = mw @ vert.co
+    # Search mirrored cell ±1 for nearest neighbor.
+    mx = int(round((-(wp.x - cx)) / 0.025))
+    my = int(round((wp.y - cy) / 0.025))
+    mz = int(round((wp.z - minv.z) / 0.025))
+    cands = []
+    for dx in (-1, 0, 1):
+        for dy in (-1, 0, 1):
+            for dz in (-1, 0, 1):
+                cands.extend(cells.get((mx + dx, my + dy, mz + dz), []))
+    if not cands:
+        continue
+    best = None
+    best_d = 1e9
+    target = mathutils.Vector((cx - (wp.x - cx), wp.y, wp.z))
+    for ci in cands:
+        if ci == vert.index:
+            continue
+        d = (mw @ body.data.vertices[ci].co - target).length
+        if d < best_d:
+            best_d = d
+            best = ci
+    if best is None or best_d > 0.08:
+        continue
+    dst = limb_weights(best)
+    src_sum = sum(src.values())
+    dst_sum = sum(dst.values())
+    if dst_sum >= src_sum * 0.55:
+        continue
+    set_vert(best, {PAIR[n]: w for n, w in src.items()})
+    mirrored += 1
+print("MIRROR_BALANCE", mirrored, "verts")
+
+# If one side is still starved (common on Tripo bipeds), force-paint the
+# sparse side in the limb bands so walk/run eulers actually move mesh.
+def _mass(names):
+    total = 0.0
+    for vert in body.data.vertices:
+        for g in vert.groups:
+            if body.vertex_groups[g.group].name in names:
+                total += g.weight
+    return total
+
+l_arm_m = _mass(("L_Arm", "L_Forearm"))
+r_arm_m = _mass(("R_Arm", "R_Forearm"))
+l_leg_m = _mass(("L_Leg", "L_Shin"))
+r_leg_m = _mass(("R_Leg", "R_Shin"))
+force = 0
+if r_arm_m < l_arm_m * 0.45:
+    # More inclusive right arm band.
+    soft_R = -max(0.28, arm_start * 0.62)
+    for vert in body.data.vertices:
+        wp = mw @ vert.co
+        nx = (wp.x - cx) / hw
+        nz = (wp.z - minv.z) / h
+        if nx >= soft_R or not (ARM_Z0 < nz < ARM_Z1):
+            continue
+        tip = min(1.0, max(0.0, (soft_R - nx) / max(arm_span + soft_R, 1e-4)))
+        set_vert(vert.index, {
+            "R_Forearm": 0.15 + 0.55 * tip,
+            "R_Arm": 0.85 - 0.55 * tip,
+        })
+        force += 1
+if r_leg_m < l_leg_m * 0.45:
+    soft_R = -max(0.16, foot_start * 0.70)
+    for vert in body.data.vertices:
+        wp = mw @ vert.co
+        nx = (wp.x - cx) / hw
+        nz = (wp.z - minv.z) / h
+        if nx >= soft_R or nz > 0.16:
+            continue
+        tip = min(1.0, max(0.0, (0.16 - nz) / 0.16))
+        set_vert(vert.index, {"R_Shin": 0.55 * tip, "R_Leg": 0.45 * tip})
+        force += 1
+# Symmetric: left starved (rare).
+if l_arm_m < r_arm_m * 0.45:
+    soft_L = max(0.28, arm_start * 0.62)
+    for vert in body.data.vertices:
+        wp = mw @ vert.co
+        nx = (wp.x - cx) / hw
+        nz = (wp.z - minv.z) / h
+        if nx <= soft_L or not (ARM_Z0 < nz < ARM_Z1):
+            continue
+        tip = min(1.0, max(0.0, (nx - soft_L) / max(arm_span - soft_L, 1e-4)))
+        set_vert(vert.index, {
+            "L_Forearm": 0.15 + 0.55 * tip,
+            "L_Arm": 0.85 - 0.55 * tip,
+        })
+        force += 1
+if l_leg_m < r_leg_m * 0.45:
+    soft_L = max(0.16, foot_start * 0.70)
+    for vert in body.data.vertices:
+        wp = mw @ vert.co
+        nx = (wp.x - cx) / hw
+        nz = (wp.z - minv.z) / h
+        if nx <= soft_L or nz > 0.16:
+            continue
+        tip = min(1.0, max(0.0, (0.16 - nz) / 0.16))
+        set_vert(vert.index, {"L_Shin": 0.55 * tip, "L_Leg": 0.45 * tip})
+        force += 1
+print(
+    "SIDE_MASS",
+    f"arm L/R={l_arm_m:.0f}/{r_arm_m:.0f}",
+    f"leg L/R={l_leg_m:.0f}/{r_leg_m:.0f}",
+    f"force={force}",
+)
 
 # Normalize weights per vertex (mesh must be active).
 bpy.ops.object.select_all(action="DESELECT")
