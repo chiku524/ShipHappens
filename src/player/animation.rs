@@ -328,6 +328,9 @@ fn finish_crew_animation_setup(
         let Ok(mut player) = players.get_mut(player_entity) else {
             continue;
         };
+        // Drop any prior clips (glTF load order can leave the wrong NLA strip
+        // feeling like the default — e.g. emote_dance listed first).
+        player.stop_all();
         let mut transitions = AnimationTransitions::new();
         transitions
             .play(&mut player, nodes[0], Duration::ZERO)
@@ -357,7 +360,8 @@ fn finish_crew_animation_setup(
 
         commands.entity(entity).insert(CrewAnimPlayback {
             kind: CrewAnimKind::Idle,
-            applied: Some(CrewAnimKind::Idle),
+            // Force apply_crew_anim_kind to (re)start idle next frame.
+            applied: None,
             graph: graph_handle,
             idle: nodes[0],
             walk: nodes[1],

@@ -7,8 +7,8 @@ pub const POWER_HOUR_JOB_ID: &str = "power_hour";
 
 pub const INTERACT_RADIUS: f32 = 3.5;
 
-pub const PLAYER_SPEED: f32 = 7.0;
-pub const PLAYER_SPRINT_MULTIPLIER: f32 = 1.6;
+pub const PLAYER_SPEED: f32 = 5.5;
+pub const PLAYER_SPRINT_MULTIPLIER: f32 = 1.45;
 pub const PLAYER_FLOOR_Y: f32 = 1.0;
 /// Peak height ≈ v² / (2g). First hop 4.5u, double-jump 6.5u at this gravity.
 pub const PLAYER_GRAVITY: f32 = 24.0;
