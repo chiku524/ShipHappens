@@ -175,7 +175,7 @@
       "asset_id": "char_pudgy_water_01",
       "target_height": 1.2,
       "uniform_scale": 1.0,
-      "notes": "Water Pudgy - Studio rig with preserved walk/run clips"
+      "notes": "Water Pudgy - in-place walk/run, preserved Studio locomotion"
     },
     {
       "asset_id": "duct_tape_dispenser_cart_01",

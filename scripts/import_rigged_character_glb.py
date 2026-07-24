@@ -49,11 +49,17 @@ junk = [
     if o.type == "MESH"
     and (
         o.name.lower().startswith("ico")
-        or (o.parent is None and "tripo" not in o.name.lower() and len(o.data.polygons) < 500)
+        or "sphere" in o.name.lower()
+        or (
+            o.parent is None
+            and "tripo" not in o.name.lower()
+            and not o.name.startswith(ASSET_ID)
+            and len(o.data.polygons) < 2000
+        )
     )
 ]
 for o in junk:
-    print("DROP_JUNK", o.name)
+    print("DROP_JUNK", o.name, "faces", len(o.data.polygons))
     bpy.data.objects.remove(o, do_unlink=True)
 
 meshes = [o for o in bpy.context.scene.objects if o.type == "MESH"]
@@ -185,6 +191,78 @@ for t in tracks:
         s.name = new_name
         if s.action:
             s.action.name = new_name
+
+def zero_root_motion_location(action, bone_names=("Root", "Hip", "Pelvis", "Hips")):
+    """Strip translational root motion so walk/run stay in-place under the player entity."""
+    try:
+        for layer in action.layers:
+            for strip in layer.strips:
+                for bag in strip.channelbags:
+                    for fc in list(bag.fcurves):
+                        if "location" not in fc.data_path:
+                            continue
+                        if not any(
+                            f'["{b}"]' in fc.data_path or f"['{b}']" in fc.data_path
+                            for b in bone_names
+                        ):
+                            continue
+                        for kp in fc.keyframe_points:
+                            kp.co[1] = 0.0
+                            kp.handle_left[1] = 0.0
+                            kp.handle_right[1] = 0.0
+                        print("ZERO_ROOT_LOC", action.name, fc.data_path, fc.array_index)
+    except Exception as err:
+        print("ZERO_ROOT_LOC_ERR", action.name, err)
+
+for clip_name in ("walk", "run"):
+    action = bpy.data.actions.get(clip_name)
+    if action:
+        zero_root_motion_location(action)
+
+# Clear pose + mute strips so floor pivot uses bind pose, not a mid-stride offset.
+bpy.context.view_layer.objects.active = arm
+bpy.ops.object.mode_set(mode="POSE")
+bpy.ops.pose.select_all(action="SELECT")
+bpy.ops.pose.transforms_clear()
+bpy.ops.object.mode_set(mode="OBJECT")
+if arm.animation_data:
+    for t in arm.animation_data.nla_tracks:
+        t.mute = True
+    arm.animation_data.action = None
+bpy.context.scene.frame_set(1)
+bpy.context.view_layer.update()
+
+# Re-floor / re-center after stripping root motion (Studio clips often leave the
+# bind pose a meter off the entity origin).
+minv, maxv = world_aabb(bodies)
+cx = 0.5 * (minv.x + maxv.x)
+cy = 0.5 * (minv.y + maxv.y)
+delta = mathutils.Vector((cx, cy, minv.z))
+print("BIND_RECENTER", tuple(round(x, 4) for x in delta))
+arm.location -= delta
+bpy.ops.object.select_all(action="DESELECT")
+arm.select_set(True)
+for o in bpy.context.scene.objects:
+    if o.parent is None and o != arm:
+        o.location -= delta
+        o.select_set(True)
+bpy.context.view_layer.objects.active = arm
+bpy.ops.object.transform_apply(location=True, rotation=False, scale=False)
+
+# Unmute NLA for export.
+if arm.animation_data:
+    for t in arm.animation_data.nla_tracks:
+        t.mute = False
+
+# Final sweep — Studio downloads sometimes leave helper spheres that survive
+# earlier cleanup and wreck floor pivots / Bevy bounds.
+for o in list(bpy.context.scene.objects):
+    if o.type == "MESH" and o.name != ASSET_ID and not o.name.startswith(ASSET_ID):
+        print("DROP_PRE_EXPORT", o.name)
+        bpy.data.objects.remove(o, do_unlink=True)
+for block in list(bpy.data.meshes):
+    if block.users == 0:
+        bpy.data.meshes.remove(block)
 
 existing = {t.name for t in arm.animation_data.nla_tracks}
 
