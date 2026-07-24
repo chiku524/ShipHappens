@@ -63,7 +63,6 @@ pub fn spawn_studio_prop(
                 GameplayEntity,
                 WorldAssetRoot(scene),
                 transform.with_scale(scale),
-                Name::new(asset_id.to_string()),
                 bundle,
             ))
             .id(),
@@ -116,7 +115,7 @@ pub fn spawn_job_station(
         registry,
         asset_id,
         transform,
-        interactable,
+        (interactable, Name::new(asset_id.to_string())),
     ) {
         return entity;
     }
@@ -129,7 +128,7 @@ pub fn spawn_job_station(
         greybox_color,
         greybox_size,
         transform,
-        interactable,
+        (interactable, Name::new(asset_id.to_string())),
     )
 }
 
@@ -141,5 +140,12 @@ pub fn spawn_decoration(
     asset_id: &str,
     transform: Transform,
 ) -> Option<Entity> {
-    spawn_studio_prop(commands, asset_server, registry, asset_id, transform, ())
+    spawn_studio_prop(
+        commands,
+        asset_server,
+        registry,
+        asset_id,
+        transform,
+        Name::new(asset_id.to_string()),
+    )
 }
