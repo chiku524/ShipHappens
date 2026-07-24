@@ -12,6 +12,11 @@
       "blurb": "Stylized cartoon creature — soft matte party mascot"
     },
     {
+      "id": "char_pudgy_water_01",
+      "label": "Water Creature",
+      "blurb": "Ocean water Pudgy — Studio rig with walk and run clips"
+    },
+    {
       "id": "char_pudgy_forest_01",
       "label": "Forest Creature",
       "blurb": "Studio forest Pudgy — static mesh (rig later for full locomotion)"

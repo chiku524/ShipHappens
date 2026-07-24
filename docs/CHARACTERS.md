@@ -16,6 +16,12 @@ Chunky party creatures for **PudgyMon: Party Saga**. One shared base figure, spe
 - GLB: `assets/models/char_pudgy_stylized_01/char_pudgy_stylized_01.glb`
 - Rebuild: `python scripts/rig_and_animate_pudgy.py --asset-id char_pudgy_stylized_01`
 
+### `char_pudgy_water_01` — Water Creature
+- Ocean / water Pudgy with **Studio-authored** walk + run (own armature; not the shared stubby rig)
+- Clips remapped to contract names (`idle`, `walk`, `run`, plus hold placeholders for jump/emotes)
+- GLB: `assets/models/char_pudgy_water_01/char_pudgy_water_01.glb`
+- Rebuild: `python scripts/import_rigged_character_glb.py --src "<download>.glb" --asset-id char_pudgy_water_01`
+
 Default crew id: [`data/player_defaults.json`](../data/player_defaults.json) (user pick saved under `%LOCALAPPDATA%/…/player_defaults.json`). Roster: [`data/characters/roster.json`](../data/characters/roster.json). If the GLB is missing, runtime uses a **procedural Pudgy stub**. Switch live in Esc Nest → **Characters**.
 
 ## Pudgy Character Contract
@@ -67,8 +73,9 @@ Until GLBs exist, `accessories.*` may be empty and `hat_slot` remains a legacy t
 
 | Id | Label | Notes |
 |----|-------|--------|
-| `oceanic_pudgymon_01` | Ocean PudgyMon | Wishlist (regen after base sign-off) |
-| `char_pudgy_forest_01` | Forest PudgyMon | Wishlist |
+| `char_pudgy_water_01` | Water / Ocean PudgyMon | Playable — Studio walk/run preserved |
+| `oceanic_pudgymon_01` | Ocean PudgyMon | Legacy wishlist id (prefer `char_pudgy_water_01`) |
+| `char_pudgy_forest_01` | Forest PudgyMon | Imported static; full locomotion pending |
 | `char_pudgy_lava_01` | Lava PudgyMon | Wishlist |
 | `char_pudgy_sky_01` | Sky PudgyMon | Wishlist |
 

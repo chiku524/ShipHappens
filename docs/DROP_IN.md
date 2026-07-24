@@ -12,6 +12,7 @@ Related: [CHARACTERS.md](CHARACTERS.md) · [STUDIO_ASSETS.md](STUDIO_ASSETS.md) 
 |------|-----------|------|
 | Pink Pudgy | `assets/models/char_pudgy_pink_01/char_pudgy_pink_01.glb` | `python scripts/import_dense_character_glb.py … --asset-id char_pudgy_pink_01` |
 | Cartoon Pudgy | `assets/models/char_pudgy_stylized_01/char_pudgy_stylized_01.glb` | same import path |
+| Water Pudgy | `assets/models/char_pudgy_water_01/char_pudgy_water_01.glb` | `python scripts/import_rigged_character_glb.py … --asset-id char_pudgy_water_01` |
 | Species skin | `assets/models/<species_id>/<species_id>.glb` | Same scale as base; see CHARACTERS.md |
 | Accessories | `assets/models/acc_hat_*/…`, `acc_necklace_*`, `acc_shoes_*`, … | Register; equip via `PlayerVisualSpec.accessories` |
 | Nest egg | `assets/models/env_nest_egg_01/env_nest_egg_01.glb` | Register; later wire into Nest spawn |
