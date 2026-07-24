@@ -191,7 +191,7 @@ def main() -> int:
             )
             return 2
 
-    print(f"pipeline: mode={mode} → asset_id={aid}")
+    print(f"pipeline: mode={mode} -> asset_id={aid}")
     notes = args.notes or f"auto_rig_glb ({mode}, family={family})"
 
     if mode == "stubby":

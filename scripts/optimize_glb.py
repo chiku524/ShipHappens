@@ -275,10 +275,10 @@ def optimize_file(
 
 def _guess_preset(path: Path) -> str:
     name = path.stem.lower()
+    if name.startswith("char_") or name.startswith("oceanic_"):
+        return "game"
     if name.startswith("acc_") or name.startswith("prop_") or name.startswith("env_"):
         return "prop"
-    if name.startswith("char_"):
-        return "game"
     return "game"
 
 

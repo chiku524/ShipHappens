@@ -2,6 +2,12 @@
   "import_root": "res://assets/models",
   "assets": [
     {
+      "asset_id": "_TEMPLATE",
+      "target_height": 1.0,
+      "uniform_scale": 1.0,
+      "notes": "Studio prompt pack asset"
+    },
+    {
       "asset_id": "acc_back_cape_01",
       "target_height": 0.55,
       "notes": "Studio prop \u2014 party cape",
@@ -146,76 +152,28 @@
       "uniform_scale": 1.0
     },
     {
-      "asset_id": "blue_cartoon_sci_fi_job_terminal_kiosk_01",
-      "target_height": 1.5
-    },
-    {
-      "asset_id": "cargo_ring_sign_01",
-      "target_height": 1.5
+      "asset_id": "char_pudgy_base_01",
+      "target_height": 1.2,
+      "uniform_scale": 1.0,
+      "notes": "Shared coral-peach party base"
     },
     {
       "asset_id": "char_pudgy_forest_01",
       "target_height": 1.2,
-      "notes": "Studio species \u2014 forest Pudgy",
+      "notes": "Skinned Pudgy contract + clips (idle, walk, run, jump, emote_wave, emote_dance); game-res ~100k; Bevy-safe JPEG.",
       "uniform_scale": 1.0
     },
     {
-      "asset_id": "char_pudgy_pink_01",
+      "asset_id": "char_pudgy_lava_01",
       "target_height": 1.2,
       "uniform_scale": 1.0,
-      "notes": "Pink Pudgy - lighter mesh/tex; Studio 5-clip pack"
+      "notes": "Lava species \u2014 ember freckles (stand-in mesh until Studio export)"
     },
     {
-      "asset_id": "char_pudgy_stylized_01",
+      "asset_id": "char_pudgy_sky_01",
       "target_height": 1.2,
       "uniform_scale": 1.0,
-      "notes": "Skinned Pudgy contract + clips (idle, walk, run, jump, emote_wave, emote_dance); game-res ~100k; Bevy-safe JPEG."
-    },
-    {
-      "asset_id": "char_pudgy_water_01",
-      "target_height": 1.2,
-      "uniform_scale": 1.0,
-      "notes": "Water Pudgy - lighter mesh/tex; scared is emote not idle"
-    },
-    {
-      "asset_id": "duct_tape_dispenser_cart_01",
-      "target_height": 1.0
-    },
-    {
-      "asset_id": "env_blue_yellow_welcome_sign_01",
-      "target_height": 3.0
-    },
-    {
-      "asset_id": "env_break_glass_panel_01",
-      "target_height": 0.5
-    },
-    {
-      "asset_id": "env_breaker_panel_01",
-      "target_height": 1.0
-    },
-    {
-      "asset_id": "env_cargo_crane_operator_console_01",
-      "target_height": 1.2
-    },
-    {
-      "asset_id": "env_cargo_gantry_hook_01",
-      "target_height": 3.5
-    },
-    {
-      "asset_id": "env_freestanding_maintenance_cabinet_01",
-      "target_height": 1.8
-    },
-    {
-      "asset_id": "env_freight_crate_01",
-      "target_height": 1.0
-    },
-    {
-      "asset_id": "env_freight_deck_pad_01",
-      "target_height": 0.5
-    },
-    {
-      "asset_id": "env_light_oval_panel_01",
-      "target_height": 0.6
+      "notes": "Sky species \u2014 puffball cheeks (stand-in mesh until Studio export)"
     },
     {
       "asset_id": "env_nest_bench_01",
@@ -264,46 +222,10 @@
       "uniform_scale": 1.0
     },
     {
-      "asset_id": "env_space_station_wall_04",
-      "target_height": 2.0
-    },
-    {
-      "asset_id": "npc_nest_crew_a_01",
+      "asset_id": "oceanic_pudgymon_01",
       "target_height": 1.2,
       "uniform_scale": 1.0,
-      "notes": "Nest ambient NPC figure."
-    },
-    {
-      "asset_id": "npc_nest_crew_b_01",
-      "target_height": 1.2,
-      "uniform_scale": 1.0,
-      "notes": "Nest ambient NPC figure."
-    },
-    {
-      "asset_id": "npc_nest_monster_01",
-      "target_height": 1.2,
-      "uniform_scale": 1.0,
-      "notes": "Nest ambient NPC figure."
-    },
-    {
-      "asset_id": "npc_nest_pink_01",
-      "target_height": 1.2,
-      "uniform_scale": 1.0,
-      "notes": "Nest ambient NPC figure."
-    },
-    {
-      "asset_id": "npc_nest_stylized_a_01",
-      "target_height": 1.2,
-      "uniform_scale": 1.0,
-      "notes": "Nest ambient NPC figure."
-    },
-    {
-      "asset_id": "office_printer_cartoon_space_station_01",
-      "target_height": 0.8
-    },
-    {
-      "asset_id": "prop_alien_slot_machine",
-      "target_height": 1.0
+      "notes": "Ocean species \u2014 fins and teal candy palette"
     },
     {
       "asset_id": "prop_blaster_toy_01",
@@ -312,42 +234,10 @@
       "uniform_scale": 1.0
     },
     {
-      "asset_id": "prop_cargo_scanner_platform",
-      "target_height": 2.0
-    },
-    {
-      "asset_id": "prop_cartoon_vending_machine",
-      "target_height": 1.9
-    },
-    {
-      "asset_id": "prop_coolant_console_01",
-      "target_height": 1.4
-    },
-    {
-      "asset_id": "prop_coolant_pipe_wheel_01",
-      "target_height": 0.5
-    },
-    {
-      "asset_id": "prop_coolant_pipe_wheel_02",
-      "target_height": 0.5
-    },
-    {
       "asset_id": "prop_cover_block_01",
       "target_height": 1.2,
       "notes": "Studio prop \u2014 cover block (best-effort)",
       "uniform_scale": 1.0
-    },
-    {
-      "asset_id": "prop_hull_patch_plate_01",
-      "target_height": 0.4
-    },
-    {
-      "asset_id": "prop_janitor_mop_bucket_cart_01",
-      "target_height": 1.1
-    },
-    {
-      "asset_id": "prop_pneumatic_tube_intake_funnel",
-      "target_height": 1.2
     },
     {
       "asset_id": "prop_race_banner_01",
@@ -366,14 +256,6 @@
       "target_height": 0.7,
       "notes": "Studio prop \u2014 race cone",
       "uniform_scale": 1.0
-    },
-    {
-      "asset_id": "prop_satellite_dish_array_01",
-      "target_height": 2.5
-    },
-    {
-      "asset_id": "prop_slime_puddle_floor_01",
-      "target_height": 0.05
     },
     {
       "asset_id": "prop_target_star_01",
@@ -404,36 +286,6 @@
       "target_height": 0.5,
       "notes": "Studio prop \u2014 vibe orb",
       "uniform_scale": 1.0
-    },
-    {
-      "asset_id": "prop_wall_janitor_vent_grille",
-      "target_height": 1.0
-    },
-    {
-      "asset_id": "prop_wobbly_maintenance_ladder_01",
-      "target_height": 3.0
-    },
-    {
-      "asset_id": "s1_galactic_hot_dog_crate_01",
-      "target_height": 0.8
-    },
-    {
-      "asset_id": "safety_mat_floor_pad_01",
-      "target_height": 0.05,
-      "target_width": 2.0,
-      "notes": "Floor pad \u2014 width drives XZ scale"
-    },
-    {
-      "asset_id": "satellite_dish_maintenance_wheel_crank_01",
-      "target_height": 0.5
-    },
-    {
-      "asset_id": "shuttle_bay_escape_zone_01",
-      "target_height": 2.5
-    },
-    {
-      "asset_id": "wall_panel_breach_hole_01",
-      "target_height": 1.0
     }
   ]
 }

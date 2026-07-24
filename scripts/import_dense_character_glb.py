@@ -225,12 +225,14 @@ def _gltf_transform(*args: str) -> None:
 def _optimize_mesh(glb: Path, *, ratio: float, error: float) -> None:
     """UV-aware simplify via scripts/optimize_glb.py (Bevy-safe)."""
     import importlib.util
+    import sys
 
     opt_path = Path(__file__).resolve().parent / "optimize_glb.py"
     spec = importlib.util.spec_from_file_location("optimize_glb", opt_path)
     if spec is None or spec.loader is None:
         raise RuntimeError(f"cannot load {opt_path}")
     mod = importlib.util.module_from_spec(spec)
+    sys.modules[spec.name] = mod
     spec.loader.exec_module(mod)
     mod.optimize_file(
         glb,

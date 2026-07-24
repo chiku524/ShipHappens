@@ -281,13 +281,13 @@ fn spawn_social_hub(
         }
     }
 
-    // Ambient Nest NPCs (full figures only — accessory GLBs are wearables now).
+    // Ambient Nest showcase — the five Studio Priority-0 selectable crew.
     let nest_npcs: [(&str, Vec3, f32); 5] = [
-        ("npc_nest_pink_01", Vec3::new(-16.0, 0.0, 2.0), 70.0),
-        ("npc_nest_crew_a_01", Vec3::new(16.0, 0.0, 2.0), -70.0),
-        ("npc_nest_crew_b_01", Vec3::new(-14.0, 0.0, 10.0), 120.0),
-        ("npc_nest_stylized_a_01", Vec3::new(14.0, 0.0, 10.0), -120.0),
-        ("npc_nest_monster_01", Vec3::new(0.0, 0.0, 14.0), 180.0),
+        ("char_pudgy_base_01", Vec3::new(-16.0, 0.0, 2.0), 70.0),
+        ("oceanic_pudgymon_01", Vec3::new(16.0, 0.0, 2.0), -70.0),
+        ("char_pudgy_forest_01", Vec3::new(-14.0, 0.0, 10.0), 120.0),
+        ("char_pudgy_lava_01", Vec3::new(14.0, 0.0, 10.0), -120.0),
+        ("char_pudgy_sky_01", Vec3::new(0.0, 0.0, 14.0), 180.0),
     ];
     for (i, (asset_id, offset, yaw_deg)) in nest_npcs.into_iter().enumerate() {
         if !registry.is_some_and(|r| studio_asset_exists(r, asset_id)) {

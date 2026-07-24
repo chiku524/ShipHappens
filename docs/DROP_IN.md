@@ -10,34 +10,21 @@ Related: [CHARACTERS.md](CHARACTERS.md) · [STUDIO_ASSETS.md](STUDIO_ASSETS.md) 
 
 | What | Drop path | Then |
 |------|-----------|------|
-| Pink Pudgy | `assets/models/char_pudgy_pink_01/char_pudgy_pink_01.glb` | `python scripts/auto_rig_glb.py --src … --asset-id char_pudgy_pink_01` (or `import_rigged_character_glb.py`) |
-| Cartoon Pudgy | `assets/models/char_pudgy_stylized_01/char_pudgy_stylized_01.glb` | `python scripts/auto_rig_glb.py --src … --asset-id char_pudgy_stylized_01 --force stubby` |
-| Water Pudgy | `assets/models/char_pudgy_water_01/char_pudgy_water_01.glb` | `python scripts/auto_rig_glb.py --src … --asset-id char_pudgy_water_01` |
-| Species skin | `assets/models/<species_id>/<species_id>.glb` | Same; optional `--clip-source char_pudgy_water_01` when rigs match |
-| Clip reuse | — | `python scripts/transfer_crew_clips.py --from char_pudgy_water_01 --to <id>` |
-| Accessories | `assets/models/acc_hat_*/…`, `acc_necklace_*`, `acc_shoes_*`, … | Register; equip via `PlayerVisualSpec.accessories` |
-| Nest egg | `assets/models/env_nest_egg_01/env_nest_egg_01.glb` | Register; later wire into Nest spawn |
-| Nest bench | `assets/models/env_nest_bench_01/…` | Same |
-| Vibe mushroom | `assets/models/prop_vibe_mushroom_01/…` | Same |
+| Base / species | `assets/models/<id>/<id>.glb` | `python scripts/sync_studio_prompt_assets.py` then auto-rig / transfer / optimize |
+| Clip reuse | — | `python scripts/transfer_crew_clips.py --from oceanic_pudgymon_01 --to <id>` |
+| Accessories | `assets/models/acc_*_01/…` | Must match [STUDIO_PROMPTS.md](STUDIO_PROMPTS.md) |
+| Nest props | `env_nest_*`, `prop_vibe_*`, pads | Same |
 
-Until the Pudgy GLB exists, players use a **procedural stub** (round body + head). Accessory GLBs are optional until sockets are parented in-engine.
+Selectable crew (**5**): `char_pudgy_base_01`, `oceanic_pudgymon_01`, `char_pudgy_forest_01`, `char_pudgy_lava_01`, `char_pudgy_sky_01`.
 
 ## GLB size optimization
 
-Crew / accessory downloads are often mesh-heavy (100k+ tris). Use the Bevy-safe optimizer (no Draco / Meshopt / WebP):
-
 ```bash
-# Single file (writes .glb.pre_opt backup once)
-python scripts/optimize_glb.py assets/models/char_pudgy_pink_01/char_pudgy_pink_01.glb
-
-# Presets: hero (more detail) | game (default) | prop (accessories)
-python scripts/optimize_glb.py assets/models/acc_hat_party_crown_01/acc_hat_party_crown_01.glb --preset prop
-
-# Batch characters
-python scripts/optimize_glb.py --batch assets/models --glob "char_pudgy_*/*.glb"
+python scripts/optimize_glb.py assets/models/char_pudgy_base_01/char_pudgy_base_01.glb --preset game
+python scripts/optimize_glb.py --batch assets/models --glob "acc_*/*.glb"   # guesses prop
 ```
 
-Import pipelines (`import_rigged_character_glb.py`, `import_dense_character_glb.py`) call the same optimizer after export.
+Import pipelines call the same optimizer after export.
 
 ---
 

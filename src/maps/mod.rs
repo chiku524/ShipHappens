@@ -624,7 +624,7 @@ fn write_json<T: Serialize>(dir: PathBuf, slug: &str, value: &T) -> Result<PathB
     Ok(path)
 }
 
-/// Decorative prop ids preferred in the map editor GLB palette.
+/// Decorative prop ids preferred in the map editor GLB palette (Studio prompt pack).
 pub const EDITOR_DECO_IDS: &[&str] = &[
     "prop_race_cone_01",
     "prop_race_banner_01",
@@ -638,9 +638,11 @@ pub const EDITOR_DECO_IDS: &[&str] = &[
     "prop_target_star_01",
     "prop_blaster_toy_01",
     "env_nest_bench_01",
-    "env_freight_crate_01",
-    "prop_cartoon_vending_machine",
-    "prop_alien_slot_machine",
+    "env_nest_egg_01",
+    "env_pad_race_01",
+    "env_pad_vibe_01",
+    "env_pad_shooter_01",
+    "env_pad_party_01",
 ];
 
 #[cfg(test)]

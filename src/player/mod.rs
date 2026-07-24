@@ -47,9 +47,14 @@ pub const HOST_OWNER_ID: u64 = 0;
 /// Studio Tripo rigs (water / pink) face +Z; older shared-rig exports face +X.
 fn character_mesh_yaw_offset(model_id: &str) -> f32 {
     match model_id {
-        // glTF +Z forward → 180° so local +Z aligns with parent −Z (movement).
-        "char_pudgy_water_01" | "char_pudgy_pink_01" => std::f32::consts::PI,
-        // glTF +X forward → +90° maps +X onto parent −Z.
+        // Studio Tripo 41-bone rigs face +Z → 180° so local +Z aligns with parent −Z.
+        "char_pudgy_base_01"
+        | "oceanic_pudgymon_01"
+        | "char_pudgy_lava_01"
+        | "char_pudgy_sky_01"
+        | "char_pudgy_water_01"
+        | "char_pudgy_pink_01" => std::f32::consts::PI,
+        // Stubby contract / forest re-rig: glTF +X forward → +90°.
         _ => std::f32::consts::FRAC_PI_2,
     }
 }
@@ -149,12 +154,12 @@ pub struct AccessorySlots {
 
 /// Visual swap hook for character GLBs. `model_id = None` keeps the capsule / procedural stub.
 ///
-/// Default crew mesh is `char_pudgy_pink_01`. Species skins
+/// Default crew mesh is `char_pudgy_base_01`. Species skins
 /// (e.g. `oceanic_pudgymon_01`) may override `model_id` later via cosmetics, but must
 /// obey the Pudgy Character Contract in `docs/CHARACTERS.md` so clips and accessories stay in sync.
 #[derive(Component, Serialize, Deserialize, Clone, Debug, Default, PartialEq, Eq)]
 pub struct PlayerVisualSpec {
-    /// Studio `asset_id` for the equipped character GLB (`char_pudgy_pink_01` / `char_pudgy_stylized_01` or a species skin).
+    /// Studio `asset_id` for the equipped character GLB (`char_pudgy_base_01` or a species skin).
     pub model_id: Option<String>,
     /// Legacy roster index 0–7 (palette / stand-in). Prefer `accessories.hat` once GLBs exist.
     #[serde(default)]

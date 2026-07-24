@@ -2,24 +2,29 @@
   "schema_version": 1,
   "characters": [
     {
-      "id": "char_pudgy_pink_01",
-      "label": "Pink Creature",
-      "blurb": "Stylized pink creature — soft cartoon party mascot"
+      "id": "char_pudgy_base_01",
+      "label": "Base Pudgy",
+      "blurb": "Shared coral-peach party base"
     },
     {
-      "id": "char_pudgy_stylized_01",
-      "label": "Cartoon Creature",
-      "blurb": "Stylized cartoon creature — soft matte party mascot"
-    },
-    {
-      "id": "char_pudgy_water_01",
-      "label": "Water Creature",
-      "blurb": "Ocean water Pudgy — Studio rig with walk and run clips"
+      "id": "oceanic_pudgymon_01",
+      "label": "Ocean Pudgy",
+      "blurb": "Ocean species \u2014 fins and teal candy palette"
     },
     {
       "id": "char_pudgy_forest_01",
-      "label": "Forest Creature",
-      "blurb": "Studio forest Pudgy — static mesh (rig later for full locomotion)"
+      "label": "Forest Pudgy",
+      "blurb": "Forest species \u2014 leaf tufts and lime palette"
+    },
+    {
+      "id": "char_pudgy_lava_01",
+      "label": "Lava Pudgy",
+      "blurb": "Lava species \u2014 ember freckles (stand-in mesh until Studio export)"
+    },
+    {
+      "id": "char_pudgy_sky_01",
+      "label": "Sky Pudgy",
+      "blurb": "Sky species \u2014 puffball cheeks (stand-in mesh until Studio export)"
     }
   ]
 }

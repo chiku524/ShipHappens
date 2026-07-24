@@ -2,153 +2,45 @@
 
 Chunky party creatures for **PudgyMon: Party Saga**. One shared base figure, species skins that match the same proportions, and **detachable accessories** on fixed sockets so movement and cosmetics stay in sync.
 
+Selectable crew matches [STUDIO_PROMPTS.md](STUDIO_PROMPTS.md) Priority 0 (**5 characters**).
+
 ## Playable roster
 
-### `char_pudgy_pink_01` — Pink Creature
-- Soft stylized pink cartoon creature (Studio-authored armature + clips)
-- Clips: `idle`, `walk`, `run`, `jump`, `emote_wave` (+ hold `emote_dance`)
-- Game-res mesh (~400k faces after UV simplify), opaque JPEG, accessory sockets on bones
-- GLB: `assets/models/char_pudgy_pink_01/char_pudgy_pink_01.glb`
-- Rebuild: `python scripts/import_rigged_character_glb.py --src "<download>.glb" --asset-id char_pudgy_pink_01`
+| Id | Label | Notes |
+|----|-------|-------|
+| `char_pudgy_base_01` | Base Pudgy | Shared coral-peach base (default) |
+| `oceanic_pudgymon_01` | Ocean Pudgy | Ocean species — Studio locomotion + emotes |
+| `char_pudgy_forest_01` | Forest Pudgy | Forest species — stubby re-rig + procedural clips |
+| `char_pudgy_lava_01` | Lava Pudgy | Stand-in mesh until dedicated Studio export |
+| `char_pudgy_sky_01` | Sky Pudgy | Stand-in mesh until dedicated Studio export |
 
-### `char_pudgy_stylized_01` — Cartoon Creature
-- Soft stylized cartoon creature (legacy shared stubby rig + clip set)
-- GLB: `assets/models/char_pudgy_stylized_01/char_pudgy_stylized_01.glb`
-- Rebuild: `python scripts/rig_and_animate_pudgy.py --asset-id char_pudgy_stylized_01`
+Default crew id: [`data/player_defaults.json`](../data/player_defaults.json). Roster: [`data/characters/roster.json`](../data/characters/roster.json). Switch live in Esc Nest → **Characters**.
 
-### `char_pudgy_water_01` — Water Creature
-- Ocean / water Pudgy with Studio-authored armature (same family as pink)
-- Clips: `walk`, `run`, `emote_scared` (+ hold `idle` / jump / wave / dance when missing)
-- Press **2** (or Esc → Animations) for Scared; idle is a calm hold, not the scared clip
-- GLB: `assets/models/char_pudgy_water_01/char_pudgy_water_01.glb`
-- Rebuild: `python scripts/import_rigged_character_glb.py --src "<download>.glb" --asset-id char_pudgy_water_01`
+## Sync + tooling
 
-Default crew id: [`data/player_defaults.json`](../data/player_defaults.json) (user pick saved under `%LOCALAPPDATA%/…/player_defaults.json`). Roster: [`data/characters/roster.json`](../data/characters/roster.json). If the GLB is missing, runtime uses a **procedural Pudgy stub**. Switch live in Esc Nest → **Characters**.
+```bash
+# Align assets/models to STUDIO_PROMPTS.md (prune extras, materialize the 5 crew)
+python scripts/sync_studio_prompt_assets.py
+
+# Static body → stubby rig + clips
+python scripts/auto_rig_glb.py --src path.glb --asset-id char_pudgy_forest_01 --force stubby
+
+# Copy clips between same-rig Studio bodies
+python scripts/transfer_crew_clips.py --from oceanic_pudgymon_01 --to char_pudgy_base_01
+
+# Bevy-safe size pass
+python scripts/optimize_glb.py --batch assets/models --glob "*/*.glb"
+```
 
 ## Pudgy Character Contract
 
-All playable Pudgys (base + species skins) must obey this contract so one animation set and one accessory set can drive every variant.
-
 | Rule | Value |
 |------|--------|
-| Base asset id | `char_pudgy_pink_01` (default) / `char_pudgy_stylized_01` |
-| Species id pattern | `char_pudgy_<biome>_01` or descriptive `*_pudgymon_01` |
+| Base asset id | `char_pudgy_base_01` |
+| Species ids | `oceanic_pudgymon_01`, `char_pudgy_forest_01`, `char_pudgy_lava_01`, `char_pudgy_sky_01` |
 | Playable height | ~1.2 m |
 | Pivot | Floor center, +Y up, character faces **−Z** (Bevy forward) |
-| Studio pose | Neutral **A-pose**, arms slightly out, feet planted — not a swim/run pose |
-| Registry scale | Prefer `uniform_scale` `1.0` after polish (baked ~1.2 m height). Do **not** put raw Studio `target_height_m` straight into spawn scale |
-| Required nodes (retarget target) | `Root`, `Hips`, `Spine`, `Head`, `L_Arm`, `R_Arm`, `L_Leg`, `R_Leg` (+ `L_Forearm`, `R_Forearm`, `L_Shin`, `R_Shin`) |
-| Accessory sockets | See table below — leave wear volumes clear (do not bake accessories into the body) |
-| Shared clip names | `idle`, `walk`, `run`, `jump`, `emote_wave`, `emote_dance` |
+| Shared clip names | `idle`, `walk`, `run`, `jump`, `emote_wave`, `emote_dance` (+ `emote_scared` when present) |
+| Accessory sockets | `Socket_Hat`, `Socket_Necklace`, `Socket_Shoes`, `Socket_Back`, `Socket_Face`, `Socket_Hands` |
 
-**Texture format for Studio / optimizer exports (Bevy 0.19):** use **JPEG** for color / ORM / normals on opaque characters. Enable the `jpeg` feature (already on). Prefer plain `image/jpeg` embeds — do **not** wrap as `EXT_texture_webp` or `KHR_texture_basisu` (Bevy cannot load those extension wrappers). PNG is fine when you need alpha. Avoid AVIF; WebP/KTX2 only if embedded without the unsupported glTF extensions (JPEG is the safe default).
-
-After import, shrink dense meshes with [`scripts/optimize_glb.py`](../scripts/optimize_glb.py) (`game` / `hero` / `prop` presets). It writes a `.glb.pre_opt` backup and will restore from that if you re-run, so quality does not compound-crush.
-
-**Tripo note:** static Studio downloads are rigged via [`scripts/rig_and_animate_pudgy.py`](../scripts/rig_and_animate_pudgy.py) (UV-aware simplify → shared armature → automatic weights → NLA clips → Bevy-safe export). Prefer the one-shot wrapper [`scripts/auto_rig_glb.py`](../scripts/auto_rig_glb.py) when dropping a new download.
-
-**Import rule:** register species with the same `uniform_scale` as the base unless you measure a different mesh height.
-
-## Auto-rig + clip reuse
-
-| Script | Purpose |
-|--------|---------|
-| [`scripts/auto_rig_glb.py`](../scripts/auto_rig_glb.py) | Detect armature family and import: static → stubby re-rig; Studio 41-bone → keep weights; optional `--clip-source` |
-| [`scripts/transfer_crew_clips.py`](../scripts/transfer_crew_clips.py) | Copy named NLA clips between GLBs that share bone names (pink ↔ water) |
-| [`scripts/rig_and_animate_pudgy.py`](../scripts/rig_and_animate_pudgy.py) | Low-level stubby 12-bone bind + procedural party clips |
-| [`scripts/import_rigged_character_glb.py`](../scripts/import_rigged_character_glb.py) | Keep an existing Studio skin + rename clips |
-
-```bash
-# Inspect a download
-python scripts/auto_rig_glb.py --src "C:/Users/.../creature.glb" --inspect
-
-# Static mesh → playable stubby crew
-python scripts/auto_rig_glb.py --src "C:/Users/.../creature.glb" --asset-id char_pudgy_forest_01
-
-# Studio-rigged body; steal water's locomotion/emotes
-python scripts/auto_rig_glb.py --src "C:/Users/.../pink.glb" --asset-id char_pudgy_pink_01 \
-  --clip-source char_pudgy_water_01
-
-# Copy clips only (same rig family)
-python scripts/transfer_crew_clips.py --from char_pudgy_water_01 --to char_pudgy_pink_01
-python scripts/transfer_crew_clips.py --from char_pudgy_water_01 --to char_pudgy_stylized_01 --check
-```
-
-Direct transfer needs ≥85% bone-name overlap. Studio 41-bone ↔ stubby 12-bone will fail the check — re-rig the target with `--force stubby` instead.
-
-## Accessory slots
-
-Every Pudgy shares these sockets. Accessories are **separate Studio GLBs** (`acc_*`) parented at the wear origin — never part of the body mesh.
-
-| Slot | Socket name | Wear origin | Id pattern | Runtime field |
-|------|-------------|-------------|------------|---------------|
-| Hat | `Socket_Hat` | Crown / top of head | `acc_hat_*_01` | `PlayerVisualSpec.accessories.hat` |
-| Necklace | `Socket_Necklace` | Front of neck band | `acc_necklace_*_01` | `…necklace` |
-| Shoes | `Socket_Shoes` | Floor between both feet (pair mesh) | `acc_shoes_*_01` | `…shoes` |
-| Back | `Socket_Back` | Upper back / spine | `acc_back_*_01` | `…back` |
-| Face | `Socket_Face` | Bridge of snout / eyes | `acc_face_*_01` | `…face` |
-| Hands | `Socket_Hands` | Midpoint between hands (pair mesh) | `acc_hands_*_01` | `…hands` |
-
-**Studio rules for accessories**
-
-1. Single isolated mesh — no head, no body.
-2. Pivot at the wear origin for that slot (shoes: floor pair pivot).
-3. Sized for the 1.2 m base; readable from third-person.
-4. Soft candy / rubber materials; family-friendly.
-5. Full prompt pack: [STUDIO_PROMPTS.md](STUDIO_PROMPTS.md).
-
-Until GLBs exist, `accessories.*` may be empty and `hat_slot` remains a legacy tint/roster index (0–7).
-
-## Species skins
-
-| Id | Label | Notes |
-|----|-------|--------|
-| `char_pudgy_water_01` | Water / Ocean PudgyMon | Playable — Studio walk/run preserved |
-| `oceanic_pudgymon_01` | Ocean PudgyMon | Legacy wishlist id (prefer `char_pudgy_water_01`) |
-| `char_pudgy_forest_01` | Forest PudgyMon | Imported static; full locomotion pending |
-| `char_pudgy_lava_01` | Lava PudgyMon | Wishlist |
-| `char_pudgy_sky_01` | Sky PudgyMon | Wishlist |
-
-Future biomes change silhouette details and palette only — **same limb lengths, torso proportions, and accessory sockets** as the base.
-
-## Starter color skins (season catalog)
-
-Palette swaps on top of the equipped model (cycle with **C** in The Nest). These are tints, not new meshes — accessories and species override mesh separately.
-
-| Id | Label | Vibe |
-|----|-------|------|
-| `skin_starter` | Pudgy Sprout | Coral default |
-| `skin_vibe` | Sunny Blob | Yellow party |
-| `skin_racer` | Turbo Dumpling | Cyan speed |
-| `skin_blaster` | Party Peep | Pink blaster |
-
-## Nest showcase
-
-Mannequins around The Nest preview each catalog tint. Unlock by season points, then claim on Boing (see [BOING_INTEGRATION.md](BOING_INTEGRATION.md)).
-
-## Art pipeline
-
-1. Playable defaults `char_pudgy_pink_01` / `char_pudgy_stylized_01` (skinned + shared clips; clear accessory sockets)
-2. Species variants via Studio + [`scripts/auto_rig_glb.py`](../scripts/auto_rig_glb.py) (or species-variant prompt in [STUDIO_PROMPTS.md](STUDIO_PROMPTS.md))
-3. Accessory batches per slot (`acc_hat_*`, `acc_necklace_*`, `acc_shoes_*`, …)
-4. Shared clips via [`scripts/transfer_crew_clips.py`](../scripts/transfer_crew_clips.py) on same-rig families (or stubby procedural clips from `rig_and_animate_pudgy.py`)
-5. Nest + stage props from the Party Saga wishlist ([ASSET_WISHLIST.md](ASSET_WISHLIST.md))
-
-## Runtime hook
-
-```rust
-PlayerVisualSpec {
-    model_id: Some("char_pudgy_pink_01".into()), // or char_pudgy_stylized_01 / a species asset_id
-    hat_slot: 0, // legacy roster index; prefer accessories.hat
-    accessories: AccessorySlots {
-        hat: Some("acc_hat_party_crown_01".into()),
-        necklace: Some("acc_necklace_shell_01".into()),
-        shoes: Some("acc_shoes_racer_01".into()),
-        back: None,
-        face: None,
-        hands: None,
-    },
-}
-```
-
-Default body id: `data/player_defaults.json`. Cosmetics may later override `model_id` to a species skin that still matches this contract, and fill accessory ids independently.
+**Texture format:** plain JPEG embeds for opaque maps (no `EXT_texture_webp` / `KHR_texture_basisu`). See optimizer notes in [DROP_IN.md](DROP_IN.md).
