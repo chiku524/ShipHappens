@@ -26,11 +26,9 @@ pub const EMOTE_LIBRARY: &[(&str, &str, f32, bool)] = &[
 ];
 
 pub const EMOTE_SLOT_COUNT: usize = 5;
-/// Ignore micro-pauses so WASD taps don't flicker into idle.
-const IDLE_SETTLE_SECS: f32 = 0.2;
-/// Soft walk/run → idle blend (avoids mid-stride freeze snap).
-const IDLE_CROSSFADE: Duration = Duration::from_millis(2800);
-const CROSSFADE: Duration = Duration::from_millis(180);
+/// Soft blend into idle; locomotion is frozen first so the walk cycle does not keep striding.
+const IDLE_CROSSFADE: Duration = Duration::from_millis(320);
+const CROSSFADE: Duration = Duration::from_millis(160);
 const WALK_SPEED_EPS: f32 = 0.05;
 
 #[derive(Component, Debug, Clone)]
@@ -72,7 +70,7 @@ pub struct CrewAnimPlayback {
     pub library: Vec<CrewEmoteDef>,
     pub lock_until: f32,
     pub player_entity: Entity,
-    /// Elapsed time when the avatar last became still (settle debounce before idle).
+    /// Elapsed time when the avatar last became still (unused settle; kept for debug).
     pub still_since: Option<f32>,
 }
 
@@ -486,12 +484,8 @@ fn choose_crew_anim_kind(
             continue;
         }
 
-        // Standing still — ease into idle (long blend, no mid-stride freeze).
-        let still_since = *anim.still_since.get_or_insert(now);
-        if now - still_since < IDLE_SETTLE_SECS {
-            continue;
-        }
-
+        // Keys released — stop locomotion immediately and ease into idle.
+        anim.still_since = None;
         if anim.kind != CrewAnimKind::Idle {
             anim.kind = CrewAnimKind::Idle;
             anim.applied = None;
@@ -516,14 +510,20 @@ fn apply_crew_anim_kind(
                 .insert(CrewSceneReady);
             continue;
         };
-        // Restore speed in case a prior path left clips paused.
-        for (_, playing) in player.playing_animations_mut() {
-            playing.set_speed(1.0);
+
+        let to_idle = anim.kind == CrewAnimKind::Idle;
+        if to_idle {
+            // Freeze the current walk/run frame so feet don't keep cycling during the blend.
+            for (_, playing) in player.playing_animations_mut() {
+                playing.set_speed(0.0);
+            }
+        } else {
+            for (_, playing) in player.playing_animations_mut() {
+                playing.set_speed(1.0);
+            }
         }
-        let fade = match anim.kind {
-            CrewAnimKind::Idle => IDLE_CROSSFADE,
-            _ => CROSSFADE,
-        };
+
+        let fade = if to_idle { IDLE_CROSSFADE } else { CROSSFADE };
         let node = anim.node(anim.kind, &bindings);
         let active = transitions.play(&mut player, node, fade);
         active.set_speed(1.0);

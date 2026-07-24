@@ -859,7 +859,7 @@ fn spawn_page_animations(parent: &mut ChildSpawnerCommands) {
                 Text::new(
                     "Emote wheel — slots start empty.\n\
                      Select a slot, then bind a clip from the library (like Fortnite).\n\
-                     Keys 1–5 play the bound clip in The Nest. Idle eases in after you stop moving.\n\
+                     Keys 1–5 play the bound clip in The Nest. Idle starts as soon as you stop moving.\n\
                      Space = jump · Space again in air = double jump.",
                 ),
                 TextFont {

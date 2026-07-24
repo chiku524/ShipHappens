@@ -34,8 +34,9 @@ pub fn resolve_player_push(
         return;
     };
 
+    // Preserve vertical motion (jumps) — only resolve horizontal overlaps.
     let mut pos = player.translation;
-    pos.y = 1.0;
+    let keep_y = pos.y;
 
     for (vol_tf, volume) in &volumes {
         // Skip flat floors / pads (short Y) — walk-on, not push.
@@ -64,6 +65,6 @@ pub fn resolve_player_push(
 
     pos.x = pos.x.clamp(-ARENA_BOUNDS, ARENA_BOUNDS);
     pos.z = pos.z.clamp(-ARENA_BOUNDS, ARENA_BOUNDS);
-    pos.y = 1.0;
+    pos.y = keep_y;
     player.translation = pos;
 }
