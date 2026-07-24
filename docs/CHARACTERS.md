@@ -43,9 +43,36 @@ All playable Pudgys (base + species skins) must obey this contract so one animat
 
 **Texture format for Studio / optimizer exports (Bevy 0.19):** use **JPEG** for color / ORM / normals on opaque characters. Enable the `jpeg` feature (already on). Prefer plain `image/jpeg` embeds — do **not** wrap as `EXT_texture_webp` or `KHR_texture_basisu` (Bevy cannot load those extension wrappers). PNG is fine when you need alpha. Avoid AVIF; WebP/KTX2 only if embedded without the unsupported glTF extensions (JPEG is the safe default).
 
-**Tripo note:** static Studio downloads are rigged via [`scripts/rig_and_animate_pudgy.py`](../scripts/rig_and_animate_pudgy.py) (UV-aware simplify → shared armature → automatic weights → NLA clips → Bevy-safe export).
+**Tripo note:** static Studio downloads are rigged via [`scripts/rig_and_animate_pudgy.py`](../scripts/rig_and_animate_pudgy.py) (UV-aware simplify → shared armature → automatic weights → NLA clips → Bevy-safe export). Prefer the one-shot wrapper [`scripts/auto_rig_glb.py`](../scripts/auto_rig_glb.py) when dropping a new download.
 
 **Import rule:** register species with the same `uniform_scale` as the base unless you measure a different mesh height.
+
+## Auto-rig + clip reuse
+
+| Script | Purpose |
+|--------|---------|
+| [`scripts/auto_rig_glb.py`](../scripts/auto_rig_glb.py) | Detect armature family and import: static → stubby re-rig; Studio 41-bone → keep weights; optional `--clip-source` |
+| [`scripts/transfer_crew_clips.py`](../scripts/transfer_crew_clips.py) | Copy named NLA clips between GLBs that share bone names (pink ↔ water) |
+| [`scripts/rig_and_animate_pudgy.py`](../scripts/rig_and_animate_pudgy.py) | Low-level stubby 12-bone bind + procedural party clips |
+| [`scripts/import_rigged_character_glb.py`](../scripts/import_rigged_character_glb.py) | Keep an existing Studio skin + rename clips |
+
+```bash
+# Inspect a download
+python scripts/auto_rig_glb.py --src "C:/Users/.../creature.glb" --inspect
+
+# Static mesh → playable stubby crew
+python scripts/auto_rig_glb.py --src "C:/Users/.../creature.glb" --asset-id char_pudgy_forest_01
+
+# Studio-rigged body; steal water's locomotion/emotes
+python scripts/auto_rig_glb.py --src "C:/Users/.../pink.glb" --asset-id char_pudgy_pink_01 \
+  --clip-source char_pudgy_water_01
+
+# Copy clips only (same rig family)
+python scripts/transfer_crew_clips.py --from char_pudgy_water_01 --to char_pudgy_pink_01
+python scripts/transfer_crew_clips.py --from char_pudgy_water_01 --to char_pudgy_stylized_01 --check
+```
+
+Direct transfer needs ≥85% bone-name overlap. Studio 41-bone ↔ stubby 12-bone will fail the check — re-rig the target with `--force stubby` instead.
 
 ## Accessory slots
 
@@ -100,9 +127,9 @@ Mannequins around The Nest preview each catalog tint. Unlock by season points, t
 ## Art pipeline
 
 1. Playable defaults `char_pudgy_pink_01` / `char_pudgy_stylized_01` (skinned + shared clips; clear accessory sockets)
-2. Species variants via Studio using the species-variant prompt ([STUDIO_PROMPTS.md](STUDIO_PROMPTS.md)), then `scripts/rig_and_animate_pudgy.py`
+2. Species variants via Studio + [`scripts/auto_rig_glb.py`](../scripts/auto_rig_glb.py) (or species-variant prompt in [STUDIO_PROMPTS.md](STUDIO_PROMPTS.md))
 3. Accessory batches per slot (`acc_hat_*`, `acc_necklace_*`, `acc_shoes_*`, …)
-4. Shared clips authored on the Pudgy contract armature (retarget / re-rig species to the same bone names)
+4. Shared clips via [`scripts/transfer_crew_clips.py`](../scripts/transfer_crew_clips.py) on same-rig families (or stubby procedural clips from `rig_and_animate_pudgy.py`)
 5. Nest + stage props from the Party Saga wishlist ([ASSET_WISHLIST.md](ASSET_WISHLIST.md))
 
 ## Runtime hook

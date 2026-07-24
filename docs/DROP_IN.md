@@ -10,10 +10,11 @@ Related: [CHARACTERS.md](CHARACTERS.md) · [STUDIO_ASSETS.md](STUDIO_ASSETS.md) 
 
 | What | Drop path | Then |
 |------|-----------|------|
-| Pink Pudgy | `assets/models/char_pudgy_pink_01/char_pudgy_pink_01.glb` | `python scripts/import_rigged_character_glb.py … --asset-id char_pudgy_pink_01` |
-| Cartoon Pudgy | `assets/models/char_pudgy_stylized_01/char_pudgy_stylized_01.glb` | `python scripts/import_dense_character_glb.py` then `rig_and_animate_pudgy.py` |
-| Water Pudgy | `assets/models/char_pudgy_water_01/char_pudgy_water_01.glb` | `python scripts/import_rigged_character_glb.py … --asset-id char_pudgy_water_01` |
-| Species skin | `assets/models/<species_id>/<species_id>.glb` | Same scale as base; see CHARACTERS.md |
+| Pink Pudgy | `assets/models/char_pudgy_pink_01/char_pudgy_pink_01.glb` | `python scripts/auto_rig_glb.py --src … --asset-id char_pudgy_pink_01` (or `import_rigged_character_glb.py`) |
+| Cartoon Pudgy | `assets/models/char_pudgy_stylized_01/char_pudgy_stylized_01.glb` | `python scripts/auto_rig_glb.py --src … --asset-id char_pudgy_stylized_01 --force stubby` |
+| Water Pudgy | `assets/models/char_pudgy_water_01/char_pudgy_water_01.glb` | `python scripts/auto_rig_glb.py --src … --asset-id char_pudgy_water_01` |
+| Species skin | `assets/models/<species_id>/<species_id>.glb` | Same; optional `--clip-source char_pudgy_water_01` when rigs match |
+| Clip reuse | — | `python scripts/transfer_crew_clips.py --from char_pudgy_water_01 --to <id>` |
 | Accessories | `assets/models/acc_hat_*/…`, `acc_necklace_*`, `acc_shoes_*`, … | Register; equip via `PlayerVisualSpec.accessories` |
 | Nest egg | `assets/models/env_nest_egg_01/env_nest_egg_01.glb` | Register; later wire into Nest spawn |
 | Nest bench | `assets/models/env_nest_bench_01/…` | Same |
