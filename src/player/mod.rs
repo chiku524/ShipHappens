@@ -77,13 +77,23 @@ impl Plugin for PlayerPlugin {
                         .run_if(|pause: Option<Res<crate::settings::PauseState>>| {
                             !pause.map(|p| p.paused).unwrap_or(false)
                         }),
-                    knockback::apply_knockback_motion.run_if(in_state(AppScreen::Playing)),
+                    offline_movement
+                        .run_if(in_state(AppScreen::Playing))
+                        .run_if(|pause: Option<Res<crate::settings::PauseState>>| {
+                            !pause.map(|p| p.paused).unwrap_or(false)
+                        })
+                        .run_if(resource_exists::<crate::rooms::RoomSpawnPoint>),
+                    knockback::apply_knockback_motion
+                        .after(offline_movement)
+                        .run_if(in_state(AppScreen::Playing)),
                     collision::resolve_player_push
                         .after(knockback::apply_knockback_motion)
                         .run_if(in_state(AppScreen::Playing)),
                     carry::sync_carry_visuals.run_if(in_state(AppScreen::Playing)),
+                    // After movement so jumps / walks keep the avatar screen-centered.
                     follow_camera
                         .after(camera_mouse_look)
+                        .after(collision::resolve_player_push)
                         .run_if(in_state(AppScreen::Playing)),
                 ),
             );
@@ -638,6 +648,7 @@ fn sync_player_visuals(
 }
 
 fn follow_camera(
+    time: Res<Time>,
     camera_state: Res<ThirdPersonCamera>,
     local_player: Query<&Transform, (With<LocalPlayer>, Without<crate::session_flow::Spectating>)>,
     mut camera: Query<&mut Transform, (With<MainCamera>, Without<LocalPlayer>)>,
@@ -653,14 +664,20 @@ fn follow_camera(
     let pitch = camera_state.pitch;
     let distance = camera_state.distance;
 
+    // Orbit around the character body so they stay framed at screen center,
+    // including during exaggerated jumps (tracks full player translation).
+    let focus = player.translation + Vec3::Y * 1.15;
     let horizontal = distance * pitch.cos();
-    let eye = player.translation
+    let desired_eye = focus
         + Vec3::new(
             horizontal * yaw.sin(),
-            -distance * pitch.sin() + 1.5,
+            -distance * pitch.sin(),
             horizontal * yaw.cos(),
         );
 
-    camera_transform.translation = eye;
-    camera_transform.look_at(player.translation + Vec3::Y * 0.9, Vec3::Y);
+    // Snap-follow with a tiny smooth so big vertical hops don't stutter,
+    // but stay locked enough that the pudgy doesn't drift off-center.
+    let t = 1.0 - (-22.0 * time.delta_secs()).exp();
+    camera_transform.translation = camera_transform.translation.lerp(desired_eye, t);
+    camera_transform.look_at(focus, Vec3::Y);
 }

@@ -16,14 +16,13 @@ use crate::{
     cli::Cli,
     cosmetics::CosmeticsPlugin,
     data::load_player_defaults,
-    flow::AppScreen,
     hub::HubPlugin,
     juice::JuicePlugin,
     map_editor::MapEditorPlugin,
     maps::MapsPlugin,
     network::{boot_session_at_startup, NetworkPlugin},
     party::PartyPlugin,
-    player::{offline_movement, PlayerPlugin},
+    player::PlayerPlugin,
     season::SeasonPlugin,
     session_flow::SessionFlowPlugin,
     settings::SettingsPlugin,
@@ -141,13 +140,6 @@ pub fn build_app(headless: bool, enable_smoke: bool) -> App {
             boot_session_at_startup,
         )
             .chain(),
-    )
-    .add_systems(
-        Update,
-        offline_movement
-            .run_if(resource_exists::<crate::rooms::RoomSpawnPoint>)
-            .run_if(in_state(AppScreen::Playing))
-            .run_if(not_paused),
     );
 
     if enable_smoke {
@@ -155,10 +147,6 @@ pub fn build_app(headless: bool, enable_smoke: bool) -> App {
     }
 
     app
-}
-
-fn not_paused(pause: Option<Res<crate::settings::PauseState>>) -> bool {
-    !pause.map(|p| p.paused).unwrap_or(false)
 }
 
 fn ensure_party_spawn_point(mut commands: Commands, spawn: Res<crate::party::PartySpawn>) {

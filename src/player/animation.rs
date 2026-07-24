@@ -130,7 +130,8 @@ impl CrewAnimPlayback {
 
     pub fn trigger_jump_anim(&mut self, now: f32) {
         self.kind = CrewAnimKind::Jump;
-        self.lock_until = now + 0.55;
+        // Longer hang so the clip covers exaggerated hops.
+        self.lock_until = now + 0.85;
         self.applied = None;
         self.still_since = None;
     }

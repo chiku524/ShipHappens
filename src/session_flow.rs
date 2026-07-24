@@ -228,6 +228,7 @@ fn cycle_spectate_target(
 }
 
 fn follow_spectate_camera(
+    time: Res<Time>,
     screen: Res<State<AppScreen>>,
     camera_state: Res<ThirdPersonCamera>,
     target: Res<SpectateTarget>,
@@ -251,13 +252,15 @@ fn follow_spectate_camera(
     let yaw = camera_state.yaw;
     let pitch = camera_state.pitch;
     let distance = camera_state.distance;
+    let focus = player.translation + Vec3::Y * 1.15;
     let horizontal = distance * pitch.cos();
-    let eye = player.translation
+    let desired_eye = focus
         + Vec3::new(
             horizontal * yaw.sin(),
-            -distance * pitch.sin() + 1.5,
+            -distance * pitch.sin(),
             horizontal * yaw.cos(),
         );
-    camera_transform.translation = eye;
-    camera_transform.look_at(player.translation + Vec3::Y * 0.9, Vec3::Y);
+    let t = 1.0 - (-22.0 * time.delta_secs()).exp();
+    camera_transform.translation = camera_transform.translation.lerp(desired_eye, t);
+    camera_transform.look_at(focus, Vec3::Y);
 }
