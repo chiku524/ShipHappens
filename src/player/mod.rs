@@ -154,6 +154,11 @@ pub struct PudgyTintPart;
 #[derive(Component, Debug, Clone, Copy, Default)]
 pub struct PlayerVisualRoot;
 
+/// Tracks which crew `model_id` is currently mounted under `PlayerVisualRoot`.
+/// Accessory-only edits must not remount the body (that wiped socket attachments).
+#[derive(Component, Debug, Clone, PartialEq, Eq)]
+pub struct MountedCrewModel(pub Option<String>);
+
 /// Client → server: equip a playable character GLB by Studio `asset_id`.
 #[derive(Event, Serialize, Deserialize, Clone, Debug)]
 pub struct SelectCharacterRequest {
@@ -457,12 +462,33 @@ fn sync_player_visuals(
             &PlayerColor,
             Option<&PlayerVisualSpec>,
             Option<&Children>,
+            Option<&MountedCrewModel>,
         ),
-        Or<(Added<NetworkPlayer>, Changed<PlayerVisualSpec>)>,
+        Or<(
+            Added<NetworkPlayer>,
+            Changed<PlayerVisualSpec>,
+            Without<MountedCrewModel>,
+        )>,
     >,
     visual_roots: Query<(), With<PlayerVisualRoot>>,
 ) {
-    for (entity, color, visual, children) in &players {
+    for (entity, color, visual, children, mounted) in &players {
+        let want_model = visual.and_then(|v| v.model_id.as_deref()).filter(|id| {
+            let disk = format!(
+                "{}/assets/models/{id}/{id}.glb",
+                env!("CARGO_MANIFEST_DIR")
+            );
+            std::path::Path::new(&disk).is_file()
+        });
+        let want_key = want_model.map(|s| s.to_string());
+        // Accessory-only edits change PlayerVisualSpec — keep the body mounted so
+        // socket attachments are not wiped every Wear click.
+        if mounted.is_some_and(|m| m.0 == want_key)
+            && children.is_some_and(|kids| kids.iter().any(|c| visual_roots.contains(c)))
+        {
+            continue;
+        }
+
         if let Some(children) = children {
             for child in children.iter() {
                 if visual_roots.contains(child) {
@@ -471,19 +497,14 @@ fn sync_player_visuals(
             }
         }
 
-        commands
-            .entity(entity)
-            .insert((GameplayEntity, Knockback::default(), PlayerMotion::default()));
+        commands.entity(entity).insert((
+            GameplayEntity,
+            Knockback::default(),
+            PlayerMotion::default(),
+            MountedCrewModel(want_key.clone()),
+        ));
 
-        let model_id = visual.and_then(|v| v.model_id.as_deref()).filter(|id| {
-            let disk = format!(
-                "{}/assets/models/{id}/{id}.glb",
-                env!("CARGO_MANIFEST_DIR")
-            );
-            std::path::Path::new(&disk).is_file()
-        });
-
-        if let Some(model_id) = model_id {
+        if let Some(model_id) = want_model {
             let scale = registry
                 .as_ref()
                 .map(|r| r.spawn_scale(model_id))

@@ -95,7 +95,7 @@ impl Plugin for HubPlugin {
         app.init_resource::<ModeQueued>()
             .init_resource::<HubPrompt>()
             .init_resource::<EditorMode>()
-            .add_systems(Startup, spawn_social_hub)
+            .add_systems(Startup, spawn_social_hub.after(crate::assets::load_studio_registry))
             .add_systems(
                 Update,
                 (

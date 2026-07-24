@@ -273,6 +273,7 @@ fn sync_accessory_meshes(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     catalog: Res<AccessoryCatalog>,
+    registry: Option<Res<crate::data::StudioRegistry>>,
     players: Query<(Entity, &PlayerVisualSpec, Option<&Children>), With<NetworkPlayer>>,
     visual_roots: Query<(), With<PlayerVisualRoot>>,
     names: Query<&Name>,
@@ -325,7 +326,15 @@ fn sync_accessory_meshes(
                 continue;
             };
             let socket = socket_name(slot);
-            let parent = find_named(root, socket, &names, &children_q).unwrap_or(root);
+            // Wait until the crew GLB instance exposes sockets — parenting to the
+            // visual root hid accessories at the feet / inside the body.
+            let Some(parent) = find_named(root, socket, &names, &children_q) else {
+                continue;
+            };
+            let scale = registry
+                .as_ref()
+                .map(|r| r.spawn_scale(asset_id))
+                .unwrap_or(Vec3::ONE);
             let glb_path = format!("models/{asset_id}/{asset_id}.glb");
             let scene =
                 asset_server.load(bevy::gltf::GltfAssetLabel::Scene(0).from_asset(glb_path));
@@ -336,7 +345,10 @@ fn sync_accessory_meshes(
                         asset_id: asset_id.to_string(),
                     },
                     WorldAssetRoot(scene),
-                    Transform::default(),
+                    Transform {
+                        scale,
+                        ..Default::default()
+                    },
                     Visibility::default(),
                     Name::new(format!("Acc:{slot}:{asset_id}")),
                 ));
