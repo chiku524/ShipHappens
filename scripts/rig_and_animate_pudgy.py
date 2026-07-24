@@ -175,8 +175,9 @@ hips = add_bone("Hips", (cx, cy, h * 0.32), (cx, cy, h * 0.42), root)
 spine = add_bone("Spine", (cx, cy, h * 0.42), (cx, cy, h * 0.58), hips)
 head = add_bone("Head", (cx, cy, h * 0.58), (cx, cy, h * 0.88), spine)
 
-# Measure real L/R extents — Tripo pudgies are often asymmetric, so fixed
-# ±fractions of AABB width bury the short side inside the core strip.
+# Measure real L/R extents — Tripo pudgies are often asymmetric.
+# Weight paint keeps per-side extents; bone *placement* uses mirrored spans so
+# walk/run euler clips don't stretch a short stub harder than a long one.
 arm_xmax = arm_xmin = foot_xmax = foot_xmin = 0.0
 for vert in body.data.vertices:
     wp = body.matrix_world @ vert.co
@@ -192,61 +193,68 @@ arm_xmax = max(arm_xmax, 0.45)
 arm_xmin = min(arm_xmin, -0.45)
 foot_xmax = max(foot_xmax, 0.35)
 foot_xmin = min(foot_xmin, -0.35)
+arm_span = max(arm_xmax, -arm_xmin, 0.55)
+foot_span = max(foot_xmax, -foot_xmin, 0.40)
+# Motion amplitude vs a typical stubby flap / foot reach.
+ARM_MOT = _clamp(arm_span / 0.95, 0.40, 1.0)
+LEG_MOT = _clamp(foot_span / 0.75, 0.40, 1.0)
 print(
     "SIDE_EXTENTS",
     f"arm=({arm_xmin:.3f},{arm_xmax:.3f})",
     f"foot=({foot_xmin:.3f},{foot_xmax:.3f})",
+    f"span_arm={arm_span:.3f} span_foot={foot_span:.3f}",
+    f"mot_arm={ARM_MOT:.3f} mot_leg={LEG_MOT:.3f}",
 )
 
-# Flipper stubs — mid-body lateral tips (not up into the hood/collar).
+# Flipper stubs — mirrored spans (stable under shared locomotion clips).
 l_arm = add_bone(
     "L_Arm",
-    (cx + w * 0.5 * arm_xmax * 0.58, cy, h * 0.46),
-    (cx + w * 0.5 * arm_xmax * 0.82, cy, h * 0.44),
+    (cx + w * 0.5 * arm_span * 0.58, cy, h * 0.46),
+    (cx + w * 0.5 * arm_span * 0.82, cy, h * 0.44),
     spine,
 )
 l_fore = add_bone(
     "L_Forearm",
-    (cx + w * 0.5 * arm_xmax * 0.82, cy, h * 0.44),
-    (cx + w * 0.5 * arm_xmax * 0.96, cy, h * 0.42),
+    (cx + w * 0.5 * arm_span * 0.82, cy, h * 0.44),
+    (cx + w * 0.5 * arm_span * 0.96, cy, h * 0.42),
     l_arm,
 )
 r_arm = add_bone(
     "R_Arm",
-    (cx + w * 0.5 * arm_xmin * 0.58, cy, h * 0.46),
-    (cx + w * 0.5 * arm_xmin * 0.82, cy, h * 0.44),
+    (cx - w * 0.5 * arm_span * 0.58, cy, h * 0.46),
+    (cx - w * 0.5 * arm_span * 0.82, cy, h * 0.44),
     spine,
 )
 r_fore = add_bone(
     "R_Forearm",
-    (cx + w * 0.5 * arm_xmin * 0.82, cy, h * 0.44),
-    (cx + w * 0.5 * arm_xmin * 0.96, cy, h * 0.42),
+    (cx - w * 0.5 * arm_span * 0.82, cy, h * 0.44),
+    (cx - w * 0.5 * arm_span * 0.96, cy, h * 0.42),
     r_arm,
 )
 
-# Tiny feet under the dumpling — kept low/out so strides don't melt the belly.
+# Tiny feet — mirrored spans under the dumpling.
 l_leg = add_bone(
     "L_Leg",
-    (cx + w * 0.5 * foot_xmax * 0.45, cy, h * 0.16),
-    (cx + w * 0.5 * foot_xmax * 0.55, cy, h * 0.07),
+    (cx + w * 0.5 * foot_span * 0.45, cy, h * 0.16),
+    (cx + w * 0.5 * foot_span * 0.55, cy, h * 0.07),
     hips,
 )
 l_shin = add_bone(
     "L_Shin",
-    (cx + w * 0.5 * foot_xmax * 0.55, cy, h * 0.07),
-    (cx + w * 0.5 * foot_xmax * 0.55, cy, FOOT_TIP_Z),
+    (cx + w * 0.5 * foot_span * 0.55, cy, h * 0.07),
+    (cx + w * 0.5 * foot_span * 0.55, cy, FOOT_TIP_Z),
     l_leg,
 )
 r_leg = add_bone(
     "R_Leg",
-    (cx + w * 0.5 * foot_xmin * 0.45, cy, h * 0.16),
-    (cx + w * 0.5 * foot_xmin * 0.55, cy, h * 0.07),
+    (cx - w * 0.5 * foot_span * 0.45, cy, h * 0.16),
+    (cx - w * 0.5 * foot_span * 0.55, cy, h * 0.07),
     hips,
 )
 r_shin = add_bone(
     "R_Shin",
-    (cx + w * 0.5 * foot_xmin * 0.55, cy, h * 0.07),
-    (cx + w * 0.5 * foot_xmin * 0.55, cy, FOOT_TIP_Z),
+    (cx - w * 0.5 * foot_span * 0.55, cy, h * 0.07),
+    (cx - w * 0.5 * foot_span * 0.55, cy, FOOT_TIP_Z),
     r_leg,
 )
 
@@ -321,10 +329,12 @@ mw = body.matrix_world
 hw = max(w * 0.5, 1e-4)
 hd = max(d * 0.5, 1e-4)
 HEAD_CUT = 0.52  # hard seam; Head inherits Root motion via hierarchy
-arm_L0 = arm_xmax * 0.42
-arm_R0 = arm_xmin * 0.42  # negative
-foot_L0 = foot_xmax * 0.22
-foot_R0 = foot_xmin * 0.22
+# Start limb paint farther out so walk/run swings don't LBS-crush the dumpling.
+arm_L0 = arm_xmax * 0.58
+arm_R0 = arm_xmin * 0.58  # negative
+foot_L0 = foot_xmax * 0.32
+foot_R0 = foot_xmin * 0.32
+CORE_RADIAL = 0.52  # normalized XZ — never assign arm weights inside the core
 LIMB_GROUPS = ("L_Arm", "R_Arm", "L_Forearm", "R_Forearm", "L_Leg", "R_Leg", "L_Shin", "R_Shin")
 ARM_GROUPS = ("L_Arm", "R_Arm", "L_Forearm", "R_Forearm")
 
@@ -339,7 +349,10 @@ for vert in body.data.vertices:
     if nz >= HEAD_CUT:
         # Entire hood/face/chin — pure Head (follows Root bounce via parents).
         set_vert(vert.index, {"Head": 1.0})
-    elif nx > arm_L0 and 0.34 < nz < HEAD_CUT - 0.01:
+    elif radial < CORE_RADIAL and 0.16 < nz < HEAD_CUT - 0.01:
+        # Soft dumpling core — Root only (arms must not bleed inward).
+        set_vert(vert.index, {"Root": 1.0})
+    elif nx > arm_L0 and 0.34 < nz < HEAD_CUT - 0.01 and radial >= CORE_RADIAL:
         tip = min(1.0, max(0.0, (nx - arm_L0) / max(arm_xmax - arm_L0, 1e-4)))
         tip = tip ** 0.85
         # Pure arm chain only — no Root mix on flippers.
@@ -347,7 +360,7 @@ for vert in body.data.vertices:
             "L_Forearm": 0.20 + 0.65 * tip,
             "L_Arm": 0.80 - 0.65 * tip,
         })
-    elif nx < arm_R0 and 0.34 < nz < HEAD_CUT - 0.01:
+    elif nx < arm_R0 and 0.34 < nz < HEAD_CUT - 0.01 and radial >= CORE_RADIAL:
         tip = min(1.0, max(0.0, (arm_R0 - nx) / max(arm_R0 - arm_xmin, 1e-4)))
         tip = tip ** 0.85
         set_vert(vert.index, {
@@ -422,7 +435,11 @@ for vert in body.data.vertices:
     radial = ((nx * nx) + (((wp.y - cy) / hd) ** 2)) ** 0.5
     if nz >= HEAD_CUT:
         continue
-    in_arm_tip = (nx > arm_L0 or nx < arm_R0) and 0.34 < nz < HEAD_CUT - 0.01
+    in_arm_tip = (
+        (nx > arm_L0 or nx < arm_R0)
+        and 0.34 < nz < HEAD_CUT - 0.01
+        and radial >= CORE_RADIAL
+    )
     in_foot_tip = nz <= 0.14 and (nx > foot_L0 or nx < foot_R0)
     if in_arm_tip or in_foot_tip:
         continue
@@ -474,13 +491,15 @@ for vert in body.data.vertices:
         foot_boost += 1
 print("FOOT_TIP_BOOST", foot_boost)
 
-# Re-assert pure flipper tips (readable swing volume, never into head band).
+# Re-assert pure flipper tips (readable swing volume, never into head band / core).
 arm_boost = 0
 for vert in body.data.vertices:
     wp = mw @ vert.co
     nx = (wp.x - cx) / hw
+    ny = (wp.y - cy) / hd
     nz = (wp.z - minv.z) / h
-    if not (0.34 < nz < HEAD_CUT - 0.01):
+    radial = (nx * nx + ny * ny) ** 0.5
+    if not (0.34 < nz < HEAD_CUT - 0.01) or radial < CORE_RADIAL:
         continue
     if nx > arm_L0:
         tip = min(1.0, max(0.0, (nx - arm_L0) / max(arm_xmax - arm_L0, 1e-4)))
@@ -593,6 +612,7 @@ def set_bone_keys(action, bone_name, frames_euler):
     Magnitudes follow mesh AABB ratios vs the canonical stubby:
       location (bone local) → (SCALE_X, SCALE_Z, SCALE_Y)
       euler degrees → (ROT_SWING, ROT_TWIST, ROT_FLARE)
+      arm / leg bones additionally × ARM_MOT / LEG_MOT (flap/foot span)
     """
     arm_obj.animation_data_create()
     arm_obj.animation_data.action = action
@@ -602,6 +622,11 @@ def set_bone_keys(action, bone_name, frames_euler):
     if pb is None:
         bpy.ops.object.mode_set(mode="OBJECT")
         return
+    limb_mot = 1.0
+    if bone_name in ("L_Arm", "R_Arm", "L_Forearm", "R_Forearm"):
+        limb_mot = ARM_MOT
+    elif bone_name in ("L_Leg", "R_Leg", "L_Shin", "R_Shin"):
+        limb_mot = LEG_MOT
     pb.rotation_mode = "XYZ"
     for item in frames_euler:
         if len(item) == 2:
@@ -611,9 +636,9 @@ def set_bone_keys(action, bone_name, frames_euler):
             frame, eul, loc = item
         bpy.context.scene.frame_set(int(frame))
         pb.rotation_euler = (
-            math.radians(eul[0] * ROT_SWING),
-            math.radians(eul[1] * ROT_TWIST),
-            math.radians(eul[2] * ROT_FLARE),
+            math.radians(eul[0] * ROT_SWING * limb_mot),
+            math.radians(eul[1] * ROT_TWIST * limb_mot),
+            math.radians(eul[2] * ROT_FLARE * limb_mot),
         )
         pb.keyframe_insert(data_path="rotation_euler", frame=frame)
         if loc is not None:
@@ -634,6 +659,7 @@ print(
     "CLIP_SCALE",
     f"loc=({SCALE_X:.3f},{SCALE_Z:.3f},{SCALE_Y:.3f})",
     f"rot=({ROT_SWING:.3f},{ROT_TWIST:.3f},{ROT_FLARE:.3f})",
+    f"arm_mot={ARM_MOT:.3f} leg_mot={LEG_MOT:.3f}",
 )
 
 # idle — tiny whole-body bob + soft flipper settle (tucked, not T-pose)
@@ -644,12 +670,12 @@ set_bone_keys(idle, "Root", [
     (24, (0, 0, 0), (0, 0.012, 0)),
     (48, (0, 0, 0), (0, 0.0, 0)),
 ])
-set_bone_keys(idle, "L_Arm", [(1, (8, 0, 8)), (24, (18, 0, 18)), (48, (8, 0, 8))])
-set_bone_keys(idle, "R_Arm", [(1, (8, 0, -8)), (24, (18, 0, -18)), (48, (8, 0, -8))])
-set_bone_keys(idle, "L_Forearm", [(1, (0, 0, 6)), (24, (0, 0, 16)), (48, (0, 0, 6))])
-set_bone_keys(idle, "R_Forearm", [(1, (0, 0, -6)), (24, (0, 0, -16)), (48, (0, 0, -6))])
+set_bone_keys(idle, "L_Arm", [(1, (4, 0, 5)), (24, (10, 0, 10)), (48, (4, 0, 5))])
+set_bone_keys(idle, "R_Arm", [(1, (4, 0, -5)), (24, (10, 0, -10)), (48, (4, 0, -5))])
+set_bone_keys(idle, "L_Forearm", [(1, (0, 0, 4)), (24, (0, 0, 9)), (48, (0, 0, 4))])
+set_bone_keys(idle, "R_Forearm", [(1, (0, 0, -4)), (24, (0, 0, -9)), (48, (0, 0, -4))])
 
-# walk — foot shuffle + big opposing flipper swing (readable from third person)
+# walk — gentle opposing flaps (large eulers LBS-crush asymmetric Tripo stubs)
 clear_pose()
 walk = ensure_action("walk")
 set_bone_keys(walk, "Root", [
@@ -659,17 +685,16 @@ set_bone_keys(walk, "Root", [
     (16, (0, 0, 0), (0, 0.01, 0)),
     (22, (0, 0, 0), (0, 0.0, 0)),
 ])
-set_bone_keys(walk, "L_Leg", [(1, (-12, 0, 0)), (11, (12, 0, 0)), (22, (-12, 0, 0))])
-set_bone_keys(walk, "R_Leg", [(1, (12, 0, 0)), (11, (-12, 0, 0)), (22, (12, 0, 0))])
-set_bone_keys(walk, "L_Shin", [(1, (6, 0, 0)), (11, (1, 0, 0)), (22, (6, 0, 0))])
-set_bone_keys(walk, "R_Shin", [(1, (1, 0, 0)), (11, (6, 0, 0)), (22, (1, 0, 0))])
-# X = forward/back swing, Z = tuck↔flare — large deltas so stubs read in-game.
-set_bone_keys(walk, "L_Arm", [(1, (35, 0, 28)), (11, (-30, 0, 6)), (22, (35, 0, 28))])
-set_bone_keys(walk, "R_Arm", [(1, (-30, 0, -6)), (11, (35, 0, -28)), (22, (-30, 0, -6))])
-set_bone_keys(walk, "L_Forearm", [(1, (10, 0, 22)), (11, (-8, 0, 4)), (22, (10, 0, 22))])
-set_bone_keys(walk, "R_Forearm", [(1, (-8, 0, -4)), (11, (10, 0, -22)), (22, (-8, 0, -4))])
+set_bone_keys(walk, "L_Leg", [(1, (-8, 0, 0)), (11, (8, 0, 0)), (22, (-8, 0, 0))])
+set_bone_keys(walk, "R_Leg", [(1, (8, 0, 0)), (11, (-8, 0, 0)), (22, (8, 0, 0))])
+set_bone_keys(walk, "L_Shin", [(1, (4, 0, 0)), (11, (1, 0, 0)), (22, (4, 0, 0))])
+set_bone_keys(walk, "R_Shin", [(1, (1, 0, 0)), (11, (4, 0, 0)), (22, (1, 0, 0))])
+set_bone_keys(walk, "L_Arm", [(1, (16, 0, 12)), (11, (-14, 0, 4)), (22, (16, 0, 12))])
+set_bone_keys(walk, "R_Arm", [(1, (-14, 0, -4)), (11, (16, 0, -12)), (22, (-14, 0, -4))])
+set_bone_keys(walk, "L_Forearm", [(1, (6, 0, 10)), (11, (-4, 0, 3)), (22, (6, 0, 10))])
+set_bone_keys(walk, "R_Forearm", [(1, (-4, 0, -3)), (11, (6, 0, -10)), (22, (-4, 0, -3))])
 
-# run — bigger kick + stronger opposing arm flaps
+# run — a bit bigger than walk, still conservative for stubby flaps
 clear_pose()
 run = ensure_action("run")
 set_bone_keys(run, "Root", [
@@ -679,14 +704,14 @@ set_bone_keys(run, "Root", [
     (10, (0, 0, 0), (0, 0.016, 0)),
     (13, (0, 0, 0), (0, 0.006, 0)),
 ])
-set_bone_keys(run, "L_Leg", [(1, (-16, 0, 0)), (7, (16, 0, 0)), (13, (-16, 0, 0))])
-set_bone_keys(run, "R_Leg", [(1, (16, 0, 0)), (7, (-16, 0, 0)), (13, (16, 0, 0))])
-set_bone_keys(run, "L_Shin", [(1, (8, 0, 0)), (7, (2, 0, 0)), (13, (8, 0, 0))])
-set_bone_keys(run, "R_Shin", [(1, (2, 0, 0)), (7, (8, 0, 0)), (13, (2, 0, 0))])
-set_bone_keys(run, "L_Arm", [(1, (42, 0, 32)), (7, (-36, 0, 8)), (13, (42, 0, 32))])
-set_bone_keys(run, "R_Arm", [(1, (-36, 0, -8)), (7, (42, 0, -32)), (13, (-36, 0, -8))])
-set_bone_keys(run, "L_Forearm", [(1, (12, 0, 26)), (7, (-10, 0, 4)), (13, (12, 0, 26))])
-set_bone_keys(run, "R_Forearm", [(1, (-10, 0, -4)), (7, (12, 0, -26)), (13, (-10, 0, -4))])
+set_bone_keys(run, "L_Leg", [(1, (-11, 0, 0)), (7, (11, 0, 0)), (13, (-11, 0, 0))])
+set_bone_keys(run, "R_Leg", [(1, (11, 0, 0)), (7, (-11, 0, 0)), (13, (11, 0, 0))])
+set_bone_keys(run, "L_Shin", [(1, (5, 0, 0)), (7, (1, 0, 0)), (13, (5, 0, 0))])
+set_bone_keys(run, "R_Shin", [(1, (1, 0, 0)), (7, (5, 0, 0)), (13, (1, 0, 0))])
+set_bone_keys(run, "L_Arm", [(1, (22, 0, 16)), (7, (-18, 0, 5)), (13, (22, 0, 16))])
+set_bone_keys(run, "R_Arm", [(1, (-18, 0, -5)), (7, (22, 0, -16)), (13, (-18, 0, -5))])
+set_bone_keys(run, "L_Forearm", [(1, (8, 0, 12)), (7, (-5, 0, 3)), (13, (8, 0, 12))])
+set_bone_keys(run, "R_Forearm", [(1, (-5, 0, -3)), (7, (8, 0, -12)), (13, (-5, 0, -3))])
 
 # jump — squash / stretch on torso
 clear_pose()
@@ -699,28 +724,28 @@ set_bone_keys(jump, "Root", [
     (15, (0, 0, 0), (0, 0.0, 0)),
 ])
 set_bone_keys(jump, "Spine", [(1, (6, 0, 0)), (4, (-4, 0, 0)), (15, (0, 0, 0))])
-set_bone_keys(jump, "L_Arm", [(1, (8, 0, 12)), (4, (-18, 0, 18)), (15, (4, 0, 8))])
-set_bone_keys(jump, "R_Arm", [(1, (8, 0, -12)), (4, (-18, 0, -18)), (15, (4, 0, -8))])
-set_bone_keys(jump, "L_Leg", [(1, (8, 0, 0)), (4, (-8, 0, 0)), (15, (0, 0, 0))])
-set_bone_keys(jump, "R_Leg", [(1, (8, 0, 0)), (4, (-8, 0, 0)), (15, (0, 0, 0))])
+set_bone_keys(jump, "L_Arm", [(1, (5, 0, 8)), (4, (-10, 0, 10)), (15, (3, 0, 5))])
+set_bone_keys(jump, "R_Arm", [(1, (5, 0, -8)), (4, (-10, 0, -10)), (15, (3, 0, -5))])
+set_bone_keys(jump, "L_Leg", [(1, (5, 0, 0)), (4, (-5, 0, 0)), (15, (0, 0, 0))])
+set_bone_keys(jump, "R_Leg", [(1, (5, 0, 0)), (4, (-5, 0, 0)), (15, (0, 0, 0))])
 set_bone_keys(jump, "Head", [(1, (5, 0, 0)), (4, (-6, 0, 0)), (15, (0, 0, 0))])
 
-# emote_wave — clear flipper wave
+# emote_wave — readable flipper wave without melting the shoulder
 clear_pose()
 wave = ensure_action("emote_wave")
-set_bone_keys(wave, "Spine", [(1, (0, 0, 0)), (8, (0, 0, -8)), (30, (0, 0, 0))])
+set_bone_keys(wave, "Spine", [(1, (0, 0, 0)), (8, (0, 0, -6)), (30, (0, 0, 0))])
 set_bone_keys(wave, "R_Arm", [
-    (1, (8, 0, -12)),
-    (6, (-55, 0, -20)),
-    (12, (-55, 0, 16)),
-    (18, (-55, 0, -16)),
-    (24, (-55, 0, 14)),
-    (30, (8, 0, -12)),
+    (1, (6, 0, -8)),
+    (6, (-32, 0, -12)),
+    (12, (-32, 0, 10)),
+    (18, (-32, 0, -10)),
+    (24, (-32, 0, 8)),
+    (30, (6, 0, -8)),
 ])
 set_bone_keys(wave, "R_Forearm", [
-    (1, (0, 0, 0)), (6, (-10, 0, 0)), (12, (8, 0, 0)), (18, (-10, 0, 0)), (24, (8, 0, 0)), (30, (0, 0, 0)),
+    (1, (0, 0, 0)), (6, (-6, 0, 0)), (12, (5, 0, 0)), (18, (-6, 0, 0)), (24, (5, 0, 0)), (30, (0, 0, 0)),
 ])
-set_bone_keys(wave, "Head", [(1, (0, 0, 0)), (8, (0, 0, 10)), (30, (0, 0, 0))])
+set_bone_keys(wave, "Head", [(1, (0, 0, 0)), (8, (0, 0, 8)), (30, (0, 0, 0))])
 
 # emote_dance — playful Root bounce (no Hip twist melt)
 clear_pose()
@@ -732,12 +757,12 @@ set_bone_keys(dance, "Root", [
     (18, (0, 0, 0), (0, 0.04, 0)),
     (24, (0, 0, 0), (0, 0.0, 0)),
 ])
-set_bone_keys(dance, "Spine", [(1, (0, 0, -5)), (12, (0, 0, 5)), (24, (0, 0, -5))])
-set_bone_keys(dance, "Head", [(1, (0, 0, 4)), (12, (0, 0, -4)), (24, (0, 0, 4))])
-set_bone_keys(dance, "L_Arm", [(1, (-20, 0, 16)), (12, (-14, 0, 22)), (24, (-20, 0, 16))])
-set_bone_keys(dance, "R_Arm", [(1, (-14, 0, -22)), (12, (-20, 0, -16)), (24, (-14, 0, -22))])
-set_bone_keys(dance, "L_Leg", [(1, (6, 0, 4)), (12, (6, 0, -4)), (24, (6, 0, 4))])
-set_bone_keys(dance, "R_Leg", [(1, (6, 0, -4)), (12, (6, 0, 4)), (24, (6, 0, -4))])
+set_bone_keys(dance, "Spine", [(1, (0, 0, -4)), (12, (0, 0, 4)), (24, (0, 0, -4))])
+set_bone_keys(dance, "Head", [(1, (0, 0, 3)), (12, (0, 0, -3)), (24, (0, 0, 3))])
+set_bone_keys(dance, "L_Arm", [(1, (-12, 0, 10)), (12, (-8, 0, 14)), (24, (-12, 0, 10))])
+set_bone_keys(dance, "R_Arm", [(1, (-8, 0, -14)), (12, (-12, 0, -10)), (24, (-8, 0, -14))])
+set_bone_keys(dance, "L_Leg", [(1, (4, 0, 3)), (12, (4, 0, -3)), (24, (4, 0, 3))])
+set_bone_keys(dance, "R_Leg", [(1, (4, 0, -3)), (12, (4, 0, 3)), (24, (4, 0, -3))])
 
 # Push actions into NLA strips so glTF exports all clips (Blender 4+/5)
 clear_pose()
