@@ -31,3 +31,5 @@ scripts/boing/local-node-data/
 
 # Local Blender polish backups
 *.pre_polish.glb
+*.glb.pre_opt
+*.pre_opt.glb

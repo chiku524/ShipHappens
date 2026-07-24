@@ -22,13 +22,22 @@ Related: [CHARACTERS.md](CHARACTERS.md) · [STUDIO_ASSETS.md](STUDIO_ASSETS.md) 
 
 Until the Pudgy GLB exists, players use a **procedural stub** (round body + head). Accessory GLBs are optional until sockets are parented in-engine.
 
-Validate:
+## GLB size optimization
+
+Crew / accessory downloads are often mesh-heavy (100k+ tris). Use the Bevy-safe optimizer (no Draco / Meshopt / WebP):
 
 ```bash
-python scripts/validate_studio_assets.py
-cargo test
-cargo run
+# Single file (writes .glb.pre_opt backup once)
+python scripts/optimize_glb.py assets/models/char_pudgy_pink_01/char_pudgy_pink_01.glb
+
+# Presets: hero (more detail) | game (default) | prop (accessories)
+python scripts/optimize_glb.py assets/models/acc_hat_party_crown_01/acc_hat_party_crown_01.glb --preset prop
+
+# Batch characters
+python scripts/optimize_glb.py --batch assets/models --glob "char_pudgy_*/*.glb"
 ```
+
+Import pipelines (`import_rigged_character_glb.py`, `import_dense_character_glb.py`) call the same optimizer after export.
 
 ---
 

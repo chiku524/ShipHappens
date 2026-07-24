@@ -43,6 +43,8 @@ All playable Pudgys (base + species skins) must obey this contract so one animat
 
 **Texture format for Studio / optimizer exports (Bevy 0.19):** use **JPEG** for color / ORM / normals on opaque characters. Enable the `jpeg` feature (already on). Prefer plain `image/jpeg` embeds — do **not** wrap as `EXT_texture_webp` or `KHR_texture_basisu` (Bevy cannot load those extension wrappers). PNG is fine when you need alpha. Avoid AVIF; WebP/KTX2 only if embedded without the unsupported glTF extensions (JPEG is the safe default).
 
+After import, shrink dense meshes with [`scripts/optimize_glb.py`](../scripts/optimize_glb.py) (`game` / `hero` / `prop` presets). It writes a `.glb.pre_opt` backup and will restore from that if you re-run, so quality does not compound-crush.
+
 **Tripo note:** static Studio downloads are rigged via [`scripts/rig_and_animate_pudgy.py`](../scripts/rig_and_animate_pudgy.py) (UV-aware simplify → shared armature → automatic weights → NLA clips → Bevy-safe export). Prefer the one-shot wrapper [`scripts/auto_rig_glb.py`](../scripts/auto_rig_glb.py) when dropping a new download.
 
 **Import rule:** register species with the same `uniform_scale` as the base unless you measure a different mesh height.

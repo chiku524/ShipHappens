@@ -420,40 +420,23 @@ def _gltf_transform(*args: str) -> None:
 
 
 def _optimize_mesh(glb: Path, *, ratio: float, error: float, max_tex: int) -> None:
-    weld = glb.with_name(glb.stem + "_weld.glb")
-    simp = glb.with_name(glb.stem + "_simp.glb")
-    resized = glb.with_name(glb.stem + "_tex.glb")
-    try:
-        _gltf_transform("weld", str(glb), str(weld))
-        _gltf_transform(
-            "simplify",
-            str(weld),
-            str(simp),
-            "--ratio",
-            str(ratio),
-            "--error",
-            str(error),
-            "--lock-border",
-            "true",
-        )
-        # Cap texture resolution for faster GPU upload / smaller GLBs.
-        try:
-            _gltf_transform(
-                "resize",
-                str(simp),
-                str(resized),
-                "--width",
-                str(max_tex),
-                "--height",
-                str(max_tex),
-            )
-            shutil.move(str(resized), str(glb))
-        except RuntimeError:
-            shutil.move(str(simp), str(glb))
-    finally:
-        weld.unlink(missing_ok=True)
-        simp.unlink(missing_ok=True)
-        resized.unlink(missing_ok=True)
+    """Delegate to scripts/optimize_glb.py (Bevy-safe, quality-preserving)."""
+    import importlib.util
+
+    opt_path = Path(__file__).resolve().parent / "optimize_glb.py"
+    spec = importlib.util.spec_from_file_location("optimize_glb", opt_path)
+    if spec is None or spec.loader is None:
+        raise RuntimeError(f"cannot load {opt_path}")
+    mod = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(mod)
+    mod.optimize_file(
+        glb,
+        preset="game",
+        ratio=ratio,
+        error=error,
+        max_tex=max_tex,
+        backup=False,
+    )
 
 
 def _register(asset_id: str, notes: str, *, height: float, uniform_scale: float = 1.0) -> None:
@@ -485,10 +468,10 @@ def main() -> int:
     parser.add_argument(
         "--simplify-ratio",
         type=float,
-        default=0.18,
-        help="Vertex keep ratio after import (default 0.18 for faster Bevy loads).",
+        default=0.12,
+        help="Vertex keep ratio after import (default 0.12 — party-game density).",
     )
-    parser.add_argument("--simplify-error", type=float, default=0.08)
+    parser.add_argument("--simplify-error", type=float, default=0.010)
     parser.add_argument("--notes", default="Imported rigged creature GLB (walk/run preserved).")
     args = parser.parse_args()
 
