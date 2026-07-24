@@ -11,10 +11,12 @@ Selectable crew matches [STUDIO_PROMPTS.md](STUDIO_PROMPTS.md) Priority 0 (**5 c
 | `char_pudgy_base_01` | Base Pudgy | Shared coral-peach base (default) |
 | `oceanic_pudgymon_01` | Ocean Pudgy | Ocean species — Studio locomotion + emotes |
 | `char_pudgy_forest_01` | Forest Pudgy | Forest/leaf Tripo — stubby re-rig + procedural clips |
-| `char_pudgy_lava_01` | Lava Pudgy | Lava Tripo — stubby re-rig + procedural clips |
-| `char_pudgy_sky_01` | Sky Pudgy | Sky Tripo — stubby re-rig + procedural clips |
+| `char_pudgy_lava_01` | Lava Pudgy | Lava Tripo — stubby re-rig + height-scaled clips |
+| `char_pudgy_sky_01` | Sky Pudgy | Sky Tripo — stubby re-rig + height-scaled clips |
 
 Default crew id: [`data/player_defaults.json`](../data/player_defaults.json). Roster: [`data/characters/roster.json`](../data/characters/roster.json). Switch live in Esc Nest → **Characters**.
+
+Short vs tall: `auto_rig_glb.py --height 0.95` / `--height 1.35` bakes playable size; stubby bones stay fractional to the mesh AABB and bounce/envelopes scale by `mesh_height / 1.2`.
 
 ## Sync + tooling
 

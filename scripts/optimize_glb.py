@@ -20,7 +20,9 @@ Presets (quality-first → smaller):
 from __future__ import annotations
 
 import argparse
+import json
 import shutil
+import struct
 import subprocess
 import sys
 import tempfile
@@ -28,6 +30,24 @@ from dataclasses import dataclass
 from pathlib import Path
 
 _REPO = Path(__file__).resolve().parents[1]
+
+_COMPONENT_BYTES = {
+    5120: 1,  # BYTE
+    5121: 1,  # UNSIGNED_BYTE
+    5122: 2,  # SHORT
+    5123: 2,  # UNSIGNED_SHORT
+    5125: 4,  # UNSIGNED_INT
+    5126: 4,  # FLOAT
+}
+_TYPE_COMPONENTS = {
+    "SCALAR": 1,
+    "VEC2": 2,
+    "VEC3": 3,
+    "VEC4": 4,
+    "MAT2": 4,
+    "MAT3": 9,
+    "MAT4": 16,
+}
 
 
 @dataclass(frozen=True)
@@ -90,6 +110,86 @@ def _gltf(npx: str, *args: str) -> None:
         err = (proc.stderr or proc.stdout or "")[-2500:]
         err = err.replace("\u2192", "->")
         raise RuntimeError(f"gltf-transform {' '.join(args[:2])} failed:\n{err}")
+
+
+def _sanitize_bevy_accessors(glb: Path) -> int:
+    """Materialize zero accessors that lack bufferView (illegal for Bevy's loader).
+
+    gltf-transform `sparse` / Blender animation optimize can emit constant-zero
+    accessors with no bufferView. Spec allows that for zeros; Bevy 0.19 rejects
+    the file as invalid glTF. Returns how many accessors were repaired.
+    """
+    data = glb.read_bytes()
+    if data[:4] != b"glTF":
+        raise RuntimeError(f"not a GLB: {glb}")
+    offset = 12
+    json_chunk = None
+    bin_chunk = None
+    json_start = bin_start = None
+    while offset + 8 <= len(data):
+        clen, ctype = struct.unpack_from("<II", data, offset)
+        chunk = data[offset + 8 : offset + 8 + clen]
+        if ctype == 0x4E4F534A:
+            json_chunk = bytearray(chunk)
+            json_start = offset
+        elif ctype == 0x004E4942:
+            bin_chunk = bytearray(chunk)
+            bin_start = offset
+        offset += 8 + clen
+    if json_chunk is None or bin_chunk is None:
+        raise RuntimeError(f"incomplete GLB: {glb}")
+
+    gltf = json.loads(bytes(json_chunk))
+    accessors = gltf.get("accessors", [])
+    buffer_views = gltf.setdefault("bufferViews", [])
+    repaired = 0
+    for acc in accessors:
+        if "bufferView" in acc or "sparse" in acc:
+            continue
+        ctype = acc.get("componentType")
+        atype = acc.get("type")
+        count = int(acc.get("count", 0))
+        if ctype not in _COMPONENT_BYTES or atype not in _TYPE_COMPONENTS or count <= 0:
+            continue
+        elem = _COMPONENT_BYTES[ctype] * _TYPE_COMPONENTS[atype]
+        nbytes = elem * count
+        # Align to 4 bytes for GLB packing.
+        pad = (4 - (len(bin_chunk) % 4)) % 4
+        bin_chunk.extend(b"\x00" * pad)
+        bv_index = len(buffer_views)
+        buffer_views.append(
+            {
+                "buffer": 0,
+                "byteOffset": len(bin_chunk),
+                "byteLength": nbytes,
+            }
+        )
+        bin_chunk.extend(b"\x00" * nbytes)
+        acc["bufferView"] = bv_index
+        acc["byteOffset"] = 0
+        repaired += 1
+
+    if repaired == 0:
+        return 0
+
+    gltf["buffers"] = [{"byteLength": len(bin_chunk)}]
+    new_json = json.dumps(gltf, separators=(",", ":")).encode("utf-8")
+    json_pad = (4 - (len(new_json) % 4)) % 4
+    new_json += b" " * json_pad
+    bin_pad = (4 - (len(bin_chunk) % 4)) % 4
+    bin_chunk.extend(b"\x00" * bin_pad)
+
+    out = bytearray()
+    out += b"glTF"
+    out += struct.pack("<II", 2, 12 + 8 + len(new_json) + 8 + len(bin_chunk))
+    out += struct.pack("<II", len(new_json), 0x4E4F534A)
+    out += new_json
+    out += struct.pack("<II", len(bin_chunk), 0x004E4942)
+    out += bin_chunk
+    # Silence unused-start lint for readers that keep offsets around.
+    _ = (json_start, bin_start)
+    glb.write_bytes(out)
+    return repaired
 
 
 def _face_count(glb: Path) -> int | None:
@@ -250,13 +350,14 @@ def optimize_file(
             run("resample", "resample", "--tolerance", "0.0004")
         except RuntimeError as err:
             print(f"warn: resample skipped ({err})")
-        try:
-            run("sparse", "sparse")
-        except RuntimeError as err:
-            print(f"warn: sparse skipped ({err})")
+        # Do NOT run gltf-transform `sparse`: it emits zero accessors without
+        # bufferView, which Bevy 0.19 rejects as invalid glTF.
 
         out.parent.mkdir(parents=True, exist_ok=True)
         shutil.copy2(cur, out)
+        fixed = _sanitize_bevy_accessors(out)
+        if fixed:
+            print(f"bevy-sanitize: materialized {fixed} zero accessor(s)")
 
     after = out.stat().st_size
     saved = 1.0 - (after / before) if before else 0.0

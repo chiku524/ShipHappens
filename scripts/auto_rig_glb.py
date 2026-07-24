@@ -10,6 +10,13 @@ Detects the incoming file and picks a path:
   • stubby 12-bone  → keep / refresh via `rig_and_animate_pudgy.py`
   • unknown rig     → refuse unless `--force stubby|keep`
 
+Short vs tall pudgies:
+  Pass `--height` (default 1.2). Import bakes that playable height; the stubby
+  rig places bones as fractions of the mesh AABB and scales bounce envelopes /
+  location clips by (mesh_height / 1.2). Example:
+    python scripts/auto_rig_glb.py --src short.glb --asset-id char_pudgy_lava_01 --height 0.95
+    python scripts/auto_rig_glb.py --src tall.glb  --asset-id char_pudgy_sky_01  --height 1.35
+
 Usage:
   # Static Tripo download → playable stubby-rigged crew
   python scripts/auto_rig_glb.py \\

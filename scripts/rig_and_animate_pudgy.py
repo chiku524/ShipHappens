@@ -127,6 +127,11 @@ d = max(maxv.y - minv.y, 1e-4)
 cx = 0.5 * (minv.x + maxv.x)
 cy = 0.5 * (minv.y + maxv.y)
 
+# Location / envelope magnitudes are authored for a ~1.2 m reference pudgy.
+REF_HEIGHT = 1.2
+LOC_SCALE = max(h / REF_HEIGHT, 0.35)
+ENV_SCALE = LOC_SCALE
+
 # --- Shared Pudgy armature (stubby mascot proportions) ---
 arm_data = bpy.data.armatures.new(f"{ASSET_ID}_Armature")
 arm_obj = bpy.data.objects.new(f"{ASSET_ID}_Armature", arm_data)
@@ -234,19 +239,20 @@ arm_obj.select_set(True)
 bpy.context.view_layer.objects.active = arm_obj
 
 # Narrower limb envelopes — keep auto-weights off the dumpling core.
+# Distances scale with mesh height so short/tall binds stay proportional.
 ENVELOPE = {
-    "Root": (0.48, 0.18, 0.14),
-    "Hips": (0.38, 0.16, 0.13),
-    "Spine": (0.40, 0.16, 0.13),
-    "Head": (0.28, 0.14, 0.12),
-    "L_Arm": (0.10, 0.07, 0.05),
-    "R_Arm": (0.10, 0.07, 0.05),
-    "L_Forearm": (0.08, 0.05, 0.04),
-    "R_Forearm": (0.08, 0.05, 0.04),
-    "L_Leg": (0.08, 0.05, 0.04),
-    "R_Leg": (0.08, 0.05, 0.04),
-    "L_Shin": (0.07, 0.045, 0.035),
-    "R_Shin": (0.07, 0.045, 0.035),
+    "Root": (0.48 * ENV_SCALE, 0.18 * ENV_SCALE, 0.14 * ENV_SCALE),
+    "Hips": (0.38 * ENV_SCALE, 0.16 * ENV_SCALE, 0.13 * ENV_SCALE),
+    "Spine": (0.40 * ENV_SCALE, 0.16 * ENV_SCALE, 0.13 * ENV_SCALE),
+    "Head": (0.28 * ENV_SCALE, 0.14 * ENV_SCALE, 0.12 * ENV_SCALE),
+    "L_Arm": (0.10 * ENV_SCALE, 0.07 * ENV_SCALE, 0.05 * ENV_SCALE),
+    "R_Arm": (0.10 * ENV_SCALE, 0.07 * ENV_SCALE, 0.05 * ENV_SCALE),
+    "L_Forearm": (0.08 * ENV_SCALE, 0.05 * ENV_SCALE, 0.04 * ENV_SCALE),
+    "R_Forearm": (0.08 * ENV_SCALE, 0.05 * ENV_SCALE, 0.04 * ENV_SCALE),
+    "L_Leg": (0.08 * ENV_SCALE, 0.05 * ENV_SCALE, 0.04 * ENV_SCALE),
+    "R_Leg": (0.08 * ENV_SCALE, 0.05 * ENV_SCALE, 0.04 * ENV_SCALE),
+    "L_Shin": (0.07 * ENV_SCALE, 0.045 * ENV_SCALE, 0.035 * ENV_SCALE),
+    "R_Shin": (0.07 * ENV_SCALE, 0.045 * ENV_SCALE, 0.035 * ENV_SCALE),
 }
 bpy.ops.object.mode_set(mode="POSE")
 for pb in arm_obj.pose.bones:
@@ -563,6 +569,7 @@ def set_bone_keys(action, bone_name, frames_euler):
 
     Pose-bone location uses Blender bone space (Y along the bone). For vertical
     Hips/Root bones, bounce must be (0, dy, 0) — not Z, which only slides sideways.
+    Location tuples are multiplied by LOC_SCALE (mesh height / 1.2).
     """
     arm_obj.animation_data_create()
     arm_obj.animation_data.action = action
@@ -587,7 +594,8 @@ def set_bone_keys(action, bone_name, frames_euler):
         )
         pb.keyframe_insert(data_path="rotation_euler", frame=frame)
         if loc is not None:
-            pb.location = mathutils.Vector(loc)
+            scaled = (loc[0] * LOC_SCALE, loc[1] * LOC_SCALE, loc[2] * LOC_SCALE)
+            pb.location = mathutils.Vector(scaled)
             pb.keyframe_insert(data_path="location", frame=frame)
     bpy.ops.object.mode_set(mode="OBJECT")
 
@@ -597,6 +605,8 @@ def clear_pose():
     bpy.ops.pose.select_all(action="SELECT")
     bpy.ops.pose.transforms_clear()
     bpy.ops.object.mode_set(mode="OBJECT")
+
+print("CLIP_SCALE", round(LOC_SCALE, 4), "mesh_h", round(h, 4))
 
 # idle — tiny whole-body bob + soft flipper settle (tucked, not T-pose)
 clear_pose()
@@ -739,7 +749,9 @@ export_kwargs = dict(
     export_animations=True,
     export_nla_strips=True,
     export_def_bones=False,
-    export_optimize_animation_size=True,
+    # Keep every keyframe channel buffered — Bevy rejects zero accessors
+    # without bufferView that Blender's animation-size optimize can emit.
+    export_optimize_animation_size=False,
 )
 try:
     bpy.ops.export_scene.gltf(**export_kwargs, export_jpeg_quality=85)
